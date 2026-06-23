@@ -26,7 +26,7 @@ plugin itself.
 | `livespec/hooks/` | Plugin-shipped Codex hooks: `hooks.json` declares the events; `livespec_footgun_guard.py` is a fail-open PreToolUse guard resolved via the Driver's plugin root (this IS Driver-owned runtime surface, unlike prose/CLIs). |
 | `.livespec.jsonc` | Project-local livespec config: `template`, `spec_root`, active impl-plugin, and the Driver `compat` block. (The beads tenant connection block is DEFERRED to a later family-infra phase.) |
 | `dev-tooling/` | `check_plugin_structure.py` (the Codex-layout structural gate) plus the family-standard `git-hook-wrapper.sh` scaffold. |
-| `tests/` | `tests/hooks/` (footgun-guard subprocess unit tests) and `tests/e2e-cli/` (the CLI end-to-end harness consumer: mock-tier discovery + fail-closed coverage gate + static binding assertions). |
+| `tests/` | `tests/hooks/` (footgun-guard subprocess unit tests) and `tests/e2e-cli/` (the CLI end-to-end harness consumer: mock-tier discovery + fail-closed coverage gate + static binding assertions + live Codex `/skills` picker acceptance). |
 | `SPECIFICATION/` | The dogfooded live spec for the Driver seam (`spec.md`, `contracts.md`, `constraints.md`, `non-functional-requirements.md`, `scenarios.md`, `history/v001/`). |
 | `justfile`, `lefthook.yml`, `pyproject.toml` | Family-standard task runner, git-hook config, and dev-tooling pins. |
 | `.github/` | Per-target matrix CI (`workflows/ci.yml`) + the closed-loop Honeycomb telemetry export script. |
@@ -133,6 +133,14 @@ resolve their prose themselves. See `livespec/SPECIFICATION/contracts.md`
 §"Plugin distribution" and
 `livespec/SPECIFICATION/non-functional-requirements.md` §"Codex dogfooding
 contracts" for the authoritative install and resolution contracts.
+
+The Codex TUI picker displays skills differently from the name-selection
+form above. In `/skills` → `List skills` (or the `@` picker), search by the
+short skill name, for example `orchestrate`; Codex renders the match as
+`orchestrate (livespec-orchestrator-beads-fabro)` with kind `Skill`. Do not
+expect the picker row to be searchable only as
+`livespec-orchestrator-beads-fabro:orchestrate`; that colon-qualified form is
+for prompt / `codex exec` name selection and model-visible skill references.
 
 Daily-dogfooding note: edit livespec core's `prose/<name>.md` for
 BEHAVIOR changes — those flow to BOTH runtimes — and edit the SKILL.md

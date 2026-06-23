@@ -93,3 +93,6 @@ markers = [
     "mock_only: skipped under LIVESPEC_E2E_HARNESS=real per the CLI e2e harness contract",
     "real_only: skipped outside LIVESPEC_E2E_HARNESS=real (drives the live codex CLI)",
 ]
+
+[tool.livespec_dev_tooling]
+scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
