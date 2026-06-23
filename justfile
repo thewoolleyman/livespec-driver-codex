@@ -47,6 +47,11 @@ bootstrap:
     cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/pre-push"
     cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/commit-msg"
     chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-commit" "$(git rev-parse --git-common-dir)/hooks/pre-push" "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+    # Harden the beads tenant-pointer dir to owner-only on first-touch (bd
+    # recommends 0700; only the owning user's bd reads it — the Dolt server
+    # connects over TCP and never reads this dir). Guarded: repos with no beads
+    # tenant have no .beads.
+    [ -d "$(dirname "$(git rev-parse --git-common-dir)")/.beads" ] && chmod 700 "$(dirname "$(git rev-parse --git-common-dir)")/.beads" || true
     just ensure-plugins
 
 # Idempotent host-wide Codex plugin provisioning. Codex does not support
