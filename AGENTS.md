@@ -78,3 +78,61 @@ own plugin-root placeholder for core paths.
   plugins (work-item stores, gap and drift capture). The Driver has
   ZERO dependencies on them, and they have ZERO dependencies on the
   Driver (load-bearing invariant).
+
+## Codex dogfooding (OpenAI Codex CLI/TUI)
+
+This repo IS the Codex Driver — the `/livespec:*` operation surface
+under OpenAI Codex CLI/TUI. To dogfood the eight spec-side operations
+from Codex (against this repo's own dogfooded `SPECIFICATION/`, or any
+governed project), install TWO plugins host-wide: livespec CORE (the
+artifact carrier that ships the harness-neutral prose and reference
+wrappers, no skills of its own) and THIS repo (the Codex Driver, which
+supplies the operation surface over core's prose). Unlike the Claude
+path — where plugins are enabled PER PROJECT via a committed
+`.claude/settings.json` — Codex plugin enablement is **HOST-WIDE**:
+each registration persists in `~/.codex/config.toml` and applies to
+every project on the host. Codex offers no project-scoped plugin
+enablement, so there is no committed-settings analogue for the Codex
+path.
+
+```bash
+# livespec CORE (spec-side prose + wrappers; no skills of its own):
+codex plugin marketplace add thewoolleyman/livespec
+codex plugin add livespec@livespec
+
+# This repo — the Codex Driver (supplies the /livespec:* operation surface):
+codex plugin marketplace add thewoolleyman/livespec-driver-codex
+codex plugin add livespec@livespec-driver-codex
+```
+
+Both registrations persist HOST-WIDE in `~/.codex/config.toml` (a
+`[marketplaces.<name>]` entry plus a `[plugins."<plugin>@<marketplace>"]
+enabled = true` entry). The Driver plugin is deliberately NAMED
+`livespec` (not `livespec-driver-codex`) so the established
+`/livespec:*` command surface is preserved across both marketplaces.
+
+Once installed, the eight operations (`seed`, `propose-change`,
+`critique`, `revise`, `doctor`, `prune-history`, `help`, `next`) are
+driven from Codex via `codex exec` and NAME-selected as `livespec:<op>`
+(e.g. `livespec:next`) rather than as `/`-prefixed slash commands.
+`codex exec` resolves this Driver's binding, which reads CORE's prose
+(`<core-root>/prose/<name>.md`) and dispatches the spec-side wrapper
+named in the governed project's `.livespec.jsonc` `spec_clis` section —
+exactly the runtime resolution described under "How the bindings find
+livespec core" in `README.md`. No `AGENTS.md` skill→prose mapping is
+required; the distributed Driver resolves the prose itself. See
+`livespec/SPECIFICATION/contracts.md` §"Plugin distribution" and
+`livespec/SPECIFICATION/non-functional-requirements.md` §"Codex
+dogfooding contracts" for the authoritative install and resolution
+contracts.
+
+Daily-dogfooding note: edit livespec core's `prose/<name>.md` for
+BEHAVIOR changes — those flow to BOTH runtimes — and edit the SKILL.md
+bindings HERE only for Codex-runtime mechanics (per "The one design
+rule that matters here" above). For local development against an
+in-checkout core, set `LIVESPEC_CORE_PLUGIN_ROOT` to the core
+checkout's `.claude-plugin/`, or run inside the core repo itself (the
+Driver auto-resolves `<project-root>/.claude-plugin/prose/` when the
+governed project IS the core repo). A temporary local Codex marketplace
+registration used for testing MUST be removed afterward unless you
+explicitly ask to keep it.
