@@ -38,12 +38,6 @@ __all__: list[str] = []
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _GUARD_SCRIPT = _REPO_ROOT / "livespec" / "hooks" / "livespec_footgun_guard.py"
 
-# A stable real primary checkout in this environment: `/data/projects/livespec`
-# has `git config --get livespec.primaryPath` set to its own root, so the
-# guard recognizes a write INTO it as a primary-checkout edit. The guard never
-# WRITES — it only probes git config — so naming a path under it here is inert.
-_REAL_PRIMARY_CHECKOUT = Path("/data/projects/livespec")
-
 
 def _hook_input(*, command: str, tool_name: str = "Bash") -> str:
     return json.dumps({"tool_name": tool_name, "tool_input": {"command": command}})
@@ -92,6 +86,38 @@ def _non_primary_git_repo(*, root: Path) -> Path:
         timeout=30,
     )
     return root
+
+
+def _primary_git_repo(*, root: Path) -> Path:
+    """Initialize a tmp git repo and mark it as its OWN primary checkout.
+
+    Sets `livespec.primaryPath` to the repo's own worktree root, so the guard
+    recognizes a write INTO it as a primary-checkout edit. Hermetic — depends on
+    NO real checkout on the host, so it behaves identically locally and in CI.
+    Returns the repo's resolved worktree root (the write target's parent).
+    """
+    subprocess.run(
+        ["git", "init", "--quiet", str(root)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    toplevel = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    ).stdout.strip()
+    subprocess.run(
+        ["git", "-C", str(root), "config", "livespec.primaryPath", toplevel],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    return Path(toplevel)
 
 
 # --------------------------------------------------------------------------
@@ -151,21 +177,24 @@ def test_denies_git_config_core_bare_true_equals() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_denies_redirect_into_primary_checkout() -> None:
-    target = _REAL_PRIMARY_CHECKOUT / "scratch_probe.txt"
+def test_denies_redirect_into_primary_checkout(tmp_path: Path) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    target = primary / "scratch_probe.txt"
     result = _run_guard(stdin=_hook_input(command=f"echo hi > {target}"))
     payload = _assert_deny(result=result)
     assert "PRIMARY" in payload["hookSpecificOutput"]["permissionDecisionReason"]
 
 
-def test_denies_tee_into_primary_checkout() -> None:
-    target = _REAL_PRIMARY_CHECKOUT / "scratch_probe.txt"
+def test_denies_tee_into_primary_checkout(tmp_path: Path) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    target = primary / "scratch_probe.txt"
     result = _run_guard(stdin=_hook_input(command=f"echo hi | tee {target}"))
     _assert_deny(result=result)
 
 
-def test_denies_sed_in_place_into_primary_checkout() -> None:
-    target = _REAL_PRIMARY_CHECKOUT / "scratch_probe.txt"
+def test_denies_sed_in_place_into_primary_checkout(tmp_path: Path) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    target = primary / "scratch_probe.txt"
     result = _run_guard(stdin=_hook_input(command=f"sed -i s/a/b/ {target}"))
     _assert_deny(result=result)
 
