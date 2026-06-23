@@ -84,10 +84,11 @@ own plugin-root placeholder for core paths.
 This repo IS the Codex Driver — the `/livespec:*` operation surface
 under OpenAI Codex CLI/TUI. To dogfood the eight spec-side operations
 from Codex (against this repo's own dogfooded `SPECIFICATION/`, or any
-governed project), install TWO plugins host-wide: livespec CORE (the
-artifact carrier that ships the harness-neutral prose and reference
-wrappers, no skills of its own) and THIS repo (the Codex Driver, which
-supplies the operation surface over core's prose). Unlike the Claude
+governed project) plus the family orchestrator surface, install three
+plugins host-wide: livespec CORE (the artifact carrier that ships the
+harness-neutral prose and reference wrappers, no skills of its own),
+THIS repo (the Codex Driver, which supplies the operation surface over
+core's prose), and the selected orchestrator plugin. Unlike the Claude
 path — where plugins are enabled PER PROJECT via a committed
 `.claude/settings.json` — Codex plugin enablement is **HOST-WIDE**:
 each registration persists in `~/.codex/config.toml` and applies to
@@ -103,9 +104,13 @@ codex plugin add livespec@livespec
 # This repo — the Codex Driver (supplies the /livespec:* operation surface):
 codex plugin marketplace add thewoolleyman/livespec-driver-codex
 codex plugin add livespec@livespec-driver-codex
+
+# The selected orchestrator plugin (supplies its own Codex skills):
+codex plugin marketplace add thewoolleyman/livespec-orchestrator-beads-fabro
+codex plugin add livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
 ```
 
-Both registrations persist HOST-WIDE in `~/.codex/config.toml` (a
+These registrations persist HOST-WIDE in `~/.codex/config.toml` (a
 `[marketplaces.<name>]` entry plus a `[plugins."<plugin>@<marketplace>"]
 enabled = true` entry). The Driver plugin is deliberately NAMED
 `livespec` (not `livespec-driver-codex`) so the established
@@ -119,12 +124,15 @@ driven from Codex via `codex exec` and NAME-selected as `livespec:<op>`
 (`<core-root>/prose/<name>.md`) and dispatches the spec-side wrapper
 named in the governed project's `.livespec.jsonc` `spec_clis` section —
 exactly the runtime resolution described under "How the bindings find
-livespec core" in `README.md`. No `AGENTS.md` skill→prose mapping is
-required; the distributed Driver resolves the prose itself. See
-`livespec/SPECIFICATION/contracts.md` §"Plugin distribution" and
-`livespec/SPECIFICATION/non-functional-requirements.md` §"Codex
-dogfooding contracts" for the authoritative install and resolution
-contracts.
+livespec core" in `README.md`. The orchestrator plugin adds its own
+Codex skills (`orchestrate`, `next`, `list-work-items`,
+`detect-impl-gaps`, `capture-work-item`, `capture-impl-gaps`,
+`capture-spec-drift`, `implement`, `groom`) under its plugin name. No
+`AGENTS.md` skill→prose mapping is required; the distributed Drivers
+resolve their prose themselves. See `livespec/SPECIFICATION/contracts.md`
+§"Plugin distribution" and
+`livespec/SPECIFICATION/non-functional-requirements.md` §"Codex dogfooding
+contracts" for the authoritative install and resolution contracts.
 
 Daily-dogfooding note: edit livespec core's `prose/<name>.md` for
 BEHAVIOR changes — those flow to BOTH runtimes — and edit the SKILL.md
