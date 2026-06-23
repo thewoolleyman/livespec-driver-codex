@@ -84,6 +84,7 @@ check:
         check-format
         check-hooks
         check-e2e-cli
+        check-codex-skill-picker
         check-heading-coverage
     )
     failed=()
@@ -135,6 +136,25 @@ check-hooks:
 # SPECIFICATION/contracts.md §"CLI end-to-end harness contract".
 check-e2e-cli:
     LIVESPEC_E2E_HARNESS=mock uv run pytest tests/e2e-cli/
+
+# Live Codex TUI `/skills` picker acceptance. This is the only gate that
+# exercises the human picker path: `/skills` -> "List skills" -> search for the
+# short skill name `orchestrate` and require the picker to render the
+# `orchestrate (livespec-orchestrator-beads-fabro)` Skill row. CI skips unless
+# a runner explicitly opts in because GitHub-hosted CI does not provide an
+# authenticated interactive Codex TUI.
+check-codex-skill-picker:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ "${CI:-}" == "true" && "${LIVESPEC_REQUIRE_CODEX_TUI_PICKER:-}" != "1" ]]; then
+        echo ":: check-codex-skill-picker: skipped in CI; set LIVESPEC_REQUIRE_CODEX_TUI_PICKER=1 on an authenticated Codex runner to enforce it"
+        exit 0
+    fi
+    if ! command -v codex >/dev/null 2>&1; then
+        echo ":: check-codex-skill-picker: codex CLI not found; skipping live TUI picker acceptance"
+        exit 0
+    fi
+    LIVESPEC_E2E_HARNESS=real LIVESPEC_CODEX_SKILL_PICKER=1 uv run pytest tests/e2e-cli/test_codex_skill_picker.py -v
 
 # Spec heading-coverage gate (shipped by livespec-dev-tooling): every
 # `## ` H2 in each SPECIFICATION/ NLSpec file MUST have an entry in

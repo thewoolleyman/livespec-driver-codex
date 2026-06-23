@@ -177,6 +177,13 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: /skills picker exposes plugin skills by short name",
+    "test": "tests.e2e-cli.test_codex_skill_picker.test_skills_picker_finds_orchestrate_by_short_name",
+    "reason": "Top-of-pyramid live Codex TUI acceptance for the human discovery path: starts the real Codex TUI, opens /skills, chooses List skills, searches the short name orchestrate, and requires the rendered Skill row to include the livespec-orchestrator-beads-fabro plugin context."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: core-root resolution via operator override",
     "test": "TODO",
     "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."

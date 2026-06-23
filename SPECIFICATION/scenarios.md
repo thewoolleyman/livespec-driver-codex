@@ -15,6 +15,20 @@ Then the eight skills livespec:seed, livespec:propose-change,
 And they are invoked by name under the plugin name "livespec"
 ```
 
+## Scenario: /skills picker exposes plugin skills by short name
+
+```gherkin
+Given the livespec Driver and livespec-orchestrator-beads-fabro plugins are installed
+And the operator opens the Codex TUI
+When the operator opens "/skills"
+And chooses "List skills"
+And searches for "orchestrate"
+Then the picker renders "orchestrate (livespec-orchestrator-beads-fabro)"
+And the rendered row is typed as a Skill
+And the operator does not need to search for the colon-qualified
+  "livespec-orchestrator-beads-fabro:orchestrate" form
+```
+
 ## Scenario: core-root resolution via operator override
 
 ```gherkin

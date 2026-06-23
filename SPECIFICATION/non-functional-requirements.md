@@ -62,6 +62,12 @@ locally, in pre-push, and in CI.
   §"Fenced-invocation discipline", and §"Hook bundle".
 - **`check-hooks`** — unit-tests the plugin-shipped footgun guard.
 - **`check-e2e-cli`** — drives the CLI end-to-end harness (mock tier).
+- **`check-codex-skill-picker`** — drives the live Codex TUI `/skills`
+  picker on authenticated local Codex hosts. It opens `/skills`, chooses
+  `List skills`, searches `orchestrate`, and fails unless the picker
+  renders the `orchestrate (livespec-orchestrator-beads-fabro)` Skill row.
+  GitHub-hosted CI skips this gate unless an authenticated runner opts in
+  with `LIVESPEC_REQUIRE_CODEX_TUI_PICKER=1`.
 - **`check-heading-coverage`** — enforces that every `## ` H2 in this
   spec tree maps to an entry in `tests/heading-coverage.json`.
 - **`check-lint`** / **`check-format`** — `ruff` lint and format gates.
@@ -84,9 +90,12 @@ structural skill discovery against the in-repo Codex plugin, real fixture
 loading, the real fail-closed coverage gate, and static binding
 assertions, with NO live `codex` subprocess (a live round-trip is gated
 behind `LIVESPEC_E2E_HARNESS=real` since the `codex` CLI is not
-guaranteed in CI); and `tests/hooks/` unit-tests the footgun guard via
-subprocess invocation with a JSON stdin payload, asserting on the emitted
-`hookSpecificOutput.permissionDecision`.
+guaranteed in CI). A separate live TUI picker acceptance in the same
+directory covers the human `/skills` discovery path and is intentionally
+host-aware: it runs where Codex is present and authenticated, but skips on
+GitHub-hosted CI unless the runner explicitly opts in. `tests/hooks/`
+unit-tests the footgun guard via subprocess invocation with a JSON stdin
+payload, asserting on the emitted `hookSpecificOutput.permissionDecision`.
 
 ## Spec evolution
 

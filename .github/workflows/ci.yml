@@ -36,6 +36,7 @@ jobs:
           - check-format
           - check-hooks
           - check-e2e-cli
+          - check-codex-skill-picker
           - check-heading-coverage
     steps:
       - name: Checkout

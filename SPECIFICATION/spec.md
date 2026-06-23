@@ -96,6 +96,14 @@ NAME under the Driver plugin name: `livespec:seed`,
 form. The sub-command *names* are a core v1 contract; the *runtime
 mechanics* that expose them are this repo's.
 
+The human picker surface is distinct from the model/programmatic
+colon-qualified name. In the Codex TUI, `/skills` → `List skills` (or the
+`@` picker) is searched by the short skill name and renders the owning
+plugin as context, e.g. `orchestrate (livespec-orchestrator-beads-fabro)`.
+The colon-qualified form (`livespec-orchestrator-beads-fabro:orchestrate`)
+remains the name-selection form for prompts, `codex exec`, and model-visible
+skill references; it is not the picker row an operator should search for.
+
 The plugin is deliberately NAMED `livespec` (not `livespec-driver-codex`)
 so the established `livespec:*` surface is preserved; the marketplace
 catalog is named `livespec-driver-codex`. The hook bundle is the second
