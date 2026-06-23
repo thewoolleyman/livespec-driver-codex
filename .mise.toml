@@ -1,0 +1,11 @@
+# livespec-driver-codex — developer-tooling pins (non-Python binaries only).
+#
+# Authority: livespec/SPECIFICATION/non-functional-requirements.md
+#   §"Toolchain pins" — non-Python binaries (uv, just, lefthook) pin via
+#   .mise.toml; Python interpreter + Python packages pin via uv against
+#   pyproject.toml's [project.requires-python] + [dependency-groups.dev].
+
+[tools]
+uv       = "0.9.26"
+just     = "1.36.0"
+lefthook = "1.13.6"

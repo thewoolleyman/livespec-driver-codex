@@ -1,0 +1,32 @@
+# lefthook.yml — livespec-driver-codex git hook configuration.
+#
+# Family conventions, scaled to this repo's content. Every `run:`
+# field delegates to `just <target>` (the lefthook-must-delegate-to-
+# just rule from livespec/SPECIFICATION/non-functional-requirements.md
+# §"Toolchain pins").
+#
+# Activation: `just bootstrap` installs the consolidated
+# git-hook-wrapper.sh as the .git/hooks/pre-commit, pre-push, and
+# commit-msg hooks (refuses at the primary checkout; delegates to
+# lefthook at secondary worktrees via mise).
+
+pre-commit:
+  commands:
+    00-check-pre-commit:
+      run: just check-pre-commit
+
+commit-msg:
+  commands:
+    00-no-commit-on-master:
+      run: |
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        if [ "$branch" = "master" ]; then
+          printf 'ERROR: direct commits to master are forbidden; create a feature branch first\n' >&2
+          printf 'Hint: git checkout -b <branch-name>\n' >&2
+          exit 1
+        fi
+
+pre-push:
+  commands:
+    check:
+      run: just check-pre-push

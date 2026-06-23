@@ -1,0 +1,254 @@
+[
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "spec.md",
+    "heading": "## Purpose",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "spec.md",
+    "heading": "## Scope boundary",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "spec.md",
+    "heading": "## Terminology",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "spec.md",
+    "heading": "## Public surface",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "spec.md",
+    "heading": "## Lifecycle and evolution",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Plugin manifest and marketplace",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Skill-binding set",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Core-root resolution",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Fenced-invocation discipline",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Hook bundle",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Versioning",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "constraints.md",
+    "heading": "## Inherited from livespec",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "constraints.md",
+    "heading": "## Binding constraints",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "constraints.md",
+    "heading": "## Resolution-substrate constraints",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "constraints.md",
+    "heading": "## Structural-check constraints",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "constraints.md",
+    "heading": "## Forbidden patterns",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Boundary",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Inherited from livespec",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Task-runner discipline",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Repo layout",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Enforcement suite",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Build and release",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Test discipline",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "non-functional-requirements.md",
+    "heading": "## Spec evolution",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: installed Driver exposes the eight livespec:* commands",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: core-root resolution via operator override",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: core-root resolution falls back to the governed-project checkout",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: core-root resolution falls back to the installed cache",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: structural check rejects a SKILL.md invoking uv run",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: structural check rejects the Driver's own plugin-root placeholder for core scripts",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: structural check rejects an extra or missing skill directory",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: structural check rejects a binding body carrying a Claude marker",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: marketplace description drift is rejected",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: footgun guard denies a never-legitimate command",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: footgun guard fails open on the dangerous string as data",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: commit at the primary checkout is refused",
+    "test": "TODO",
+    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  }
+]

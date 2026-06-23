@@ -1,0 +1,95 @@
+# pyproject.toml — livespec-driver-codex dev tooling configuration.
+#
+# Family conventions scaled to this repo's content: the only Python
+# here is the repo-local structural check (stdlib-only), the
+# plugin-shipped Codex footgun guard (stdlib-only), and the test suite
+# (the hook unit tests + the e2e-cli harness consumer). NO
+# [build-system] section: this repo is NOT a published PyPI package; it
+# ships via Codex plugin bundling.
+
+[project]
+name = "livespec-driver-codex"
+version = "0.0.0"
+description = "Codex Driver for livespec — thin livespec:* SKILL.md bindings"
+requires-python = ">=3.10.16"
+authors = [
+    { name = "Chad Woolley", email = "thewoolleyman@gmail.com" },
+]
+
+# Per the livespec convention: NO [project.dependencies] table — the
+# plugin bundle carries no third-party runtime Python (the footgun
+# guard is stdlib-only); end users install nothing.
+
+[dependency-groups]
+# Every Python dev tool is uv-managed via this table (resolved into
+# uv.lock; installed into a project-local .venv via
+# `uv sync --all-groups`). Mise pins only the non-Python binaries in
+# .mise.toml.
+dev = [
+    "ruff==0.8.6",
+    "pytest==8.3.4",
+    "livespec-dev-tooling",
+]
+
+# livespec-dev-tooling is consumed from the github.com sibling-library
+# repo via uv git source per
+# livespec/SPECIFICATION/contracts.md §"Shared code sync — livespec-dev-tooling"
+# (this repo consumes only its `testing.cli_e2e` harness + the
+# heading_coverage / green_token checks).
+[tool.uv.sources]
+livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-tooling.git", tag = "v0.16.0" }
+
+# ---------------------------------------------------------------------------
+# Ruff — sole linter + formatter. Rule set mirrors the family baseline
+# (livespec/pyproject.toml [tool.ruff]) minus the product-code-only
+# categories that have no surface in a tests-plus-checks repo.
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+# The plugin-shipped Codex hook script (livespec/hooks/) is excluded from
+# ruff exactly as the Claude Driver excludes its `.claude/hooks/**` scripts:
+# a PreToolUse guard's protocol REQUIRES writing its decision JSON to stdout
+# (a `print`, which T201 bans), and the guard's behavior is covered by the
+# subprocess unit tests in tests/hooks/ rather than by the product-code lint
+# rule set. dev-tooling/ and tests/ remain fully linted.
+extend-exclude = ["livespec/hooks/**", "**/__pycache__/**"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "UP",    # pyupgrade
+    "SIM",   # flake8-simplify
+    "C90",   # mccabe complexity
+    "N",     # pep8-naming
+    "RUF",   # ruff-specific
+    "PTH",   # flake8-use-pathlib
+    "PIE",   # flake8-pie
+    "TID",   # flake8-tidy-imports
+    "ERA",   # eradicate
+    "ARG",   # flake8-unused-arguments
+    "PT",    # flake8-pytest-style
+    "ISC",   # flake8-implicit-str-concat
+    "T20",   # flake8-print — bans print/pprint outside the check's stderr writes
+]
+ignore = [
+    "ISC001",  # implicit-str-concat on one line; conflicts with the formatter
+]
+
+# The CLI end-to-end test directory is named `tests/e2e-cli/` by
+# convention (livespec/SPECIFICATION/contracts.md §"CLI end-to-end
+# harness contract" mandates a `tests/e2e-cli/` directory). The hyphen
+# is not a valid Python module-name character, so N999 is exempted for
+# that tree (it is never imported as a package by product code).
+[tool.ruff.lint.per-file-ignores]
+"tests/e2e-cli/**.py" = ["N999"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "mock_only: skipped under LIVESPEC_E2E_HARNESS=real per the CLI e2e harness contract",
+    "real_only: skipped outside LIVESPEC_E2E_HARNESS=real (drives the live codex CLI)",
+]

@@ -1,0 +1,27 @@
+### Project ignores
+tmp/
+.claude/settings.local.json
+.claude/worktrees/
+.idea/
+
+### Python toolchain artifacts
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+
+### UV local state
+.venv/
+
+### Beads / Dolt
+# Per-clone bd state (Dolt working copy, lockfiles, runtime artifacts,
+# per-machine metadata.json) is excluded by .beads/.gitignore (tracked
+# itself, once the tenant is provisioned). `.beads/config.yaml` IS tracked:
+# it carries the server-mode connection block for the livespec-driver-codex
+# Dolt tenant with NO per-machine project_id and NO password (the tenant
+# password is supplied via the BEADS_DOLT_PASSWORD env var at bd-call time).
+# The beads tenant is DEFERRED to a later family-infra phase (see
+# .livespec.jsonc), so no `.beads/` tree exists yet.
+.beads-credential-key
+*.env.local

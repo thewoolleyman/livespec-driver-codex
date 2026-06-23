@@ -1,0 +1,45 @@
+// Project-local livespec configuration for livespec-driver-codex.
+//
+// This repo is the reference Codex Driver for the livespec family.
+// It dogfoods livespec: the SPECIFICATION/ tree at the repo root is the
+// live spec for the Driver's own seam (binding shape, core-root
+// resolution, plugin/marketplace manifest, and the Driver-shipped hook
+// bundle), and it evolves through /livespec:seed / propose-change /
+// revise / doctor / prune-history / critique — exactly the lifecycle
+// every consumer project uses.
+//
+// Scope discipline: this spec governs ONLY what the Driver owns. The
+// operation prose, the reference spec-side CLIs, the JSON schemas, and
+// the built-in templates all live in livespec core; this tree defers to
+// core by citation and never restates the upstream contract. When any
+// rule here appears to conflict with livespec core's SPECIFICATION/, the
+// upstream rule wins (see SPECIFICATION/README.md §"Upstream pointers").
+//
+// Authority: livespec/SPECIFICATION/spec.md
+//   §"Contract + reference implementations architecture" (the Driver is
+//   the thin, agent-runtime-specific binding layer; core is agnostic to
+//   it) and livespec/SPECIFICATION/contracts.md §"Plugin distribution",
+//   §"Driver-shipped hooks".
+//
+// DEFERRED — beads tenant: the per-repo beads/Dolt tenant CONNECTION
+// block (and the matching committed .beads/config.yaml) is NOT yet
+// provisioned for this repo. It is intentionally OMITTED here and will
+// be added in a later family-infra phase, mirroring the
+// livespec-driver-claude pattern (tenant name == repo name; TCP-only,
+// NO socket key; password supplied via BEADS_DOLT_PASSWORD at bd-call
+// time and NEVER committed).
+{
+  "template": "livespec",
+  "spec_root": "SPECIFICATION",
+  "implementation": { "plugin": "livespec-orchestrator-beads-fabro" },
+  "livespec-driver-codex": {
+    "compat": {
+      // semver range and pinned tag against livespec core. The pin is
+      // "master" during bootstrap (always-HEAD dogfooding); doctor's
+      // contract-version-compatibility invariant fires `warn` against a
+      // "master" pin, which is expected pre-1.0.
+      "livespec": ">=0.1.0,<1.0.0",
+      "pinned": "master"
+    }
+  }
+}

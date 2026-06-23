@@ -1,0 +1,77 @@
+# Per-target matrix CI for livespec-driver-codex.
+#
+# Family conventions scaled to this repo's content (thin SKILL.md
+# bindings + plugin manifests + the plugin-shipped footgun guard + the
+# e2e-cli harness consumer). Every step delegates to `just <target>`
+# (direct tool invocations in `run:` lines are forbidden per livespec/
+# SPECIFICATION/non-functional-requirements.md §"Toolchain pins").
+
+name: CI
+
+# uv occasionally fails when the PyPI file CDN (files.pythonhosted.org)
+# drops a wheel download mid-stream ("broken pipe"). UV_HTTP_RETRIES
+# makes uv retry the fetch in-process instead of failing the job.
+# Combined with the ~/.cache/uv actions/cache step (keyed on uv.lock)
+# the uv-sync step below uses, an unchanged lock installs from cache
+# and never contacts PyPI at all.
+env:
+  UV_HTTP_RETRIES: "5"
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  merge_group:
+
+jobs:
+  check:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - check-plugin-structure
+          - check-lint
+          - check-format
+          - check-hooks
+          - check-e2e-cli
+          - check-heading-coverage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned binaries via mise
+        uses: jdx/mise-action@v2
+
+      - name: Restore uv download cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install Python dev deps via uv
+        run: uv sync --all-groups
+
+      - name: just ${{ matrix.target }}
+        run: just ${{ matrix.target }}
+
+  export-telemetry:
+    name: export-telemetry
+    needs: [check]
+    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'merge_group') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Export CI run telemetry to Honeycomb (closed-loop verified)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          HONEYCOMB_GITHUB_CI_INGEST_KEY_LIVESPEC: ${{ secrets.HONEYCOMB_GITHUB_CI_INGEST_KEY_LIVESPEC }}
+        run: bash .github/scripts/export-ci-telemetry.sh

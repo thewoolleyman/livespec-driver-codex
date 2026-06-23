@@ -1,0 +1,13 @@
+{
+  "name": "livespec-driver-codex",
+  "interface": { "displayName": "livespec Codex Driver" },
+  "plugins": [
+    {
+      "name": "livespec",
+      "source": { "source": "local", "path": "./livespec" },
+      "policy": { "installation": "AVAILABLE" },
+      "category": "Developer Tools",
+      "description": "Codex Driver for livespec: thin skill bindings exposing the eight livespec operations (seed, propose-change, critique, revise, doctor, prune-history, next, help) as Codex plugin skills. The harness-neutral prose and the reference spec-side CLIs ship with livespec core (install livespec@livespec alongside this Driver)."
+    }
+  ]
+}
