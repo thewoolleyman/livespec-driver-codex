@@ -51,7 +51,7 @@ _CORE_BARE_REASON = (
     "core.bare on a primary is a REGRESSION the doctor invariant "
     "(primary-checkout-commit-refuse-hook-installed) forbids. Do edits in a "
     "secondary worktree via `git -C <repo> worktree add "
-    "<repo>/.claude/worktrees/<slug> -b <branch> origin/master`. "
+    "~/.worktrees/<repo>/<branch> -b <branch> origin/master`. "
     "(memory feedback_bare_flag_use_git_show_not_filesystem)"
 )
 _LEFTHOOK_REASON = (
@@ -64,7 +64,7 @@ _PRIMARY_EDIT_REASON = (
     "`git config --get livespec.primaryPath` equals its own worktree root). "
     "Direct commits / writes at the primary are refused by the family "
     "commit-refuse hook. Do edits in a SECONDARY worktree via `git -C <repo> "
-    "worktree add <repo>/.claude/worktrees/<slug> -b <branch> origin/master`, "
+    "worktree add ~/.worktrees/<repo>/<branch> -b <branch> origin/master`, "
     "then PR → merge → cleanup. "
     "(memory feedback_dispatch_no_checkout_master_in_worktree)"
 )
