@@ -1,0 +1,16 @@
+# pin-freshness.yml — periodic pin-staleness safety-net shim.
+#
+# Installed by wire-fleet-member per livespec
+# SPECIFICATION/non-functional-requirements.md §"Fleet membership contract".
+
+name: Pin freshness sweep
+
+on:
+  schedule:
+    - cron: '0 13 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  freshness:
+    uses: thewoolleyman/livespec-dev-tooling/.github/workflows/reusable-pin-freshness.yml@master
+    secrets: inherit

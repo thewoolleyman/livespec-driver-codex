@@ -1,0 +1,19 @@
+# release-dispatch.yml — fan-out shim for cross-repo coordination.
+#
+# Installed by wire-fleet-member per livespec
+# SPECIFICATION/non-functional-requirements.md §"Fleet membership contract".
+
+name: Release dispatch (fan-out to siblings)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  dispatch:
+    uses: thewoolleyman/livespec-dev-tooling/.github/workflows/reusable-release-dispatch.yml@master
+    secrets: inherit
+    with:
+      source_repo: livespec-driver-codex
+      tag: ${{ github.event.release.tag_name }}
+      release_url: ${{ github.event.release.html_url }}
