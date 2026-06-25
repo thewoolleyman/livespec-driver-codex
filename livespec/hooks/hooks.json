@@ -7,6 +7,13 @@
           { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/livespec_footgun_guard.py\"", "timeout": 10 }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/no_shadow_ledger.py\"", "timeout": 10 }
+        ]
+      }
     ]
   }
 }

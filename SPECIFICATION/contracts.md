@@ -108,26 +108,31 @@ and emits one violation per offending invocation line.
 ## Hook bundle
 
 The Driver SHIPS a Codex hook bundle at `livespec/hooks/`: a `hooks.json`
-registration plus the fail-open `livespec_footgun_guard.py` script.
-Codex consumes the Claude `PreToolUse` hook I/O format, so the guard
-reads `{"tool_name": "Bash", "tool_input": {"command": "..."}}` on stdin
-and emits a `hookSpecificOutput.permissionDecision: "deny"` payload to
-deny a call (empty stdout + exit 0 lets it through). The guard is invoked
-by the runtime as `python3 "${CLAUDE_PLUGIN_ROOT}/hooks/livespec_footgun_guard.py"`
-— here the Driver's own plugin-root placeholder IS correct, since the
-guard is Driver-owned and lives in the Driver bundle, and the
-substitution works for Codex hooks. `hooks.json` MUST NOT carry a
-top-level `description` key (Codex's hooks parser rejects it). The
-bundle's *existence and wiring* are this repo's contract; the hook's
-*behavioral disciplines and postures* (the fail-open requirement,
-deny-vs-warn, the gating predicates) are owned upstream by
+registration plus two fail-open scripts — the `livespec_footgun_guard.py`
+PreToolUse guard and the `no_shadow_ledger.py` Stop hook. Codex consumes
+the Claude hook I/O formats, so the guard reads
+`{"tool_name": "Bash", "tool_input": {"command": "..."}}` on stdin and
+emits a `hookSpecificOutput.permissionDecision: "deny"` payload to
+deny a call (empty stdout + exit 0 lets it through), and the Stop hook
+reads `{"transcript_path": "...", "stop_hook_active": ...}` on stdin and
+emits a `{"systemMessage": "..."}` WARNING (empty stdout passes silently).
+Each script is invoked by the runtime as
+`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<script>.py"` — here the Driver's
+own plugin-root placeholder IS correct, since the scripts are Driver-owned
+and live in the Driver bundle, and the substitution works for Codex hooks.
+`hooks.json` MUST NOT carry a top-level `description` key (Codex's hooks
+parser rejects it). The bundle's *existence and wiring* are this repo's
+contract; each hook's *behavioral disciplines and postures* (the fail-open
+requirement, deny-vs-warn, the gating predicates) are owned upstream by
 `livespec/SPECIFICATION/contracts.md` §"Driver-shipped hooks", which this
-repo realizes. The script implementation and its unit tests live in THIS
-repo (`tests/hooks/`).
+repo realizes. The script implementations and their unit tests live in
+THIS repo (`tests/hooks/`).
 
-The bundle carries ONE hook — a **PreToolUse** guard on `Bash` that
-DENIES only patterns that are never legitimate in the livespec family,
-each with an actionable message naming the correct alternative:
+The bundle carries TWO hooks.
+
+A **PreToolUse** guard on `Bash` that DENIES only patterns that are never
+legitimate in the livespec family, each with an actionable message naming
+the correct alternative:
 
 - (a) `git … commit/push … --no-verify`;
 - (b) a leading `LEFTHOOK=0|false` env-assignment (the `--no-verify`
@@ -145,6 +150,26 @@ denied. The guard ALWAYS exits 0 and fails OPEN on any parse/tokenize
 error — a guard bug must never block legitimate work; the family
 commit-refuse hook and branch protection are the real backstops, and
 this guard is only a fast early warning.
+
+A **Stop** hook (`no_shadow_ledger.py`) that WARNS — never blocks — when
+the last assistant turn persisted a PLANNING ARTIFACT (a `*handoff*.md`,
+or any `.md` under a `plan/` or `prompts/` directory) whose written
+content embeds a markdown checkbox task queue (`[ ]`/`[x]` list items) at
+or above a mechanical threshold, instead of deriving status from the
+work-item ledger. It realizes the livespec core
+`non-functional-requirements.md` §"Planning Lane guidance" → "No shadow
+ledger" rule, per the core `contracts.md` §"Driver-shipped hooks" (v140)
+contract. WARN-ONLY: it emits a `{"systemMessage": ...}` advisory on
+stdout and NEVER a blocking `decision`, NEVER exits non-zero, and NEVER
+auto-edits; it fails OPEN (silent exit 0) on any malformed stdin,
+`stop_hook_active` re-entry, or missing/unreadable transcript. The body
+is BYTE-IDENTICAL to the claude Driver's copy (single-sourced neutral
+body); each Driver's `hooks.json` Stop entry is the thin per-runtime
+adapter that invokes it, and Codex consumes the Claude Stop hook I/O
+shape. The mechanical detection internals (the planning-artifact path
+predicate, the checkbox threshold, the persisting-tool set) are Driver
+implementation detail and MAY be tuned without a core spec cycle, per the
+upstream contract, provided the WARN-only Stop posture holds.
 
 Trust model: Codex prompts once to trust a plugin's hooks in interactive
 sessions; a headless invocation needs `--dangerously-bypass-hook-trust`

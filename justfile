@@ -229,6 +229,16 @@ check-commit-pairs-source-and-test:
 # pre-commit gate runs. Non-blocking — unfixable issues fall through
 # to check-lint / check-format inside `just check` later. Re-stages
 # post-autofix bytes.
+#
+# `--force-exclude` on BOTH ruff invocations: ruff normally honors
+# `extend-exclude` only for directory-walked paths, NOT for files passed
+# explicitly on argv. This recipe passes the staged set explicitly, so
+# without `--force-exclude` ruff would lint/format `livespec/hooks/**`
+# (which pyproject.toml's `[tool.ruff].extend-exclude` deliberately
+# excludes) — silently rewriting the plugin-shipped hook bodies. That
+# bug stripped `# noqa: BLE001` from the single-sourced no_shadow_ledger
+# body, breaking its byte-identity with the claude Driver's copy.
+# `--force-exclude` makes the explicit-path runs honor the exclude.
 lint-autofix-staged:
     #!/usr/bin/env bash
     set -uo pipefail
@@ -236,8 +246,8 @@ lint-autofix-staged:
     if [[ -z "$staged" ]]; then
         exit 0
     fi
-    echo "$staged" | xargs uv run ruff check --fix --exit-zero
-    echo "$staged" | xargs uv run ruff format
+    echo "$staged" | xargs uv run ruff check --fix --exit-zero --force-exclude
+    echo "$staged" | xargs uv run ruff format --force-exclude
     echo "$staged" | xargs git add
 
 # Fast pre-commit subset (no test run; pre-push runs the full
