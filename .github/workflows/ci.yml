@@ -58,9 +58,51 @@ jobs:
       - name: just ${{ matrix.target }}
         run: just ${{ matrix.target }}
 
+  # Red→Green→Replay commit-range gate (epic livespec-gcp2). A
+  # lefthook-only gate is locally bypassable, and this fleet is
+  # CI-authoritative, so the ritual MUST also run here. This is a
+  # SEPARATE job from the `check` matrix because it has a distinct
+  # checkout requirement: `check-red-green-replay` (no-arg) validates
+  # the COMMIT RANGE origin/master..HEAD — every non-merge commit
+  # touching product impl .py must carry EITHER the TDD-Red-*/TDD-Green-*
+  # pair shape OR the TDD-Suite-Green-* shape, regardless of subject
+  # prefix. It runs UNCONDITIONALLY: on a zero-.py PR the range carries
+  # no product .py and trivially passes; on a master push the range is
+  # empty. It NEVER silently passes — an unresolvable base fails the job
+  # actionably.
+  red-green-replay:
+    name: check-red-green-replay
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the range validation enumerates
+          # origin/master..HEAD and needs origin/master plus the merge
+          # base present in the clone. A shallow (fetch-depth: 1)
+          # checkout would make the base unresolvable and fail the
+          # check actionably — never a silent pass.
+          fetch-depth: 0
+
+      - name: Install pinned binaries via mise
+        uses: jdx/mise-action@v2
+
+      - name: Restore uv download cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ runner.os }}-
+
+      - name: Install Python dev deps via uv
+        run: uv sync --all-groups
+
+      - name: just check-red-green-replay
+        run: just check-red-green-replay
+
   export-telemetry:
     name: export-telemetry
-    needs: [check]
+    needs: [check, red-green-replay]
     if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     permissions:
