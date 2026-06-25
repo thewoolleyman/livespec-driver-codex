@@ -5,14 +5,28 @@
 # just rule from livespec/SPECIFICATION/non-functional-requirements.md
 # §"Toolchain pins").
 #
+# Authority: livespec/SPECIFICATION/contracts.md
+#   §"Pre-commit step ordering" — pre-commit runs three commands in
+#   order (00-lint-autofix-staged, 01-commit-pairs-source-and-test,
+#   02-check-pre-commit); commit-msg runs no-commit-on-master then
+#   red-green-replay (v034 D3); pre-push runs the full aggregate. The
+#   red-green-replay ritual is enforced fleet+adopter-wide (epic
+#   livespec-gcp2), regardless of any repo's product-Python footprint.
+#
 # Activation: `just bootstrap` installs the consolidated
 # git-hook-wrapper.sh as the .git/hooks/pre-commit, pre-push, and
 # commit-msg hooks (refuses at the primary checkout; delegates to
-# lefthook at secondary worktrees via mise).
+# lefthook at secondary worktrees via mise). The commit-msg wrapper
+# routes argv[1] (the commit-message file path) to the red-green-replay
+# stage.
 
 pre-commit:
   commands:
-    00-check-pre-commit:
+    00-lint-autofix-staged:
+      run: just lint-autofix-staged
+    01-commit-pairs-source-and-test:
+      run: just check-commit-pairs-source-and-test
+    02-check-pre-commit:
       run: just check-pre-commit
 
 commit-msg:
@@ -25,6 +39,8 @@ commit-msg:
           printf 'Hint: git checkout -b <branch-name>\n' >&2
           exit 1
         fi
+    01-red-green-replay:
+      run: just check-red-green-replay {1}
 
 pre-push:
   commands:
