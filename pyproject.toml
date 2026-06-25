@@ -94,5 +94,29 @@ markers = [
     "real_only: skipped outside LIVESPEC_E2E_HARNESS=real (drives the live codex CLI)",
 ]
 
+# `[tool.livespec_dev_tooling]` — this binding repo's dev-tooling layout
+# config. IMPORTANT (the empty-baseline flip): the MOMENT any key exists in
+# this block, livespec_dev_tooling.config.load_config STOPS falling back to
+# the livespec-core historical layout, and every OMITTED role key reverts to
+# an EMPTY baseline. This block already existed (carrying `scenario_tiers`),
+# so the source-tree role keys were silently at the empty baseline — which
+# made `commit_pairs_source_and_test` a NO-OP here: with
+# `source_tree_prefixes = ()`, `path.startswith(())` is always False, so the
+# "every source-touching commit also touches tests/" gate flagged nothing
+# (work-item livespec-h3e7). The keys below name THIS repo's real source
+# surface so the gate actually bites. Of the dev-tooling checks this repo
+# runs, ONLY `commit_pairs_source_and_test` reads these keys; the other
+# source-tree consumers (`check_coverage_incremental`,
+# `tests_no_subprocess_spawn`) are not wired into this repo's `just check` or
+# lefthook, so the minimal source/test role pair suffices.
 [tool.livespec_dev_tooling]
 scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
+# The source `.py` surface of this binding repo: the plugin-shipped Codex
+# hooks (livespec/hooks/ — the footgun guard + the no-shadow-ledger hook) and
+# the repo-local dev-tooling (dev-tooling/ — the structural check). Prefixes
+# are matched against repo-root-relative staged paths.
+source_tree_prefixes = [
+    "livespec/hooks/",
+    "dev-tooling/",
+]
+tests_tree_prefix = "tests/"
