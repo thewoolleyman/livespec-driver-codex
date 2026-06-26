@@ -18,6 +18,12 @@
         "hooks": [
           { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_auto_memory.py\"", "timeout": 10 }
         ]
+      },
+      {
+        "matcher": "apply_patch",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block_auto_memory.py\"", "timeout": 10 }
+        ]
       }
     ],
     "Stop": [
