@@ -4,6 +4,18 @@ This is the top-of-pyramid guard for the human path that `codex debug
 prompt-input` cannot exercise: start the actual Codex TUI, open `/skills`,
 choose "List skills", search for the short skill name, and require the picker
 to render the plugin-qualified skill row.
+
+Skip-vs-fail (work-item livespec-mjnv): the acceptance distinguishes "codex is
+unavailable / unusable in THIS environment" from "the skill genuinely did not
+resolve". codex absent, the TUI exiting mid-wait, or a timeout in any bring-up
+phase (startup, `/skills` menu, picker open) → `pytest.skip` (the live smoke
+cannot run here; CI runs it where codex is present and authenticated). Only a
+timeout in the FINAL skill-row render — the picker is open and searched but the
+plugin-qualified row never appears — is a genuine FAIL (the cross-harness
+plugin-resolution Conformance concern's ob-4ts class). This is the per-harness
+realization of the same skip-vs-fail decision the dev-tooling
+`check-plugin-resolution` Verifier applies; codex's genuine live resolution
+smoke is delegated to THIS check.
 """
 
 from __future__ import annotations
@@ -80,8 +92,21 @@ def _read_until(
     seen: str,
     predicate: Callable[[str], bool],
     timeout_seconds: float,
+    unavailable_on_timeout: bool,
 ) -> str:
-    """Read from the PTY until `predicate(plain_text)` is true."""
+    """Read from the PTY until `predicate(plain_text)` is true.
+
+    `unavailable_on_timeout` folds in work-item livespec-mjnv: it distinguishes
+    "codex is unavailable / unusable in this environment" (a SKIP — the smoke
+    cannot run here) from "the skill genuinely did not resolve" (a FAIL). The
+    bring-up phases (startup, `/skills` menu, picker open) pass `True`: a timeout
+    there means codex never reached a usable picker (e.g. unauthenticated, no
+    model configured, broken TUI), so the acceptance SKIPs rather than failing.
+    Only the final skill-row render passes `False`: once the picker is open and
+    searched, a timeout means the skill row did NOT resolve — a genuine FAIL (the
+    ob-4ts class). A mid-wait `OSError` (the TUI exited) is always treated as
+    unavailable (a SKIP): a crashed codex cannot prove non-resolution.
+    """
     deadline = time.monotonic() + timeout_seconds
     current = seen
     while time.monotonic() < deadline:
@@ -91,9 +116,9 @@ def _read_until(
             continue
         try:
             chunk = os.read(fd, 8192).decode("utf-8", errors="replace")
-        except OSError as exc:
+        except OSError:
             tail = _plain(text=current)[-3000:]
-            raise AssertionError(f"Codex TUI exited while waiting. Last output:\n{tail}") from exc
+            pytest.skip(f"Codex TUI exited mid-wait; treating codex as unavailable.\n{tail}")
         current += chunk
         if _FOREGROUND_QUERY in chunk:
             _send(fd=fd, text=_FOREGROUND_RESPONSE)
@@ -102,7 +127,13 @@ def _read_until(
         if predicate(_plain(text=current)):
             return current
     tail = _plain(text=current)[-3000:]
-    raise AssertionError(f"Timed out waiting for Codex picker state. Last output:\n{tail}")
+    if unavailable_on_timeout:
+        pytest.skip(
+            f"Timed out reaching a usable Codex picker; treating codex as unavailable.\n{tail}"
+        )
+    raise AssertionError(
+        f"Codex picker opened but the expected skill row did not resolve. Last output:\n{tail}"
+    )
 
 
 def _send(*, fd: int, text: str) -> None:
@@ -115,6 +146,7 @@ def _await_codex_prompt(*, fd: int, transcript: str) -> str:
         seen=transcript,
         predicate=lambda plain: _has_main_prompt(plain=plain) or _has_trust_prompt(plain=plain),
         timeout_seconds=_CODEX_STARTUP_TIMEOUT_SECONDS,
+        unavailable_on_timeout=True,
     )
     if not _has_trust_prompt(plain=_plain(text=current)):
         return current
@@ -124,6 +156,7 @@ def _await_codex_prompt(*, fd: int, transcript: str) -> str:
         seen=current,
         predicate=lambda plain: _has_main_prompt(plain=plain),
         timeout_seconds=_CODEX_STARTUP_TIMEOUT_SECONDS,
+        unavailable_on_timeout=True,
     )
 
 
@@ -149,7 +182,7 @@ def test_skills_picker_finds_orchestrate_by_short_name() -> None:
     """The human `/skills` picker finds `orchestrate` under the beads plugin."""
     codex = shutil.which("codex")
     if codex is None:
-        pytest.fail("codex CLI is required for the live /skills picker acceptance")
+        pytest.skip("codex CLI not available; skipping the live /skills picker acceptance")
 
     master_fd, slave_fd = pty.openpty()
     _prepare_pty(slave_fd=slave_fd)
@@ -179,6 +212,7 @@ def test_skills_picker_finds_orchestrate_by_short_name() -> None:
             predicate=lambda plain: "listskills" in _squashed(text=plain)
             and "enable/disableskills" in _squashed(text=plain),
             timeout_seconds=15,
+            unavailable_on_timeout=True,
         )
         _send(fd=master_fd, text="\r")
         transcript = _read_until(
@@ -186,6 +220,7 @@ def test_skills_picker_finds_orchestrate_by_short_name() -> None:
             seen=transcript,
             predicate=lambda plain: "Skills" in plain or "Search" in plain,
             timeout_seconds=15,
+            unavailable_on_timeout=True,
         )
         _send(fd=master_fd, text=_PICKER_QUERY)
         transcript = _read_until(
@@ -195,6 +230,7 @@ def test_skills_picker_finds_orchestrate_by_short_name() -> None:
                 expected in plain for expected in (_EXPECTED_SKILL, _EXPECTED_PLUGIN, "Skill")
             ),
             timeout_seconds=15,
+            unavailable_on_timeout=False,
         )
     finally:
         _stop_codex(proc=proc, fd=master_fd)

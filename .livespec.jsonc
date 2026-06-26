@@ -32,6 +32,23 @@
   "template": "livespec",
   "spec_root": "SPECIFICATION",
   "implementation": { "plugin": "livespec-orchestrator-beads-fabro" },
+  // Declared agent-runtime harnesses for the Conformance Pattern's
+  // cross-harness plugin-resolution concern (concern #2), read by
+  // livespec-dev-tooling's check-plugin-resolution Verifier
+  // (livespec/SPECIFICATION/non-functional-requirements.md §"Conformance
+  // Pattern"). This repo is the reference Codex Driver: it SUPPORTS codex,
+  // whose genuine live resolution smoke is the repo-local
+  // tests/e2e-cli/test_codex_skill_picker.py (run via
+  // `just check-codex-skill-picker`); the Verifier delegates codex's live
+  // smoke to that repo-local check. The Claude /livespec:* surface ships
+  // from livespec-driver-claude, so claude is declared EXEMPT here.
+  "harnesses": {
+    "codex":  { "status": "supported", "canonical_command": "livespec:next" },
+    "claude": {
+      "status": "exempt",
+      "reason": "livespec-driver-codex is the Codex Driver; the Claude /livespec:* surface ships from livespec-driver-claude"
+    }
+  },
   "livespec-driver-codex": {
     "compat": {
       // semver range and pinned tag against livespec core. The pin is
