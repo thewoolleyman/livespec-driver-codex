@@ -29,6 +29,7 @@ store from a livespec-governed project.
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -38,6 +39,15 @@ _CODEX_MEMORIES = Path.home() / ".codex" / "memories"
 
 # File-write tools whose `tool_input.file_path` names the target file.
 _FILE_WRITE_TOOLS = frozenset({"Write", "Edit"})
+
+# Codex's primary file-edit tool. Its target paths live in the V4A patch body
+# as `*** Add/Update/Delete File: <path>` (and `*** Move to: <path>`) markers;
+# the tool_input field carrying the patch text is matched tolerantly.
+_APPLY_PATCH_TOOLS = frozenset({"apply_patch"})
+_PATCH_FILE_MARKER = re.compile(
+    r"^\*\*\*\s+(?:Add|Update|Delete)\s+File:\s*(.+?)\s*$", re.MULTILINE
+)
+_PATCH_MOVE_MARKER = re.compile(r"^\*\*\*\s+Move\s+to:\s*(.+?)\s*$", re.MULTILINE)
 
 
 def _strip_jsonc_comments(*, text: str) -> str:
@@ -114,18 +124,55 @@ def _resolve_plugin_namespace(*, project_dir: str) -> str | None:
     return plugin.strip()
 
 
-def _target_file_path(*, payload: dict[str, object]) -> str | None:
-    """Extract the write-target file_path from a tool-call payload, or None."""
+def _collect_strings(*, obj: object) -> list[str]:
+    """Recursively gather every string value within a JSON-ish object."""
+    if isinstance(obj, str):
+        return [obj]
+    if isinstance(obj, dict):
+        out: list[str] = []
+        for value in obj.values():
+            out.extend(_collect_strings(obj=value))
+        return out
+    if isinstance(obj, list):
+        nested: list[str] = []
+        for value in obj:
+            nested.extend(_collect_strings(obj=value))
+        return nested
+    return []
+
+
+def _apply_patch_targets(*, tool_input: dict[str, object]) -> list[str]:
+    """Extract V4A patch file-target paths from an apply_patch tool_input.
+
+    Field-agnostic: scans every string value for `*** Add/Update/Delete File:`
+    and `*** Move to:` markers, so the exact key carrying the patch text does
+    not matter.
+    """
+    targets: list[str] = []
+    for text in _collect_strings(obj=tool_input):
+        targets.extend(_PATCH_FILE_MARKER.findall(text))
+        targets.extend(_PATCH_MOVE_MARKER.findall(text))
+    return targets
+
+
+def _target_file_paths(*, payload: dict[str, object]) -> list[str]:
+    """Return every write-target file path named by a tool-call payload.
+
+    Write/Edit name a single `tool_input.file_path`; apply_patch (Codex's
+    primary edit tool) names its targets in the V4A patch body.
+    """
     tool_name = payload.get("tool_name", "")
-    if tool_name not in _FILE_WRITE_TOOLS:
-        return None
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
-        return None
-    fp = tool_input.get("file_path")
-    if not isinstance(fp, str) or not fp:
-        return None
-    return fp
+        return []
+    if tool_name in _FILE_WRITE_TOOLS:
+        fp = tool_input.get("file_path")
+        if isinstance(fp, str) and fp:
+            return [fp]
+        return []
+    if tool_name in _APPLY_PATCH_TOOLS:
+        return _apply_patch_targets(tool_input=tool_input)
+    return []
 
 
 def _is_under_memories(*, path_str: str) -> bool:
@@ -170,10 +217,10 @@ def main() -> None:
         payload: dict[str, object] = json.loads(raw)
         if not isinstance(payload, dict):
             sys.exit(0)
-        path_str = _target_file_path(payload=payload)
-        if path_str is None:
+        paths = _target_file_paths(payload=payload)
+        if not paths:
             sys.exit(0)
-        if not _is_under_memories(path_str=path_str):
+        if not any(_is_under_memories(path_str=p) for p in paths):
             sys.exit(0)
         # Positively identified a write into the Codex memory store.
         # Gate on governance before denying.

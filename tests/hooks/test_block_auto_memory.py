@@ -250,3 +250,58 @@ def test_pass_no_project_dir_env() -> None:
         cwd="/tmp",
     )
     _assert_pass(result=result)
+
+
+def test_deny_apply_patch_adding_file_under_codex_memories(tmp_path: Path) -> None:
+    """apply_patch whose V4A patch ADDS a file under ~/.codex/memories/ → deny.
+
+    apply_patch is Codex's primary file-edit tool; its target file paths live in
+    the patch body as `*** Add/Update/Delete File: <path>` markers (the field
+    carrying the patch text is matched tolerantly, so the exact tool_input key
+    does not matter).
+    """
+    project = _governed_project(tmp_path=tmp_path)
+    target = str(_MEMORIES_PATH / "learned.md")
+    patch = (
+        "*** Begin Patch\n"
+        f"*** Add File: {target}\n"
+        "+durable guidance an agent tried to persist\n"
+        "*** End Patch\n"
+    )
+    stdin = _write_input(tool_name="apply_patch", tool_input={"input": patch})
+    result = _run_guard(stdin=stdin, project_dir=str(project))
+    payload = _assert_deny(result=result)
+    reason = payload["hookSpecificOutput"]["permissionDecisionReason"]
+    assert isinstance(reason, str)
+    assert "capture-work-item" in reason
+    assert "AGENTS.md" in reason
+
+
+def test_deny_apply_patch_updating_file_under_codex_memories(tmp_path: Path) -> None:
+    """apply_patch whose V4A patch UPDATES a file under ~/.codex/memories/ → deny."""
+    project = _governed_project(tmp_path=tmp_path)
+    target = str(_MEMORIES_PATH / "durable" / "prefs.md")
+    patch = "*** Begin Patch\n" f"*** Update File: {target}\n" "@@\n-old\n+new\n" "*** End Patch\n"
+    stdin = _write_input(tool_name="apply_patch", tool_input={"input": patch})
+    result = _run_guard(stdin=stdin, project_dir=str(project))
+    _assert_deny(result=result)
+
+
+def test_pass_apply_patch_with_no_memories_target(tmp_path: Path) -> None:
+    """apply_patch whose patch targets only repo files (no memories path) → pass."""
+    project = _governed_project(tmp_path=tmp_path)
+    patch = (
+        "*** Begin Patch\n" "*** Update File: src/main.py\n" "@@\n-old\n+new\n" "*** End Patch\n"
+    )
+    stdin = _write_input(tool_name="apply_patch", tool_input={"input": patch})
+    result = _run_guard(stdin=stdin, project_dir=str(project))
+    _assert_pass(result=result)
+
+
+def test_pass_apply_patch_to_memories_when_not_governed(tmp_path: Path) -> None:
+    """apply_patch targeting memories but project NOT governed → pass (fail-open gate)."""
+    target = str(_MEMORIES_PATH / "x.md")
+    patch = f"*** Begin Patch\n*** Add File: {target}\n+note\n*** End Patch\n"
+    stdin = _write_input(tool_name="apply_patch", tool_input={"input": patch})
+    result = _run_guard(stdin=stdin, project_dir=str(tmp_path))  # no .livespec.jsonc
+    _assert_pass(result=result)
