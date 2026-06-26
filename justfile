@@ -108,6 +108,7 @@ check:
     set -uo pipefail
     targets=(
         check-plugin-structure
+        check-plugin-resolution
         check-lint
         check-format
         check-hooks
@@ -142,6 +143,18 @@ check:
 # wired to the guard). Stdlib-only — runs under bare python3.
 check-plugin-structure:
     python3 dev-tooling/check_plugin_structure.py
+
+# Conformance-Pattern baseline Verifier (shipped by livespec-dev-tooling):
+# the cross-harness plugin-resolution concern (concern #2). It reads the
+# `harnesses` declaration in `.livespec.jsonc` and, in mock mode, asserts
+# declaration integrity (every declared harness has a valid status; an
+# exempt harness carries a reason). This repo declares codex SUPPORTED and
+# claude EXEMPT, so the mock-mode declaration-integrity pass is the gate
+# wired here; codex's genuine live resolution smoke is delegated to the
+# repo-local check-codex-skill-picker. Authority: livespec/SPECIFICATION/
+# non-functional-requirements.md §"Conformance Pattern".
+check-plugin-resolution:
+    uv run python -m livespec_dev_tooling.checks.plugin_resolution
 
 check-lint:
     uv run ruff check .
