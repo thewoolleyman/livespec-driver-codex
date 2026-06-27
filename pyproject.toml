@@ -37,7 +37,7 @@ dev = [
 # (this repo consumes only its `testing.cli_e2e` harness + the
 # heading_coverage / green_token checks).
 [tool.uv.sources]
-livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-tooling.git", tag = "v0.23.0" }
+livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-tooling.git", tag = "v0.24.0" }
 
 # ---------------------------------------------------------------------------
 # Ruff — sole linter + formatter. Rule set mirrors the family baseline
@@ -112,17 +112,14 @@ markers = [
 [tool.livespec_dev_tooling]
 scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
 # The source `.py` surface of this binding repo: the plugin-shipped Codex
-# hooks (livespec/hooks/ — the footgun guard + the no-shadow-ledger hook) and
-# the repo-local dev-tooling Python check (`check_plugin_structure.py`).
-# Prefixes are matched against repo-root-relative staged paths. The
-# dev-tooling prefix is the specific Python source file, NOT the bare
-# `dev-tooling/` directory — the directory also carries non-source artifacts
-# (e.g. the deleted commit-refuse shell wrapper, now installed from the
-# livespec-dev-tooling package) that legitimately have no paired test. This
-# `dev-tooling/check_plugin_structure.py` entry drops entirely once that check
-# moves into the shared package (zs22.7.9.2).
+# hooks (livespec/hooks/ — the footgun guard + the no-shadow-ledger hook).
+# Prefixes are matched against repo-root-relative staged paths. The bare
+# `dev-tooling/` directory is NOT a prefix — it carries only non-source
+# artifacts (the family-standard git-hook scaffolds) that legitimately have
+# no paired test, now that the structural check ships from the
+# livespec-dev-tooling package rather than as a repo-local
+# `dev-tooling/check_plugin_structure.py` (zs22.7.9.2).
 source_tree_prefixes = [
     "livespec/hooks/",
-    "dev-tooling/check_plugin_structure.py",
 ]
 tests_tree_prefix = "tests/"
