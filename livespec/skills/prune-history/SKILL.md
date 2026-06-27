@@ -67,8 +67,7 @@ the user instead of improvising paths.
 
 ## Config-named CLI dispatch
 
-Per livespec core's contract (its `contracts.md` §"Spec-side CLI
-contract"), every spec-side operation is named in the governed
+Per livespec core's contract (its `contracts.md`), every spec-side operation is named in the governed
 project's `.livespec.jsonc` under `spec_clis.prune_history` as an argv-form
 array, pre-populated with core's reference default and individually
 overridable. To "run the prune-history CLI named in config":
@@ -99,7 +98,7 @@ explicit user request triggers it.
 ## Runtime bindings
 
 - **"run the prune-history CLI named in config" / "invoke the prune-history
-  CLI"** — dispatch per §"Config-named CLI dispatch" above; with the
+  CLI"** — dispatch per the Config-named CLI dispatch section above; with the
   default config:
 
   ```bash
