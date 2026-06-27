@@ -138,9 +138,9 @@ check:
 # path, never the Driver's own plugin-root placeholder), and the hook
 # bundle (hooks.json without a top-level description, PreToolUse/Bash
 # wired to the guard). Consumed from the livespec-dev-tooling package
-# (`livespec_dev_tooling.checks.plugin_structure`, profile-auto-detecting).
+# (`livespec_dev_tooling.driver_checks.plugin_structure`, profile-auto-detecting).
 check-plugin-structure:
-    uv run python -m livespec_dev_tooling.checks.plugin_structure
+    uv run python -m livespec_dev_tooling.driver_checks.plugin_structure
 
 # Conformance-Pattern baseline Verifier (shipped by livespec-dev-tooling):
 # the cross-harness plugin-resolution concern (concern #2). It reads the
