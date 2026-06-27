@@ -13,12 +13,13 @@
 #   red-green-replay ritual is enforced fleet+adopter-wide (epic
 #   livespec-gcp2), regardless of any repo's product-Python footprint.
 #
-# Activation: `just bootstrap` installs the consolidated
-# git-hook-wrapper.sh as the .git/hooks/pre-commit, pre-push, and
-# commit-msg hooks (refuses at the primary checkout; delegates to
-# lefthook at secondary worktrees via mise). The commit-msg wrapper
-# routes argv[1] (the commit-message file path) to the red-green-replay
-# stage.
+# Activation: `just bootstrap` installs the canonical commit-refuse hook by
+# REUSING the livespec-dev-tooling installer
+# (`python -m livespec_dev_tooling.install_commit_refuse_hooks`, the SINGLE
+# source of the structural hook body) as the .git/hooks/pre-commit, pre-push,
+# and commit-msg hooks (refuses at the primary checkout; delegates to lefthook
+# at secondary worktrees via mise). The commit-msg hook routes argv[1] (the
+# commit-message file path) to the red-green-replay stage.
 
 pre-commit:
   commands:

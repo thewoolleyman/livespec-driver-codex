@@ -34,29 +34,18 @@ default:
 # ---------------------------------------------------------------
 
 bootstrap:
-    # Idempotent `livespec.primaryPath` on the primary checkout's
-    # git-common-dir config (family-wide invariant per livespec/
-    # SPECIFICATION/non-functional-requirements.md §"Primary-checkout
-    # commit-refuse hook" / §"Commit-refuse hook bootstrap procedure").
-    # The commit-refuse hook reads this config value to recognize the
-    # primary checkout and refuse commits/pushes there, forcing every
-    # edit through `git worktree add`.
-    git config --file "$(git rev-parse --git-common-dir)/config" livespec.primaryPath "$(realpath "$(dirname "$(git rev-parse --git-common-dir)")")"
-    # Install the consolidated git-hook-wrapper.sh as the pre-commit,
-    # pre-push, AND commit-msg hooks. The single file carries BOTH the
-    # canonical commit-refuse fingerprint (refuses at the primary
-    # checkout) and the mise-managed lefthook delegation (fires the
-    # per-hook gates at secondary worktrees), so one script satisfies the
-    # refuse-at-primary contract and the gate-delegation everywhere. Uses
-    # the git-common-dir hooks dir so the install is worktree-safe: from a
-    # secondary worktree `.git` is a file and `mkdir -p .git/hooks` would
-    # fail, whereas git-common-dir resolves to the shared hooks dir from
-    # both the primary checkout and any worktree.
-    mkdir -p "$(git rev-parse --git-common-dir)/hooks"
-    cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/pre-commit"
-    cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/pre-push"
-    cp dev-tooling/git-hook-wrapper.sh "$(git rev-parse --git-common-dir)/hooks/commit-msg"
-    chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-commit" "$(git rev-parse --git-common-dir)/hooks/pre-push" "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+    # Install the canonical livespec commit-refuse hook by REUSING the shared
+    # livespec-dev-tooling installer (pinned in pyproject.toml). The installed
+    # body is STRUCTURAL — it refuses commits/pushes when git-dir ==
+    # git-common-dir (a primary checkout) unless livespec.sandboxExempt is set —
+    # so it is ARMED ON INSTALL with NO livespec.primaryPath arming step to miss
+    # (this supersedes the retired `cp dev-tooling/git-hook-wrapper.sh` +
+    # `git config livespec.primaryPath` approach, whose unset-config window
+    # failed OPEN). Per livespec/SPECIFICATION/non-functional-requirements.md
+    # §"Conformance Pattern" concern #1 (Worktree-discipline). The installer
+    # resolves the primary's shared .git/hooks even when run from a linked
+    # worktree.
+    just install-commit-refuse-hooks
     # Harden the beads tenant-pointer dir to owner-only on first-touch (bd
     # recommends 0700; only the owning user's bd reads it — the Dolt server
     # connects over TCP and never reads this dir). Guarded: repos with no beads
@@ -76,6 +65,13 @@ bootstrap:
     mkdir -p "${HOME}/.worktrees"
     if ! mise settings get trusted_config_paths 2>/dev/null | grep -qF "${HOME}/.worktrees"; then mise settings add trusted_config_paths "${HOME}/.worktrees"; fi
     just ensure-plugins
+
+# Install the canonical livespec commit-refuse hook by REUSING the shared
+# livespec-dev-tooling installer module (the SINGLE source of the structural
+# hook body; pinned in pyproject.toml). NOT re-implemented in this Driver repo.
+# Idempotent; worktree-safe (resolves the primary's shared .git/hooks).
+install-commit-refuse-hooks:
+    uv run python -m livespec_dev_tooling.install_commit_refuse_hooks
 
 # Idempotent host-wide Codex plugin provisioning. Codex does not support
 # project-scoped plugin enablement, so these registrations intentionally land in
