@@ -18,8 +18,7 @@ content carries markdown checkbox task-list items ([ ] / [x]) at or above
 a mechanical threshold, it emits a `systemMessage` WARNING on stdout.
 
 WARN-ONLY BY CONTRACT (livespec core non-functional-requirements
-§"Planning Lane guidance" → "No shadow ledger"; contracts.md
-§"Driver-shipped hooks"): this hook NEVER blocks the stop — it never
+"No shadow ledger"; contracts.md): this hook NEVER blocks the stop — it never
 emits a `decision` key and never exits non-zero — and it never auto-edits
 anything. The mechanical detection internals (the planning-artifact path
 predicate, the checkbox threshold, the persisting-tool set) are Driver

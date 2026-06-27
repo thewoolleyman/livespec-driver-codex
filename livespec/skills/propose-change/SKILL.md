@@ -66,8 +66,7 @@ the user instead of improvising paths.
 
 ## Config-named CLI dispatch
 
-Per livespec core's contract (its `contracts.md` §"Spec-side CLI
-contract"), every spec-side operation is named in the governed
+Per livespec core's contract (its `contracts.md`), every spec-side operation is named in the governed
 project's `.livespec.jsonc` under `spec_clis.propose_change` as an argv-form
 array, pre-populated with core's reference default and individually
 overridable. To "run the propose-change CLI named in config":
@@ -92,7 +91,7 @@ python3 "$LIVESPEC_CORE_ROOT/scripts/bin/propose_change.py" <topic> --findings-j
 ## Runtime bindings
 
 - **"run the propose-change CLI named in config" / "invoke the propose-change
-  CLI"** — dispatch per §"Config-named CLI dispatch" above; with the
+  CLI"** — dispatch per the Config-named CLI dispatch section above; with the
   default config:
 
   ```bash

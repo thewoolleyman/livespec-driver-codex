@@ -1,7 +1,6 @@
 """Consumer wiring for the canonical CLI end-to-end harness (Codex Driver).
 
-Per livespec/SPECIFICATION/contracts.md §"CLI end-to-end harness
-contract", the harness itself is the single canonical implementation
+Per livespec/SPECIFICATION/contracts.md, the harness itself is the single canonical implementation
 that ships from `livespec-dev-tooling`
 (`livespec_dev_tooling.testing.cli_e2e`); this Codex Driver repo is a
 CONSUMER. The skills live in THIS repo's Codex plugin
