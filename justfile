@@ -33,38 +33,25 @@ default:
 # First-time setup.
 # ---------------------------------------------------------------
 
+# First-touch setup — a THIN delegator to the shipped LOCAL first-touch
+# reconcile verb (`livespec_dev_tooling.fleet.local_reconcile`), the
+# generalized successor to this recipe's former inline steps (livespec-zs22.8
+# M5). Reuse-first: NO copied logic — the verb walks the LOCAL obligation
+# partition (`contract.LOCAL_OBLIGATION_ROWS`): mise trust/install, uv sync,
+# the structural commit-refuse hooks (subsuming `lefthook install` — the
+# canonical hook overwrites the lefthook stubs and delegates to `lefthook
+# run`), the advisory `refs/notes/*` refspec, the worktree-root mise-trust
+# entry, the beads tenant-dir hardening, the beads-runtime detect-and-guide
+# probes, and project-scoped Claude/Codex plugin registration. The plugin rows
+# delegate back to THIS repo's own `ensure-plugins` recipe below; this repo
+# ships no `ensure-codex-plugins` recipe, so the verb's codex-plugins row SKIPs
+# (a member lacking a recipe declares no surface for the verb to register). The
+# verb resolves the target checkout worktree-safely via `git rev-parse
+# --git-common-dir`, so invoking from a linked worktree still provisions the
+# primary checkout's shared state. Mirrors the `install-commit-refuse-hooks`
+# recipe's `uv run python -m ...` from-package invocation.
 bootstrap:
-    # Install the canonical livespec commit-refuse hook by REUSING the shared
-    # livespec-dev-tooling installer (pinned in pyproject.toml). The installed
-    # body is STRUCTURAL — it refuses commits/pushes when git-dir ==
-    # git-common-dir (a primary checkout) unless livespec.sandboxExempt is set —
-    # so it is ARMED ON INSTALL with NO livespec.primaryPath arming step to miss
-    # (this supersedes the retired `cp dev-tooling/git-hook-wrapper.sh` +
-    # `git config livespec.primaryPath` approach, whose unset-config window
-    # failed OPEN). Per livespec/SPECIFICATION/non-functional-requirements.md
-    # §"Conformance Pattern" concern #1 (Worktree-discipline). The installer
-    # resolves the primary's shared .git/hooks even when run from a linked
-    # worktree.
-    just install-commit-refuse-hooks
-    # Harden the beads tenant-pointer dir to owner-only on first-touch (bd
-    # recommends 0700; only the owning user's bd reads it — the Dolt server
-    # connects over TCP and never reads this dir). Guarded: repos with no beads
-    # tenant have no .beads.
-    [ -d "$(dirname "$(git rev-parse --git-common-dir)")/.beads" ] && chmod 700 "$(dirname "$(git rev-parse --git-common-dir)")/.beads" || true
-    # Idempotent worktree-root + mise-trust setup. Every git worktree in
-    # the fleet lives under a single per-user root, ~/.worktrees/<repo>/
-    # <branch> (per livespec/SPECIFICATION/non-functional-requirements.md
-    # §"Worktree root and mise trust"). Registering that root as one of
-    # mise's trusted_config_paths makes each freshly created worktree's
-    # .mise.toml auto-trusted, so the first `mise exec` inside it never
-    # stops on the "config not trusted" prompt — the failure that
-    # otherwise wastes a tool round-trip on every new worktree. The grep
-    # guard keeps the global ~/.config/mise/config.toml entry single on
-    # repeated bootstraps; the value is the absolute $HOME-rooted path so
-    # it resolves identically from any invocation site.
-    mkdir -p "${HOME}/.worktrees"
-    if ! mise settings get trusted_config_paths 2>/dev/null | grep -qF "${HOME}/.worktrees"; then mise settings add trusted_config_paths "${HOME}/.worktrees"; fi
-    just ensure-plugins
+    uv run python -m livespec_dev_tooling.fleet.local_reconcile
 
 # Install the canonical livespec commit-refuse hook by REUSING the shared
 # livespec-dev-tooling installer module (the SINGLE source of the structural
