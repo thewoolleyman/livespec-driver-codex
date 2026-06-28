@@ -34,8 +34,8 @@ wheels = [
 
 [[package]]
 name = "livespec-dev-tooling"
-version = "0.30.0"
-source = { git = "https://github.com/thewoolleyman/livespec-dev-tooling.git?tag=v0.30.0#4a8621e25967b451c99312d39e5ab1bcd70b6070" }
+version = "0.30.1"
+source = { git = "https://github.com/thewoolleyman/livespec-dev-tooling.git?tag=v0.30.1#a5015f28bad9e1f70b4dd74968300efbd68d1fe2" }
 
 [[package]]
 name = "livespec-driver-codex"
@@ -53,7 +53,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "livespec-dev-tooling", git = "https://github.com/thewoolleyman/livespec-dev-tooling.git?tag=v0.30.0" },
+    { name = "livespec-dev-tooling", git = "https://github.com/thewoolleyman/livespec-dev-tooling.git?tag=v0.30.1" },
     { name = "pytest", specifier = "==8.3.4" },
     { name = "ruff", specifier = "==0.8.6" },
 ]
