@@ -58,7 +58,7 @@
       // contract-version-compatibility invariant fires `warn` against a
       // "master" pin, which is expected pre-1.0.
       "livespec": ">=0.1.0,<1.0.0",
-      "pinned": "v0.5.0"
+      "pinned": "v0.6.0"
     }
   }
 }
