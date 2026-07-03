@@ -73,6 +73,8 @@ _ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _GIT_GLOBAL_OPTS_WITH_ARG = ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path")
 _SEGMENT_SPLIT = re.compile(r"&&|\|\||;|\||\n")
 _HEREDOC = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
+_FD_DUP_TARGET = re.compile(r"^(?:[0-9]+|-)$")
+_FD_DUP_REDIR = re.compile(r"^[0-9]*[<>]&(?:[0-9]+|-)$")
 
 # Commands that, as the leading command of a segment, WRITE to a path argument.
 # Each entry maps a command basename to a callable returning the candidate
@@ -233,7 +235,15 @@ def _redirect_targets(seg: str, tokens: list[str]) -> list[str]:
     # target as the NEXT token. Scan the raw segment text for `>`/`>>` operators
     # since shlex keeps them as standalone tokens.
     redir = re.compile(r"^[0-9]*>>?$")
-    for idx, tok in enumerate(tokens):
+    idx = 0
+    while idx < len(tokens):
+        tok = tokens[idx]
+        if _FD_DUP_REDIR.match(tok):
+            idx += 1
+            continue
+        if tok in (">&", "<&") and idx + 1 < len(tokens) and _FD_DUP_TARGET.match(tokens[idx + 1]):
+            idx += 2
+            continue
         if redir.match(tok) and idx + 1 < len(tokens):
             targets.append(tokens[idx + 1])
         else:
@@ -241,6 +251,7 @@ def _redirect_targets(seg: str, tokens: list[str]) -> list[str]:
             m = re.match(r"^[0-9]*>>?(.+)$", tok)
             if m and m.group(1):
                 targets.append(m.group(1))
+        idx += 1
 
     if not tokens:
         return targets
