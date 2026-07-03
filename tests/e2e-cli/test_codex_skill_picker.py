@@ -59,6 +59,15 @@ _GIT_HOOK_ENV_VARS = (
 )
 
 
+def _has_controlling_terminal() -> bool:
+    try:
+        fd = os.open("/dev/tty", os.O_RDONLY | os.O_NOCTTY)
+    except OSError:
+        return False
+    os.close(fd)
+    return True
+
+
 def _plain(*, text: str) -> str:
     """Strip terminal control sequences enough for substring assertions."""
     return _ANSI_RE.sub("", text).replace("\r", "\n")
@@ -183,6 +192,10 @@ def test_skills_picker_finds_orchestrate_by_short_name() -> None:
     codex = shutil.which("codex")
     if codex is None:
         pytest.skip("codex CLI not available; skipping the live /skills picker acceptance")
+    if not _has_controlling_terminal():
+        pytest.skip(
+            "No controlling terminal available; skipping the live /skills picker acceptance"
+        )
 
     master_fd, slave_fd = pty.openpty()
     _prepare_pty(slave_fd=slave_fd)
