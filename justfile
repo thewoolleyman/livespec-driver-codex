@@ -43,9 +43,14 @@ default:
 # run`), the advisory `refs/notes/*` refspec, the worktree-root mise-trust
 # entry, the beads tenant-dir hardening, the beads-runtime detect-and-guide
 # probes, and project-scoped Claude/Codex plugin registration. The plugin rows
-# delegate back to THIS repo's own `ensure-plugins` recipe below; this repo
-# ships no `ensure-codex-plugins` recipe, so the verb's codex-plugins row SKIPs
-# (a member lacking a recipe declares no surface for the verb to register). The
+# delegate back to THIS repo's own `ensure-plugins` (Claude) and
+# `ensure-codex-plugins` (Codex) recipes below; both are now present, so both
+# the Claude-plugins and codex-plugins reconcile rows RUN. (Previously this repo
+# carried only the Codex provisioner under the `ensure-plugins` name and shipped
+# no `ensure-codex-plugins` recipe, so the codex-plugins row SKIPped and the
+# Claude-plugins row ran the Codex recipe; the recipe below has been renamed to
+# the fleet-standard `ensure-codex-plugins` and a real Claude `ensure-plugins`
+# added, so each reconcile row now routes to its own runtime.) The
 # verb resolves the target checkout worktree-safely via `git rev-parse
 # --git-common-dir`, so invoking from a linked worktree still provisions the
 # primary checkout's shared state. Mirrors the `install-commit-refuse-hooks`
@@ -60,12 +65,38 @@ bootstrap:
 install-commit-refuse-hooks:
     uv run python -m livespec_dev_tooling.install_commit_refuse_hooks
 
+# Idempotent: `claude plugin marketplace add` / `install` / `update` all exit 0
+# when the target is already present / already at latest. The `update` calls
+# after each `install` are required because `install` is a no-op when any
+# version is already present locally — without `update`, a bumped upstream
+# release never reaches a previously-bootstrapped working copy. Registers this
+# repo's full `.claude/settings.json` `enabledPlugins` set (livespec +
+# livespec-driver-claude + livespec-orchestrator-beads-fabro); the SessionStart
+# hook in `.claude/settings.json` runs this recipe so each new session's
+# project-scope plugins are current. Core + the Claude Driver MUST be present
+# for agents doing Claude-side work in this repo, even though this repo's own
+# published surface is the Codex Driver (the Codex plugins are registered
+# host-wide by `ensure-codex-plugins` below).
+ensure-plugins:
+    claude plugin marketplace add --scope project thewoolleyman/livespec
+    claude plugin marketplace add --scope project thewoolleyman/livespec-driver-claude
+    claude plugin marketplace add --scope project thewoolleyman/livespec-orchestrator-beads-fabro
+    claude plugin install -s project livespec@livespec
+    claude plugin install -s project livespec@livespec-driver-claude
+    claude plugin install -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
+    claude plugin update -s project livespec@livespec
+    claude plugin update -s project livespec@livespec-driver-claude
+    claude plugin update -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
+
 # Idempotent host-wide Codex plugin provisioning. Codex does not support
 # project-scoped plugin enablement, so these registrations intentionally land in
 # the user's default CODEX_HOME and are visible to every repo on the host. Codex
 # is an optional dogfooding runtime; bootstrap skips this target when the CLI is
-# absent but fails on real install errors when Codex is present.
-ensure-plugins:
+# absent but fails on real install errors when Codex is present. Named
+# `ensure-codex-plugins` (the fleet-standard name) so local_reconcile's
+# codex-plugins row routes to it by name; it was formerly the `ensure-plugins`
+# recipe, which mislabeled Codex provisioning as the Claude-plugins row.
+ensure-codex-plugins:
     #!/usr/bin/env bash
     set -euo pipefail
     if ! command -v codex >/dev/null 2>&1; then
