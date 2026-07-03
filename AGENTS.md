@@ -24,7 +24,7 @@ plugin itself.
 | `livespec/.codex-plugin/plugin.json` | Plugin manifest. The plugin is NAMED `livespec` (not `livespec-driver-codex`) so the established `/livespec:*` command surface is preserved. |
 | `livespec/skills/<name>/SKILL.md` | The eight thin Codex bindings: seed, propose-change, critique, revise, doctor, prune-history, next, help. |
 | `livespec/hooks/` | Plugin-shipped Codex hooks: `hooks.json` declares the events; `livespec_footgun_guard.py` is a fail-open PreToolUse guard resolved via the Driver's plugin root (this IS Driver-owned runtime surface, unlike prose/CLIs). |
-| `.livespec.jsonc` | Project-local livespec config: `template`, `spec_root`, active impl-plugin, and the Driver `compat` block. (The beads tenant connection block is DEFERRED to a later family-infra phase.) |
+| `.livespec.jsonc` | Project-local livespec config: `template`, `spec_root`, active impl-plugin, the Driver `compat` block, and the per-repo beads tenant connection block (mirroring the committed `.beads/config.yaml`). |
 | `dev-tooling/` | The family-standard git-hook scaffolds. The structural gate is no longer vendored here — `check-plugin-structure` consumes the profile-auto-detecting check from the shared `livespec-dev-tooling` package (`python -m livespec_dev_tooling.driver_checks.plugin_structure`). The commit-refuse hook is likewise no longer a vendored `git-hook-wrapper.sh` scaffold here — `just bootstrap` installs the canonical structural hook from the same package (`python -m livespec_dev_tooling.install_commit_refuse_hooks`, the SINGLE source of the hook body; both pinned in `pyproject.toml`). |
 | `tests/` | `tests/hooks/` (footgun-guard subprocess unit tests) and `tests/e2e-cli/` (the CLI end-to-end harness consumer: mock-tier discovery + fail-closed coverage gate + static binding assertions + live Codex `/skills` picker acceptance). |
 | `SPECIFICATION/` | The dogfooded live spec for the Driver seam (`spec.md`, `contracts.md`, `constraints.md`, `non-functional-requirements.md`, `scenarios.md`, `history/v001/`). |
@@ -34,9 +34,11 @@ plugin itself.
 
 The family-infra (justfile, lefthook, pyproject, dev-tooling, tests,
 dogfooded `SPECIFICATION/`, CI) is present and `just check` passes. The
-per-repo beads tenant connection block (and the committed
-`.beads/config.yaml`) remain DEFERRED to a later family-infra phase, as
-recorded in `.livespec.jsonc`.
+per-repo beads tenant is WIRED and CONNECTED: the committed
+`.beads/config.yaml` and the `.livespec.jsonc` connection block describe
+the server-mode tenant (user/db `livespec-driver-codex`, TCP-only over
+`127.0.0.1:3307`, no socket key; the tenant password is supplied via
+`BEADS_DOLT_PASSWORD` at bd-call time and never committed).
 
 ## The one design rule that matters here
 

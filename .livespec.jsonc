@@ -21,13 +21,14 @@
 //   it) and livespec/SPECIFICATION/contracts.md §"Plugin distribution",
 //   §"Driver-shipped hooks".
 //
-// DEFERRED — beads tenant: the per-repo beads/Dolt tenant CONNECTION
-// block (and the matching committed .beads/config.yaml) is NOT yet
-// provisioned for this repo. It is intentionally OMITTED here and will
-// be added in a later family-infra phase, mirroring the
+// This repo's own impl tracking lives in a per-repo beads/Dolt TENANT
+// database on the shared dolt-server (tenant name "livespec-driver-codex"),
+// via livespec-orchestrator-beads-fabro, mirroring the
 // livespec-driver-claude pattern (tenant name == repo name; TCP-only,
-// NO socket key; password supplied via BEADS_DOLT_PASSWORD at bd-call
-// time and NEVER committed).
+// NO socket key). The connection block below MIRRORS the repo's
+// committed .beads/config.yaml; the tenant password is supplied via the
+// BEADS_DOLT_PASSWORD environment variable at bd-call time and is NEVER
+// committed here.
 {
   "template": "livespec",
   "spec_root": "SPECIFICATION",
@@ -59,6 +60,32 @@
       // "master" pin, which is expected pre-1.0.
       "livespec": ">=0.1.0,<1.0.0",
       "pinned": "v0.6.0"
+    }
+  },
+  "livespec-orchestrator-beads-fabro": {
+    "format": "beads",
+    "compat": {
+      "livespec": ">=0.1.0,<1.0.0",
+      "pinned": "v0.6.0"
+    },
+    // Per-repo beads tenant CONNECTION block, mirrored by .beads/config.yaml.
+    // `prefix` == `tenant` == `database` == `server_user` == this repo's
+    // name ("livespec-driver-codex") is the load-bearing tenant-identity
+    // rule. TCP-only: NO `socket` key — the dolt unix socket dir is
+    // 0750 dolt:dolt and inaccessible to the sandboxed caller, so the
+    // connection goes over 127.0.0.1:3307. The tenant PASSWORD is
+    // deliberately ABSENT (supplied via BEADS_DOLT_PASSWORD at call time).
+    // `fake` is false so the committed config describes the REAL
+    // connection; CI and tests set LIVESPEC_BEADS_FAKE=1 to force the
+    // hermetic in-memory backend.
+    "connection": {
+      "tenant": "livespec-driver-codex",
+      "prefix": "livespec-driver-codex",
+      "database": "livespec-driver-codex",
+      "server_user": "livespec-driver-codex",
+      "server_host": "127.0.0.1",
+      "server_port": 3307,
+      "fake": false
     }
   }
 }
