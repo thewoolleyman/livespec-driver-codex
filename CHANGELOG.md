@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.0...v0.3.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* cover fd duplication redirections in footgun guard ([28f39ad](https://github.com/thewoolleyman/livespec-driver-codex/commit/28f39ad8c442abb8aa896eed8921b062ab1bace4))
+
 ## [0.3.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.2.0...v0.3.0) (2026-07-01)
 
 
