@@ -43,11 +43,12 @@ def _hook_input(*, command: str, tool_name: str = "Bash") -> str:
     return json.dumps({"tool_name": tool_name, "tool_input": {"command": command}})
 
 
-def _run_guard(*, stdin: str) -> subprocess.CompletedProcess[str]:
+def _run_guard(*, stdin: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python3", str(_GUARD_SCRIPT)],
         input=stdin,
         env={"PATH": os.environ["PATH"]},
+        cwd=cwd,
         capture_output=True,
         text=True,
         check=False,
@@ -175,6 +176,25 @@ def test_denies_git_config_core_bare_true_equals() -> None:
 # --------------------------------------------------------------------------
 # (d) a write INTO a primary checkout → deny
 # --------------------------------------------------------------------------
+
+
+def test_passes_fd_duplication_redirections_in_primary_checkout(tmp_path: Path) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    result = _run_guard(
+        stdin=_hook_input(command="printf err >&2; printf err 1>&2; printf out 2>&1"),
+        cwd=primary,
+    )
+    _assert_pass(result=result)
+
+
+def test_mixed_fd_duplication_and_redirect_classifies_only_file_target(tmp_path: Path) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    target = tmp_path / "outside-primary.txt"
+    result = _run_guard(
+        stdin=_hook_input(command=f"printf out 2>&1 > {target}"),
+        cwd=primary,
+    )
+    _assert_pass(result=result)
 
 
 def test_denies_redirect_into_primary_checkout(tmp_path: Path) -> None:
