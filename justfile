@@ -65,28 +65,18 @@ bootstrap:
 install-commit-refuse-hooks:
     uv run python -m livespec_dev_tooling.install_commit_refuse_hooks
 
-# Idempotent: `claude plugin marketplace add` / `install` / `update` all exit 0
-# when the target is already present / already at latest. The `update` calls
-# after each `install` are required because `install` is a no-op when any
-# version is already present locally — without `update`, a bumped upstream
-# release never reaches a previously-bootstrapped working copy. Registers this
-# repo's full `.claude/settings.json` `enabledPlugins` set (livespec +
-# livespec-driver-claude + livespec-orchestrator-beads-fabro); the SessionStart
-# hook in `.claude/settings.json` runs this recipe so each new session's
-# project-scope plugins are current. Core + the Claude Driver MUST be present
-# for agents doing Claude-side work in this repo, even though this repo's own
-# published surface is the Codex Driver (the Codex plugins are registered
+# The standard shared derive-from-settings wrapper: reads the committed
+# `.claude/settings.json` (`extraKnownMarketplaces` incl. ref, `enabledPlugins`)
+# at runtime and issues the marketplace add / install / update commands for
+# exactly what it finds — one source of truth, recipe-content drift structurally
+# impossible. Registers this repo's full project-scope Claude plugin set; the
+# SessionStart hook in `.claude/settings.json` runs this recipe so each new
+# session's project-scope plugins are current. Core + the Claude Driver MUST be
+# present for agents doing Claude-side work in this repo, even though this repo's
+# own published surface is the Codex Driver (the Codex plugins are registered
 # host-wide by `ensure-codex-plugins` below).
 ensure-plugins:
-    claude plugin marketplace add --scope project thewoolleyman/livespec@release
-    claude plugin marketplace add --scope project thewoolleyman/livespec-driver-claude@release
-    claude plugin marketplace add --scope project thewoolleyman/livespec-orchestrator-beads-fabro@release
-    claude plugin install -s project livespec@livespec
-    claude plugin install -s project livespec@livespec-driver-claude
-    claude plugin install -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
-    claude plugin update -s project livespec@livespec
-    claude plugin update -s project livespec@livespec-driver-claude
-    claude plugin update -s project livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
+    mise exec -- uv run --no-sync python -m livespec_dev_tooling.fleet.ensure_plugins
 
 # Idempotent host-wide Codex plugin provisioning. Codex does not support
 # project-scoped plugin enablement, so these registrations intentionally land in
