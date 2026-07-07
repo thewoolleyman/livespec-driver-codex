@@ -186,8 +186,8 @@ check-e2e-cli:
 
 # Live Codex TUI `/skills` picker acceptance. This is the only gate that
 # exercises the human picker path: `/skills` -> "List skills" -> search for the
-# short skill name `orchestrate` and require the picker to render the
-# `orchestrate (livespec-orchestrator-beads-fabro)` Skill row. CI skips unless
+# short skill name `drive` and require the picker to render the
+# `drive (livespec-orchestrator-beads-fabro)` Skill row. CI skips unless
 # a runner explicitly opts in because GitHub-hosted CI does not provide an
 # authenticated interactive Codex TUI.
 check-codex-skill-picker:

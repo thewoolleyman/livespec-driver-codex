@@ -127,7 +127,7 @@ driven from Codex via `codex exec` and NAME-selected as `livespec:<op>`
 named in the governed project's `.livespec.jsonc` `spec_clis` section —
 exactly the runtime resolution described under "How the bindings find
 livespec core" in `README.md`. The orchestrator plugin adds its own
-Codex skills (`orchestrate`, `next`, `list-work-items`,
+Codex skills (`drive`, `next`, `list-work-items`,
 `detect-impl-gaps`, `capture-work-item`, `capture-impl-gaps`,
 `capture-spec-drift`, `implement`, `groom`) under its plugin name. No
 `AGENTS.md` skill→prose mapping is required; the distributed Drivers
@@ -138,10 +138,10 @@ contracts" for the authoritative install and resolution contracts.
 
 The Codex TUI picker displays skills differently from the name-selection
 form above. In `/skills` → `List skills` (or the `@` picker), search by the
-short skill name, for example `orchestrate`; Codex renders the match as
-`orchestrate (livespec-orchestrator-beads-fabro)` with kind `Skill`. Do not
+short skill name, for example `drive`; Codex renders the match as
+`drive (livespec-orchestrator-beads-fabro)` with kind `Skill`. Do not
 expect the picker row to be searchable only as
-`livespec-orchestrator-beads-fabro:orchestrate`; that colon-qualified form is
+`livespec-orchestrator-beads-fabro:drive`; that colon-qualified form is
 for prompt / `codex exec` name selection and model-visible skill references.
 
 Daily-dogfooding note: edit livespec core's `prose/<name>.md` for

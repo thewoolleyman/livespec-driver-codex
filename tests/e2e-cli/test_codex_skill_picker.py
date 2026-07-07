@@ -40,8 +40,8 @@ __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-_PICKER_QUERY = "orchestrate"
-_EXPECTED_SKILL = "orchestrate"
+_PICKER_QUERY = "drive"
+_EXPECTED_SKILL = "drive"
 _EXPECTED_PLUGIN = "livespec-orchestrator-beads-fabro"
 _FOREGROUND_QUERY = "\x1b]10;?\x1b\\"
 _BACKGROUND_QUERY = "\x1b]11;?\x1b\\"
@@ -187,8 +187,8 @@ def _stop_codex(*, proc: subprocess.Popen[bytes], fd: int) -> None:
 
 
 @pytest.mark.real_only
-def test_skills_picker_finds_orchestrate_by_short_name() -> None:
-    """The human `/skills` picker finds `orchestrate` under the beads plugin."""
+def test_skills_picker_finds_drive_by_short_name() -> None:
+    """The human `/skills` picker finds `drive` under the beads plugin."""
     codex = shutil.which("codex")
     if codex is None:
         pytest.skip("codex CLI not available; skipping the live /skills picker acceptance")
