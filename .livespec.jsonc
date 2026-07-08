@@ -59,14 +59,14 @@
       // contract-version-compatibility invariant fires `warn` against a
       // "master" pin, which is expected pre-1.0.
       "livespec": ">=0.1.0,<1.0.0",
-      "pinned": "v0.7.1"
+      "pinned": "v0.7.2"
     }
   },
   "livespec-orchestrator-beads-fabro": {
     "format": "beads",
     "compat": {
       "livespec": ">=0.1.0,<1.0.0",
-      "pinned": "v0.7.1"
+      "pinned": "v0.7.2"
     },
     // Per-repo beads tenant CONNECTION block, mirrored by .beads/config.yaml.
     // `prefix` == `tenant` == `database` == `server_user` == this repo's
