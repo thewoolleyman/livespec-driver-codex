@@ -104,11 +104,32 @@ markers = [
 # `source_tree_prefixes = ()`, `path.startswith(())` is always False, so the
 # "every source-touching commit also touches tests/" gate flagged nothing
 # (work-item livespec-h3e7). The keys below name THIS repo's real source
-# surface so the gate actually bites. Of the dev-tooling checks this repo
-# runs, ONLY `commit_pairs_source_and_test` reads these keys; the other
-# source-tree consumers (`check_coverage_incremental`,
-# `tests_no_subprocess_spawn`) are not wired into this repo's `just check` or
-# lefthook, so the minimal source/test role pair suffices.
+# surface so the gate actually bites.
+#
+# fleet-check-coverage (livespec epic livespec-i5ebqd): this repo now ALSO
+# wires the applies-to-all structural COVERAGE checks (justfile + ci.yml:
+# check-all-declared, check-file-lloc, check-keyword-only-args,
+# check-no-write-direct, check-partition-completeness, and the rest). Those
+# checks do NOT read the heavy `source_trees`-family role keys for their
+# universe — they derive it from the root-anchored git index
+# (`resolve_check_universe` = `git ls-files '*.py'` minus `_vendor/`,
+# `tests_tree_prefix`, `templates/`, and `@generated`). So the three hook
+# `.py` (livespec/hooks/{block_auto_memory,livespec_footgun_guard,
+# no_shadow_ledger}.py) ARE the universe, and the Config role keys these
+# newly-wired checks actually consult here are only:
+#   - `source_tree_prefixes` — the `partition_completeness` broad-role claim
+#     for the hooks (also the `commit_pairs` co-staging surface);
+#   - `supervisor_entry_files` — the `no_write_direct` file-scope exemption
+#     for the two Stop/PreToolUse hooks that own a documented stdout contract
+#     (see that key's comment below);
+#   - `file_lloc_hard_gate` — the `file_lloc` Phase-2 hard-gate arming flag,
+#     DELIBERATELY LEFT UNSET here (see the deferred-flip note below).
+# The remaining heavy product-tree role keys (`source_trees`, `io_trees`,
+# etc.) stay deliberately OMITTED: naming a tree this repo lacks would
+# mislead readers and add a config key that guards nothing. With
+# `source_trees` empty, the delta-WARN classifier in each applies-to-all
+# check treats all three hooks as newly-covered — so every coverage check
+# stays Phase-0 WARN-only (exit 0) for this repo.
 [tool.livespec_dev_tooling]
 scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
 # The source `.py` surface of this binding repo: the plugin-shipped Codex
@@ -123,3 +144,34 @@ source_tree_prefixes = [
     "livespec/hooks/",
 ]
 tests_tree_prefix = "tests/"
+# no_write_direct file-scope exemption. Two of the three hooks emit their
+# payload on stdout as their documented I/O boundary: `no_shadow_ledger.py`
+# (a Stop hook — `sys.stdout.write(warning + "\n")` for its `systemMessage`
+# JSON) and `block_auto_memory.py` (a PreToolUse hook —
+# `sys.stdout.write(_deny_payload(...) + "\n")` for its deny decision). Those
+# stdout writes ARE each hook's I/O contract, exactly the "supervisor surface
+# owns a documented stdout contract" case the `no_write_direct`
+# `supervisor_entry_files` exemption exists for (analogous to core's
+# `run_static.py` findings-JSON contract). Declaring them here is honest
+# classification — not a bypass — and clears the newly-covered no_write_direct
+# WARNs. `no_shadow_ledger.py`'s body is single-sourced BYTE-IDENTICALLY across
+# both Drivers (livespec core contracts.md §"Driver-shipped hooks"), so its
+# coverage is handled by config here, never by editing the shared body. (The
+# footgun guard uses `print()`, not `sys.stdout.write`, so it needs no
+# no_write_direct exemption.)
+supervisor_entry_files = [
+    "livespec/hooks/block_auto_memory.py",
+    "livespec/hooks/no_shadow_ledger.py",
+]
+# Phase-2 file_lloc flip: DEFERRED, NOT set here (fleet-check-coverage epic
+# livespec-i5ebqd). driver-claude armed `file_lloc_hard_gate = true`, but this
+# repo does NOT yet, because `livespec/hooks/livespec_footgun_guard.py` is
+# 263 LLOC — OVER the 250 hard ceiling (the codex footgun variant carries extra
+# apply_patch V4A target extraction + shell redirect-target + primary-checkout
+# edit detection the claude variant lacks). Arming the gate now would hard-fail
+# CI. The ceiling is neither raised nor gamed: a dedicated follow-up
+# GENUINELY decomposes the footgun guard ≤250 (never shaved — it is a security
+# hook), adds its own tests + independent review, and ONLY THEN sets
+# `file_lloc_hard_gate = true`. Until then `file_lloc` stays Phase-0 WARN-only
+# (exit 0) for this repo's whole git-derived universe, consistent with the other
+# newly-covered coverage checks above.

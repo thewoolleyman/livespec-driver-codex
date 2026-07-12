@@ -39,6 +39,20 @@ jobs:
           - check-e2e-cli
           - check-codex-skill-picker
           - check-heading-coverage
+          - check-all-declared
+          - check-assert-never-exhaustiveness
+          - check-comment-line-anchors
+          - check-file-lloc
+          - check-global-writes
+          - check-keyword-only-args
+          - check-main-guard
+          - check-match-keyword-only
+          - check-no-inheritance
+          - check-no-lloc-soft-warnings
+          - check-no-write-direct
+          - check-partition-completeness
+          - check-private-calls
+          - check-rop-pipeline-shape
     steps:
       - name: Checkout
         uses: actions/checkout@v4
