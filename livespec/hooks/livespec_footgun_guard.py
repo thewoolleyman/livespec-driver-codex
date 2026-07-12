@@ -39,6 +39,8 @@ import shlex
 import subprocess
 import sys
 
+__all__: list[str] = []
+
 _NO_VERIFY_REASON = (
     "NEVER use --no-verify in the livespec family. The lefthook gates "
     "(commit-msg, pre-commit, pre-push, Red-Green-Replay trailers) are "
@@ -82,7 +84,7 @@ _FD_DUP_REDIR = re.compile(r"^[0-9]*[<>]&(?:[0-9]+|-)$")
 _PRIMARY_CHECKOUT_CACHE: dict[str, bool] = {}
 
 
-def _strip_heredoc_bodies(command: str) -> str:
+def _strip_heredoc_bodies(*, command: str) -> str:
     """Remove here-doc BODIES (they are file data, not executed commands).
 
     `cat > f <<'EOF'\n...body...\nEOF` — the body lines are data; analyzing them
@@ -112,12 +114,12 @@ def _strip_heredoc_bodies(command: str) -> str:
     return "\n".join(out)
 
 
-def _segments(command: str) -> list[str]:
-    cleaned = _strip_heredoc_bodies(command)
+def _segments(*, command: str) -> list[str]:
+    cleaned = _strip_heredoc_bodies(command=command)
     return [s.strip() for s in _SEGMENT_SPLIT.split(cleaned) if s.strip()]
 
 
-def _strip_leading_noise(tokens: list[str]) -> tuple[list[str], bool]:
+def _strip_leading_noise(*, tokens: list[str]) -> tuple[list[str], bool]:
     """Strip leading env-assignments and `mise exec [--] ` / `sudo` / `env`.
 
     Returns (remaining tokens, lefthook_disabled_seen).
@@ -157,7 +159,7 @@ def _strip_leading_noise(tokens: list[str]) -> tuple[list[str], bool]:
     return tokens[i:], lefthook_off
 
 
-def _git_subcommand(tokens: list[str]) -> tuple[str | None, list[str]]:
+def _git_subcommand(*, tokens: list[str]) -> tuple[str | None, list[str]]:
     """If tokens is a git invocation, return (subcommand, args_after_subcommand)."""
     if not tokens:
         return None, []
@@ -180,7 +182,7 @@ def _git_subcommand(tokens: list[str]) -> tuple[str | None, list[str]]:
     return tokens[i], tokens[i + 1 :]
 
 
-def _is_primary_checkout(path: str) -> bool:
+def _is_primary_checkout(*, path: str) -> bool:
     """True iff `path` resolves into a git repo that is its OWN primary checkout.
 
     A primary checkout is a repo whose `git config --get livespec.primaryPath`
@@ -216,7 +218,7 @@ def _is_primary_checkout(path: str) -> bool:
     return result
 
 
-def _redirect_targets(seg: str, tokens: list[str]) -> list[str]:
+def _redirect_targets(*, seg: str, tokens: list[str]) -> list[str]:
     """Collect candidate write-target paths from a shell segment.
 
     Best-effort, token/segment based:
@@ -278,7 +280,7 @@ def _redirect_targets(seg: str, tokens: list[str]) -> list[str]:
             if m:
                 targets.append(m.group(1))
     elif base == "git":
-        sub, _ = _git_subcommand(tokens)
+        sub, _ = _git_subcommand(tokens=tokens)
         if sub in ("apply", "am"):
             # writes into the current worktree; the cwd is the target
             targets.append(".")
@@ -286,7 +288,7 @@ def _redirect_targets(seg: str, tokens: list[str]) -> list[str]:
     return targets
 
 
-def _check_segment(seg: str) -> tuple[bool, str]:
+def _check_segment(*, seg: str) -> tuple[bool, str]:
     try:
         tokens = shlex.split(seg, posix=True)
     except ValueError:
@@ -297,21 +299,21 @@ def _check_segment(seg: str) -> tuple[bool, str]:
     # (d) primary-checkout edit — checked on the RAW token stream BEFORE the
     # noise-strip, so redirections like `cmd > /primary/file` are seen.
     try:
-        for target in _redirect_targets(seg, tokens):
+        for target in _redirect_targets(seg=seg, tokens=tokens):
             if target.startswith("-"):
                 continue
             # Resolve the directory the write would land in.
             cand = target if os.path.isabs(target) else os.path.join(os.getcwd(), target)
             probe = cand if os.path.isdir(cand) else os.path.dirname(cand) or "."
-            if _is_primary_checkout(probe):
+            if _is_primary_checkout(path=probe):
                 return True, _PRIMARY_EDIT_REASON
     except Exception:
         pass  # fail open
 
-    core, lefthook_off = _strip_leading_noise(tokens)
+    core, lefthook_off = _strip_leading_noise(tokens=tokens)
     if lefthook_off:
         return True, _LEFTHOOK_REASON
-    sub, args = _git_subcommand(core)
+    sub, args = _git_subcommand(tokens=core)
     if sub is None:
         return False, ""  # leading command isn't git → not a commit/config footgun
     if sub in ("commit", "push") and "--no-verify" in args:
@@ -331,7 +333,7 @@ def _check_segment(seg: str) -> tuple[bool, str]:
     return False, ""
 
 
-def _deny(reason: str, command: str) -> None:
+def _deny(*, reason: str, command: str) -> None:
     payload = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -361,10 +363,10 @@ def main() -> None:
         command = data.get("tool_input", {}).get("command", "")
         if not command:
             sys.exit(0)
-        for seg in _segments(command):
-            blocked, reason = _check_segment(seg)
+        for seg in _segments(command=command):
+            blocked, reason = _check_segment(seg=seg)
             if blocked:
-                _deny(reason, command)
+                _deny(reason=reason, command=command)
         sys.exit(0)
     except json.JSONDecodeError:
         sys.exit(0)

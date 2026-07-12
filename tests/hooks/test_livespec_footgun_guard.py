@@ -141,6 +141,20 @@ def test_denies_git_push_no_verify() -> None:
     _assert_deny(result=result)
 
 
+def test_denies_mise_exec_wrapper_no_verify() -> None:
+    # `_strip_leading_noise` must strip the `mise exec --` wrapper so the guard
+    # inspects the real `git commit --no-verify` invocation underneath.
+    result = _run_guard(stdin=_hook_input(command="mise exec -- git commit --no-verify -m wip"))
+    _assert_deny(result=result)
+
+
+def test_denies_no_verify_in_second_and_segment() -> None:
+    # `_segments` splits on `&&`; the footgun is the SECOND segment, not the
+    # leading benign `echo`.
+    result = _run_guard(stdin=_hook_input(command="echo ok && git commit --no-verify"))
+    _assert_deny(result=result)
+
+
 # --------------------------------------------------------------------------
 # (b) LEFTHOOK=0 / LEFTHOOK=false leading env-assignment → deny
 # --------------------------------------------------------------------------
@@ -219,6 +233,16 @@ def test_denies_sed_in_place_into_primary_checkout(tmp_path: Path) -> None:
     _assert_deny(result=result)
 
 
+def test_denies_dd_of_into_primary_checkout(tmp_path: Path) -> None:
+    # `_redirect_targets` extracts the `dd of=<file>` operand as a write target;
+    # into a primary checkout it must deny.
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    target = primary / "scratch_probe.txt"
+    result = _run_guard(stdin=_hook_input(command=f"dd if=/dev/zero of={target} bs=1 count=1"))
+    payload = _assert_deny(result=result)
+    assert "PRIMARY" in payload["hookSpecificOutput"]["permissionDecisionReason"]
+
+
 # --------------------------------------------------------------------------
 # benign passes — the dangerous strings as DATA, non-primary writes
 # --------------------------------------------------------------------------
@@ -231,6 +255,15 @@ def test_passes_echo_of_no_verify_string() -> None:
 
 def test_passes_git_config_get_core_bare_read() -> None:
     result = _run_guard(stdin=_hook_input(command="git config --get core.bare"))
+    _assert_pass(result=result)
+
+
+def test_passes_heredoc_body_carrying_no_verify_as_data() -> None:
+    # `_strip_heredoc_bodies` drops the here-doc BODY (it is file data, not an
+    # executed command), so a `--no-verify` string appearing ONLY inside the
+    # body is not a footgun and must pass.
+    command = "cat <<'EOF'\ngit commit --no-verify\nEOF"
+    result = _run_guard(stdin=_hook_input(command=command))
     _assert_pass(result=result)
 
 
