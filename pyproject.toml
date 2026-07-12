@@ -123,14 +123,30 @@ markers = [
 #     for the two Stop/PreToolUse hooks that own a documented stdout contract
 #     (see that key's comment below);
 #   - `file_lloc_hard_gate` — the `file_lloc` Phase-2 hard-gate arming flag,
-#     DELIBERATELY LEFT UNSET here (see the deferred-flip note below).
+#     now SET (see the armed-flip note below).
 # The remaining heavy product-tree role keys (`source_trees`, `io_trees`,
 # etc.) stay deliberately OMITTED: naming a tree this repo lacks would
 # mislead readers and add a config key that guards nothing. With
 # `source_trees` empty, the delta-WARN classifier in each applies-to-all
-# check treats all three hooks as newly-covered — so every coverage check
-# stays Phase-0 WARN-only (exit 0) for this repo.
+# check treats all first-party hook `.py` as newly-covered, so the other
+# twelve coverage checks stay Phase-0 WARN-only (exit 0); ONLY `file_lloc`
+# is armed to the hard gate for this repo via `file_lloc_hard_gate` below.
 [tool.livespec_dev_tooling]
+# Phase-2 file_lloc FLIP (fleet-check-coverage epic livespec-i5ebqd). With this
+# key true, `file_lloc` hard-gates this repo's WHOLE git-derived first-party-.py
+# universe (>250 LLOC => error/exit 1) instead of WARN-only. Armed AFTER the
+# footgun-guard decomposition (this epic's follow-up): `livespec_footgun_guard.py`
+# was 263→264 LLOC (over the 250 hard ceiling), so it was GENUINELY split — its
+# cohesive shell-tokenization + primary-checkout-edit sub-responsibilities moved
+# to the sibling modules `livespec/hooks/_footgun_shell.py` +
+# `livespec/hooks/_footgun_primary_checkout.py`, NOT shaved. Every file in the
+# universe (the three hooks + the two new modules) is now well under the ceiling
+# (verified: `check-file-lloc` exits 0 with the gate armed, zero files >250; all
+# ≤200). This is a SEVERITY increase, never a bypass (per livespec
+# .ai/ci-gate-discipline.md + the fleet-check-coverage golden rules). Placed
+# directly under the header, above the other keys, per the fleet placement
+# convention.
+file_lloc_hard_gate = true
 scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
 # The source `.py` surface of this binding repo: the plugin-shipped Codex
 # hooks (livespec/hooks/ — the footgun guard + the no-shadow-ledger hook).
@@ -163,15 +179,6 @@ supervisor_entry_files = [
     "livespec/hooks/block_auto_memory.py",
     "livespec/hooks/no_shadow_ledger.py",
 ]
-# Phase-2 file_lloc flip: DEFERRED, NOT set here (fleet-check-coverage epic
-# livespec-i5ebqd). driver-claude armed `file_lloc_hard_gate = true`, but this
-# repo does NOT yet, because `livespec/hooks/livespec_footgun_guard.py` is
-# 263 LLOC — OVER the 250 hard ceiling (the codex footgun variant carries extra
-# apply_patch V4A target extraction + shell redirect-target + primary-checkout
-# edit detection the claude variant lacks). Arming the gate now would hard-fail
-# CI. The ceiling is neither raised nor gamed: a dedicated follow-up
-# GENUINELY decomposes the footgun guard ≤250 (never shaved — it is a security
-# hook), adds its own tests + independent review, and ONLY THEN sets
-# `file_lloc_hard_gate = true`. Until then `file_lloc` stays Phase-0 WARN-only
-# (exit 0) for this repo's whole git-derived universe, consistent with the other
-# newly-covered coverage checks above.
+# The `file_lloc_hard_gate = true` arming flag lives directly under the
+# `[tool.livespec_dev_tooling]` header above (fleet placement convention); see
+# its comment there for the footgun-guard decomposition that made the flip safe.
