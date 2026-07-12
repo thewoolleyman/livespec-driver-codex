@@ -112,6 +112,27 @@ check:
     set -uo pipefail
     targets=(
         check-plugin-structure
+        check-agents-ai-references-resolve
+        check-aggregate-completeness
+        check-branch-protection-alignment
+        check-canonical-recipe-fidelity
+        check-check-coverage-incremental
+        check-check-mutation
+        check-check-tools
+        check-ci-matrix-completeness
+        check-claude-md-coverage
+        check-commit-pairs-source-and-test
+        check-fleet-marketplace-relative-sources
+        check-master-ci-green
+        check-newtype-domain-primitives
+        check-no-direct-destructive-cli
+        check-no-direct-tool-invocation
+        check-no-except-outside-io
+        check-no-fmt-directives
+        check-no-raise-outside-io
+        check-no-todo-registry
+        check-pbt-coverage-pure-modules
+        check-per-file-coverage
         check-plugin-resolution
         check-lint
         check-format
@@ -132,8 +153,18 @@ check:
         check-no-lloc-soft-warnings
         check-no-write-direct
         check-partition-completeness
+        check-primary-checkout-commit-refuse-hook-installed
         check-private-calls
+        check-public-api-result-typed
+        check-red-green-replay
         check-rop-pipeline-shape
+        check-skill-invocation-paths
+        check-supervisor-discipline
+        check-tests-mirror-pairing
+        check-tests-no-subprocess-spawn
+        check-tool-backed-check-completeness
+        check-vendor-manifest
+        check-wrapper-shape
     )
     failed=()
     for target in "${targets[@]}"; do
@@ -393,3 +424,90 @@ check-pre-push:
         exit 0
     fi
     just check
+
+check-agents-ai-references-resolve:
+    uv run python -m livespec_dev_tooling.checks.agents_ai_references_resolve
+
+check-aggregate-completeness:
+    uv run python -m livespec_dev_tooling.checks.aggregate_completeness
+
+check-branch-protection-alignment:
+    uv run python -m livespec_dev_tooling.checks.branch_protection_alignment
+
+check-canonical-recipe-fidelity:
+    uv run python -m livespec_dev_tooling.checks.canonical_recipe_fidelity
+
+check-check-coverage-incremental:
+    uv run python -m livespec_dev_tooling.checks.check_coverage_incremental
+
+check-check-mutation:
+    uv run python -m livespec_dev_tooling.checks.check_mutation
+
+check-check-tools:
+    uv run python -m livespec_dev_tooling.checks.check_tools
+
+check-ci-matrix-completeness:
+    uv run python -m livespec_dev_tooling.checks.ci_matrix_completeness
+
+check-claude-md-coverage:
+    uv run python -m livespec_dev_tooling.checks.claude_md_coverage
+
+check-fleet-marketplace-relative-sources:
+    uv run python -m livespec_dev_tooling.checks.fleet_marketplace_relative_sources
+
+check-master-ci-green:
+    uv run python -m livespec_dev_tooling.checks.master_ci_green
+
+check-newtype-domain-primitives:
+    uv run python -m livespec_dev_tooling.checks.newtype_domain_primitives
+
+check-no-direct-destructive-cli:
+    uv run python -m livespec_dev_tooling.checks.no_direct_destructive_cli
+
+check-no-direct-tool-invocation:
+    uv run python -m livespec_dev_tooling.checks.no_direct_tool_invocation
+
+check-no-except-outside-io:
+    uv run python -m livespec_dev_tooling.checks.no_except_outside_io
+
+check-no-fmt-directives:
+    uv run python -m livespec_dev_tooling.checks.no_fmt_directives
+
+check-no-raise-outside-io:
+    uv run python -m livespec_dev_tooling.checks.no_raise_outside_io
+
+check-no-todo-registry:
+    uv run python -m livespec_dev_tooling.checks.no_todo_registry
+
+check-pbt-coverage-pure-modules:
+    uv run python -m livespec_dev_tooling.checks.pbt_coverage_pure_modules
+
+check-per-file-coverage:
+    uv run python -m livespec_dev_tooling.checks.per_file_coverage
+
+check-primary-checkout-commit-refuse-hook-installed:
+    uv run python -m livespec_dev_tooling.checks.primary_checkout_commit_refuse_hook_installed
+
+check-public-api-result-typed:
+    uv run python -m livespec_dev_tooling.checks.public_api_result_typed
+
+check-skill-invocation-paths:
+    uv run python -m livespec_dev_tooling.checks.skill_invocation_paths
+
+check-supervisor-discipline:
+    uv run python -m livespec_dev_tooling.checks.supervisor_discipline
+
+check-tests-mirror-pairing:
+    uv run python -m livespec_dev_tooling.checks.tests_mirror_pairing
+
+check-tests-no-subprocess-spawn:
+    uv run python -m livespec_dev_tooling.checks.tests_no_subprocess_spawn
+
+check-tool-backed-check-completeness:
+    uv run python -m livespec_dev_tooling.checks.tool_backed_check_completeness
+
+check-vendor-manifest:
+    uv run python -m livespec_dev_tooling.checks.vendor_manifest
+
+check-wrapper-shape:
+    uv run python -m livespec_dev_tooling.checks.wrapper_shape
