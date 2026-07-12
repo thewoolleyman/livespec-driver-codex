@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.2...v0.3.3) (2026-07-12)
+
+
+### Refactoring
+
+* **hooks:** decompose footgun guard into cohesive modules; arm file_lloc hard gate ([d23c065](https://github.com/thewoolleyman/livespec-driver-codex/commit/d23c06540ff57f694915f378b16c0ff06de0839d))
+
 ## [0.3.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.1...v0.3.2) (2026-07-12)
 
 
