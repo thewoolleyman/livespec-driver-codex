@@ -120,6 +120,20 @@ check:
         check-codex-skill-picker
         check-heading-coverage
         check-doctor-static
+        check-all-declared
+        check-assert-never-exhaustiveness
+        check-comment-line-anchors
+        check-file-lloc
+        check-global-writes
+        check-keyword-only-args
+        check-main-guard
+        check-match-keyword-only
+        check-no-inheritance
+        check-no-lloc-soft-warnings
+        check-no-write-direct
+        check-partition-completeness
+        check-private-calls
+        check-rop-pipeline-shape
     )
     failed=()
     for target in "${targets[@]}"; do
@@ -245,6 +259,67 @@ check-doctor-static:
       exit 1
     fi
     python3 "$core_root/scripts/bin/doctor_static.py" --project-root .
+
+# ---------------------------------------------------------------
+# Applies-to-all structural coverage checks (fleet-check-coverage,
+# livespec epic livespec-i5ebqd). Each derives its file universe from
+# the SAME root-anchored git index (`resolve_check_universe`), so this
+# thin Driver's three first-party hook `.py` (livespec/hooks/
+# block_auto_memory.py + livespec_footgun_guard.py + no_shadow_ledger.py)
+# are now structurally covered. These stay Phase-0 WARN-only (exit 0) for
+# THIS repo: `file_lloc_hard_gate` is DELIBERATELY NOT set in pyproject's
+# [tool.livespec_dev_tooling] yet, because livespec_footgun_guard.py is
+# 263 LLOC (over the 250 hard ceiling). Arming the gate is DEFERRED to the
+# footgun-guard decomposition follow-up, which genuinely reduces it ≤250
+# (never shaved) and only THEN flips file_lloc for this repo — see the
+# pyproject block's deferred-flip note. `check-aggregate-completeness` is
+# DELIBERATELY NOT wired: it is the universal-propagation gate that
+# requires the full canonical spec/orchestrator/copier check set, which a
+# thin per-runtime binding does not carry — Drivers stay OUTSIDE
+# universal-propagation (maintainer decision 2026-07-12).
+# ---------------------------------------------------------------
+
+check-all-declared:
+    uv run python -m livespec_dev_tooling.checks.all_declared
+
+check-assert-never-exhaustiveness:
+    uv run python -m livespec_dev_tooling.checks.assert_never_exhaustiveness
+
+check-comment-line-anchors:
+    uv run python -m livespec_dev_tooling.checks.comment_line_anchors
+
+check-file-lloc:
+    uv run python -m livespec_dev_tooling.checks.file_lloc
+
+check-global-writes:
+    uv run python -m livespec_dev_tooling.checks.global_writes
+
+check-keyword-only-args:
+    uv run python -m livespec_dev_tooling.checks.keyword_only_args
+
+check-main-guard:
+    uv run python -m livespec_dev_tooling.checks.main_guard
+
+check-match-keyword-only:
+    uv run python -m livespec_dev_tooling.checks.match_keyword_only
+
+check-no-inheritance:
+    uv run python -m livespec_dev_tooling.checks.no_inheritance
+
+check-no-lloc-soft-warnings:
+    uv run python -m livespec_dev_tooling.checks.no_lloc_soft_warnings
+
+check-no-write-direct:
+    uv run python -m livespec_dev_tooling.checks.no_write_direct
+
+check-partition-completeness:
+    uv run python -m livespec_dev_tooling.checks.partition_completeness
+
+check-private-calls:
+    uv run python -m livespec_dev_tooling.checks.private_calls
+
+check-rop-pipeline-shape:
+    uv run python -m livespec_dev_tooling.checks.rop_pipeline_shape
 
 # ---------------------------------------------------------------
 # Red→Green→Replay ritual gates (epic livespec-gcp2). Shared from
