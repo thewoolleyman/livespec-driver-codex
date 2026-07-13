@@ -31,19 +31,54 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
+from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
 
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _GUARD_SCRIPT = _REPO_ROOT / "livespec" / "hooks" / "livespec_footgun_guard.py"
+_HOOKS_DIR = _REPO_ROOT / "livespec" / "hooks"
+if str(_HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR))
+
+import livespec_footgun_guard  # noqa: E402 — path-dependent hook import.
+
+
+@dataclass(frozen=True, kw_only=True)
+class HookResult:
+    returncode: int
+    stdout: str
+    stderr: str
 
 
 def _hook_input(*, command: str, tool_name: str = "Bash") -> str:
     return json.dumps({"tool_name": tool_name, "tool_input": {"command": command}})
 
 
-def _run_guard(*, stdin: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def _run_guard(*, stdin: str, cwd: Path | None = None) -> HookResult:
+    old_stdin = sys.stdin
+    old_cwd = Path.cwd()
+    stdout = StringIO()
+    stderr = StringIO()
+    try:
+        sys.stdin = StringIO(stdin)
+        if cwd is not None:
+            os.chdir(cwd)
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            returncode = livespec_footgun_guard.main()
+    finally:
+        sys.stdin = old_stdin
+        os.chdir(old_cwd)
+    return HookResult(returncode=returncode, stdout=stdout.getvalue(), stderr=stderr.getvalue())
+
+
+def _run_guard_subprocess(
+    *, stdin: str, cwd: Path | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["python3", str(_GUARD_SCRIPT)],
         input=stdin,
@@ -56,7 +91,7 @@ def _run_guard(*, stdin: str, cwd: Path | None = None) -> subprocess.CompletedPr
     )
 
 
-def _assert_deny(*, result: subprocess.CompletedProcess[str]) -> dict[str, object]:
+def _assert_deny(*, result: HookResult | subprocess.CompletedProcess[str]) -> dict[str, object]:
     """Assert the guard emitted a `deny` decision and exited 0; return the payload."""
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip(), "expected a decision payload on stdout"
@@ -67,7 +102,7 @@ def _assert_deny(*, result: subprocess.CompletedProcess[str]) -> dict[str, objec
     return payload
 
 
-def _assert_pass(*, result: subprocess.CompletedProcess[str]) -> None:
+def _assert_pass(*, result: HookResult | subprocess.CompletedProcess[str]) -> None:
     """Assert the guard let the call through (empty stdout, exit 0)."""
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "", f"expected silent pass-through; got {result.stdout!r}"
@@ -134,6 +169,11 @@ def test_denies_git_commit_no_verify() -> None:
     result = _run_guard(stdin=_hook_input(command="git commit --no-verify -m wip"))
     payload = _assert_deny(result=result)
     assert "--no-verify" in payload["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_subprocess_smoke_denies_git_commit_no_verify() -> None:
+    result = _run_guard_subprocess(stdin=_hook_input(command="git commit --no-verify -m wip"))
+    _assert_deny(result=result)
 
 
 def test_denies_git_push_no_verify() -> None:
@@ -258,6 +298,11 @@ def test_passes_git_config_get_core_bare_read() -> None:
     _assert_pass(result=result)
 
 
+def test_passes_benign_git_status() -> None:
+    result = _run_guard(stdin=_hook_input(command="git status --short"))
+    _assert_pass(result=result)
+
+
 def test_passes_heredoc_body_carrying_no_verify_as_data() -> None:
     # `_strip_heredoc_bodies` drops the here-doc BODY (it is file data, not an
     # executed command), so a `--no-verify` string appearing ONLY inside the
@@ -305,4 +350,48 @@ def test_fail_open_non_json_stdin() -> None:
 
 def test_fail_open_non_bash_tool() -> None:
     result = _run_guard(stdin=_hook_input(command="git commit --no-verify", tool_name="Write"))
+    _assert_pass(result=result)
+
+
+def test_fail_open_unparseable_shell_segment() -> None:
+    result = _run_guard(stdin=_hook_input(command="git commit 'unterminated"))
+    _assert_pass(result=result)
+
+
+def test_check_segment_empty_and_dash_prefixed_redirect_target(monkeypatch) -> None:
+    def dash_target(*, seg, tokens):
+        del seg, tokens
+        return ["-not-a-file"]
+
+    assert livespec_footgun_guard._check_segment(seg="") == (False, "")
+    monkeypatch.setattr(livespec_footgun_guard, "redirect_targets", dash_target)
+    assert livespec_footgun_guard._check_segment(seg="echo hi") == (False, "")
+
+
+def test_check_segment_fails_open_when_redirect_target_probe_raises(monkeypatch) -> None:
+    def boom(*, seg, tokens):
+        del seg, tokens
+        raise RuntimeError("probe failed")
+
+    monkeypatch.setattr(livespec_footgun_guard, "redirect_targets", boom)
+    assert livespec_footgun_guard._check_segment(seg="echo hi") == (False, "")
+
+
+def test_passes_git_config_write_that_is_not_core_bare_true() -> None:
+    result = _run_guard(stdin=_hook_input(command="git config user.name tester"))
+    _assert_pass(result=result)
+
+
+def test_passes_bash_payload_without_command() -> None:
+    result = _run_guard(stdin=json.dumps({"tool_name": "Bash", "tool_input": {}}))
+    _assert_pass(result=result)
+
+
+def test_fail_open_when_segment_iteration_raises(monkeypatch) -> None:
+    def boom(*, command: str):
+        del command
+        raise RuntimeError("segment failure")
+
+    monkeypatch.setattr(livespec_footgun_guard, "segments", boom)
+    result = _run_guard(stdin=_hook_input(command="git status"))
     _assert_pass(result=result)
