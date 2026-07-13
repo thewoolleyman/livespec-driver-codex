@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.3...v0.3.4) (2026-07-13)
+
+
+### Bug Fixes
+
+* make Codex hook bodies importable ([9d7a78d](https://github.com/thewoolleyman/livespec-driver-codex/commit/9d7a78d85d805dee9ead5151ca3e04f925d08adc))
+
 ## [0.3.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.2...v0.3.3) (2026-07-12)
 
 
