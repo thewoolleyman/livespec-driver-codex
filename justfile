@@ -113,6 +113,7 @@ check:
     targets=(
         check-plugin-structure
         check-agents-ai-references-resolve
+        check-aggregate-completeness
         check-branch-protection-alignment
         check-canonical-recipe-fidelity
         check-check-coverage-incremental
@@ -162,6 +163,7 @@ check:
         check-supervisor-discipline
         check-tests-mirror-pairing
         check-tests-no-subprocess-spawn
+        check-tool-backed-check-completeness
         check-vendor-manifest
         check-wrapper-shape
     )
