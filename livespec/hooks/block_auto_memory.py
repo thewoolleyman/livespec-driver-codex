@@ -209,32 +209,32 @@ def _deny_payload(*, namespace: str) -> str:
     )
 
 
-def main() -> None:
+def main() -> int:
     try:
         raw = sys.stdin.read()
         if not raw.strip():
-            sys.exit(0)
+            return 0
         payload: dict[str, object] = json.loads(raw)
         if not isinstance(payload, dict):
-            sys.exit(0)
+            return 0
         paths = _target_file_paths(payload=payload)
         if not paths:
-            sys.exit(0)
+            return 0
         if not any(_is_under_memories(path_str=p) for p in paths):
-            sys.exit(0)
+            return 0
         # Positively identified a write into the Codex memory store.
         # Gate on governance before denying.
         project_dir = _find_project_dir()
         if project_dir is None:
-            sys.exit(0)
+            return 0
         namespace = _resolve_plugin_namespace(project_dir=project_dir)
         if namespace is None:
-            sys.exit(0)
+            return 0
         sys.stdout.write(_deny_payload(namespace=namespace) + "\n")
     except Exception:  # noqa: BLE001 — fail-open by contract
         pass
-    sys.exit(0)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

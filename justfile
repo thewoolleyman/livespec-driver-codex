@@ -113,7 +113,6 @@ check:
     targets=(
         check-plugin-structure
         check-agents-ai-references-resolve
-        check-aggregate-completeness
         check-branch-protection-alignment
         check-canonical-recipe-fidelity
         check-check-coverage-incremental
@@ -163,7 +162,6 @@ check:
         check-supervisor-discipline
         check-tests-mirror-pairing
         check-tests-no-subprocess-spawn
-        check-tool-backed-check-completeness
         check-vendor-manifest
         check-wrapper-shape
     )
@@ -296,19 +294,14 @@ check-doctor-static:
 # Applies-to-all structural coverage checks (fleet-check-coverage,
 # livespec epic livespec-i5ebqd). Each derives its file universe from
 # the SAME root-anchored git index (`resolve_check_universe`), so this
-# thin Driver's three first-party hook `.py` (livespec/hooks/
-# block_auto_memory.py + livespec_footgun_guard.py + no_shadow_ledger.py)
-# are now structurally covered. These stay Phase-0 WARN-only (exit 0) for
-# THIS repo: `file_lloc_hard_gate` is DELIBERATELY NOT set in pyproject's
-# [tool.livespec_dev_tooling] yet, because livespec_footgun_guard.py is
-# 263 LLOC (over the 250 hard ceiling). Arming the gate is DEFERRED to the
-# footgun-guard decomposition follow-up, which genuinely reduces it ≤250
-# (never shaved) and only THEN flips file_lloc for this repo — see the
-# pyproject block's deferred-flip note. `check-aggregate-completeness` is
-# DELIBERATELY NOT wired: it is the universal-propagation gate that
-# requires the full canonical spec/orchestrator/copier check set, which a
-# thin per-runtime binding does not carry — Drivers stay OUTSIDE
-# universal-propagation (maintainer decision 2026-07-12).
+# thin Driver's first-party hook `.py` files under livespec/hooks/ are
+# structurally covered. `file_lloc_hard_gate = true` is armed in
+# pyproject after the footgun-guard decomposition brought every hook
+# module under the hard ceiling. Full canonical aggregate/matrix parity
+# remains S6 work per the 2026-07-13 full-parity decision:
+# `check-aggregate-completeness` and `check-tool-backed-check-completeness`
+# stay available as recipes here, but S6 owns wiring them into the
+# aggregate and CI matrix together with `check-coverage` / `check-types`.
 # ---------------------------------------------------------------
 
 check-all-declared:
@@ -484,6 +477,9 @@ check-pbt-coverage-pure-modules:
     uv run python -m livespec_dev_tooling.checks.pbt_coverage_pure_modules
 
 check-per-file-coverage:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
     uv run python -m livespec_dev_tooling.checks.per_file_coverage
 
 check-primary-checkout-commit-refuse-hook-installed:
@@ -515,3 +511,6 @@ check-wrapper-shape:
 
 check-no-shadow-ledger-body-identical:
     uv run python -m livespec_dev_tooling.checks.no_shadow_ledger_body_identical
+
+install-no-shadow-ledger:
+    uv run python -m livespec_dev_tooling.install_no_shadow_ledger

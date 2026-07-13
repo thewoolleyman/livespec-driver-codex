@@ -115,8 +115,8 @@ def _check_segment(*, seg: str) -> tuple[bool, str]:
         if any(a in ("--get", "--unset", "--list", "--get-all", "--unset-all") for a in args):
             return False, ""
         joined = " ".join(args)
-        if re.search(r"\bcore\.bare\b", joined) and re.search(
-            r"\b(?:true|1|yes|on)\b", joined, re.IGNORECASE
+        if any(a == "core.bare" for a in args) and any(
+            re.fullmatch(r"(?:true|1|yes|on)", a, re.IGNORECASE) for a in args
         ):
             return True, _CORE_BARE_REASON
         # also catches `config core.bare=true`
@@ -141,30 +141,30 @@ def _deny(*, reason: str, command: str) -> None:
         }
     }
     print(json.dumps(payload))
-    sys.exit(0)
 
 
-def main() -> None:
+def main() -> int:
     try:
         raw = sys.stdin.read()
         if not raw.strip():
-            sys.exit(0)
+            return 0
         data = json.loads(raw)
         if data.get("tool_name", "") != "Bash":
-            sys.exit(0)
+            return 0
         command = data.get("tool_input", {}).get("command", "")
         if not command:
-            sys.exit(0)
+            return 0
         for seg in segments(command=command):
             blocked, reason = _check_segment(seg=seg)
             if blocked:
                 _deny(reason=reason, command=command)
-        sys.exit(0)
+                return 0
+        return 0
     except json.JSONDecodeError:
-        sys.exit(0)
+        return 0
     except Exception:
-        sys.exit(0)
+        return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -31,12 +31,21 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
+from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
 
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _GUARD_SCRIPT = _REPO_ROOT / "livespec" / "hooks" / "block_auto_memory.py"
+_HOOKS_DIR = _REPO_ROOT / "livespec" / "hooks"
+if str(_HOOKS_DIR) not in sys.path:
+    sys.path.insert(0, str(_HOOKS_DIR))
+
+import block_auto_memory  # noqa: E402 — path-dependent hook import.
 
 _MEMORIES_PATH = Path.home() / ".codex" / "memories"
 
@@ -55,11 +64,49 @@ _LIVESPEC_JSONC_CUSTOM_PLUGIN = """{
 """
 
 
+@dataclass(frozen=True, kw_only=True)
+class HookResult:
+    returncode: int
+    stdout: str
+    stderr: str
+
+
 def _write_input(*, tool_name: str, tool_input: dict[str, object]) -> str:
     return json.dumps({"tool_name": tool_name, "tool_input": tool_input})
 
 
 def _run_guard(
+    *,
+    stdin: str,
+    project_dir: str | None = None,
+    cwd: Path | None = None,
+) -> HookResult:
+    old_stdin = sys.stdin
+    old_project_dir = os.environ.get("CLAUDE_PROJECT_DIR")
+    old_cwd = Path.cwd()
+    stdout = StringIO()
+    stderr = StringIO()
+    try:
+        sys.stdin = StringIO(stdin)
+        if project_dir is None:
+            os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        else:
+            os.environ["CLAUDE_PROJECT_DIR"] = project_dir
+        if cwd is not None:
+            os.chdir(cwd)
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            returncode = block_auto_memory.main()
+    finally:
+        sys.stdin = old_stdin
+        if old_project_dir is None:
+            os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        else:
+            os.environ["CLAUDE_PROJECT_DIR"] = old_project_dir
+        os.chdir(old_cwd)
+    return HookResult(returncode=returncode, stdout=stdout.getvalue(), stderr=stderr.getvalue())
+
+
+def _run_guard_subprocess(
     *,
     stdin: str,
     project_dir: str | None = None,
@@ -78,7 +125,7 @@ def _run_guard(
     )
 
 
-def _assert_deny(*, result: subprocess.CompletedProcess[str]) -> dict[str, object]:
+def _assert_deny(*, result: HookResult | subprocess.CompletedProcess[str]) -> dict[str, object]:
     """Assert the guard emitted a `deny` decision and exited 0; return the payload."""
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip(), "expected a decision payload on stdout, got empty"
@@ -89,7 +136,7 @@ def _assert_deny(*, result: subprocess.CompletedProcess[str]) -> dict[str, objec
     return payload
 
 
-def _assert_pass(*, result: subprocess.CompletedProcess[str]) -> None:
+def _assert_pass(*, result: HookResult | subprocess.CompletedProcess[str]) -> None:
     """Assert the guard let the call through (empty stdout, exit 0)."""
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "", f"expected silent pass-through; got {result.stdout!r}"
@@ -117,6 +164,17 @@ def test_deny_write_to_codex_memories_when_governed(tmp_path: Path) -> None:
         tool_input={"file_path": target, "content": "some memory"},
     )
     result = _run_guard(stdin=stdin, project_dir=str(project))
+    _assert_deny(result=result)
+
+
+def test_subprocess_smoke_denies_write_to_codex_memories_when_governed(tmp_path: Path) -> None:
+    """The shipped script path still speaks the Codex hook stdin/stdout protocol."""
+    project = _governed_project(tmp_path=tmp_path)
+    stdin = _write_input(
+        tool_name="Write",
+        tool_input={"file_path": str(_MEMORIES_PATH / "smoke.md"), "content": "some memory"},
+    )
+    result = _run_guard_subprocess(stdin=stdin, project_dir=str(project))
     _assert_deny(result=result)
 
 
@@ -239,16 +297,7 @@ def test_pass_no_project_dir_env() -> None:
         tool_input={"file_path": target, "content": "note"},
     )
     # Run with no CLAUDE_PROJECT_DIR and cwd set to /tmp (no .livespec.jsonc)
-    result = subprocess.run(
-        ["python3", str(_GUARD_SCRIPT)],
-        input=stdin,
-        env={"PATH": os.environ["PATH"]},
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=30,
-        cwd="/tmp",
-    )
+    result = _run_guard(stdin=stdin, cwd=Path("/tmp"))
     _assert_pass(result=result)
 
 
@@ -305,3 +354,62 @@ def test_pass_apply_patch_to_memories_when_not_governed(tmp_path: Path) -> None:
     stdin = _write_input(tool_name="apply_patch", tool_input={"input": patch})
     result = _run_guard(stdin=stdin, project_dir=str(tmp_path))  # no .livespec.jsonc
     _assert_pass(result=result)
+
+
+def test_deny_with_jsonc_comments_and_cwd_project_discovery(tmp_path: Path) -> None:
+    """JSONC stripping handles comments/escaped strings; cwd discovery finds the project."""
+    (tmp_path / ".livespec.jsonc").write_text(
+        "{\n"
+        "  // line comment\n"
+        '  "template": "livespec",\n'
+        '  "note": "escaped \\" quote",\n'
+        "  /* block comment */\n"
+        '  "implementation": { "plugin": "livespec-impl-jsonc" }\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    stdin = _write_input(
+        tool_name="Write",
+        tool_input={"file_path": str(_MEMORIES_PATH / "jsonc.md"), "content": "note"},
+    )
+    result = _run_guard(stdin=stdin, cwd=tmp_path)
+    payload = _assert_deny(result=result)
+    assert "livespec-impl-jsonc" in payload["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_pass_non_mapping_payload() -> None:
+    result = _run_guard(stdin="[]")
+    _assert_pass(result=result)
+
+
+def test_pass_non_mapping_tool_input() -> None:
+    stdin = json.dumps({"tool_name": "Write", "tool_input": "not a mapping"})
+    result = _run_guard(stdin=stdin)
+    _assert_pass(result=result)
+
+
+def test_pass_malformed_or_ungoverned_project_configs(tmp_path: Path) -> None:
+    for name, text in {
+        "array": "[]",
+        "missing-implementation": "{}",
+        "bad-implementation": '{"implementation": []}',
+        "blank-plugin": '{"implementation": {"plugin": "  "}}',
+    }.items():
+        project = tmp_path / name
+        project.mkdir()
+        (project / ".livespec.jsonc").write_text(text, encoding="utf-8")
+        stdin = _write_input(
+            tool_name="Write",
+            tool_input={"file_path": str(_MEMORIES_PATH / f"{name}.md"), "content": "note"},
+        )
+        result = _run_guard(stdin=stdin, project_dir=str(project))
+        _assert_pass(result=result)
+
+
+def test_apply_patch_target_extraction_scans_nested_strings() -> None:
+    target = str(_MEMORIES_PATH / "nested.md")
+    patch = f"*** Begin Patch\n*** Move to: {target}\n*** End Patch\n"
+    paths = block_auto_memory._target_file_paths(
+        payload={"tool_name": "apply_patch", "tool_input": {"items": [123, {"patch": patch}]}}
+    )
+    assert paths == [target]
