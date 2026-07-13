@@ -27,6 +27,7 @@ authors = [
 # .mise.toml.
 dev = [
     "ruff==0.8.6",
+    "pyright==1.1.391",
     "pytest==8.3.4",
     "pytest-cov==6.0.0",
     "livespec-dev-tooling",
@@ -87,6 +88,23 @@ ignore = [
 # that tree (it is never imported as a package by product code).
 [tool.ruff.lint.per-file-ignores]
 "tests/e2e-cli/**.py" = ["N999"]
+
+# ---------------------------------------------------------------------------
+# Pyright — the `check-types` tool-backed gate (fixed fleet policy: every
+# consumer wires check-lint / check-format / check-types / check-coverage,
+# enforced by check-tool-backed-check-completeness). Scoped to the product
+# hook code under livespec/hooks/ (the only first-party product .py here),
+# mirroring the producer's package-only include. The hooks run as scripts
+# from their own directory, so their bare sibling imports
+# (`from _footgun_shell import ...`, `from _footgun_primary_checkout import
+# ...`) resolve at runtime via that on-disk dir being on sys.path; a runtime
+# shim pyright does not execute. extraPaths makes pyright resolve those
+# sibling imports against livespec/hooks/ WITHOUT a reportMissingImports (all
+# first-party stdlib-only modules, no stubs needed).
+[tool.pyright]
+include = ["livespec/hooks"]
+exclude = ["**/__pycache__/**"]
+extraPaths = ["livespec/hooks"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -110,10 +110,17 @@ ensure-codex-plugins:
 check:
     #!/usr/bin/env bash
     set -uo pipefail
+    # ONE contiguous canonical block first — every canonical check in the
+    # exact order emitted by dev-tooling's `canonical_check_slugs()`
+    # (alphabetical) — FOLLOWED BY this repo's private extras. This ordering
+    # is mandatory: `check-aggregate-completeness` fails on any canonical
+    # slug that is out of canonical order or on an extra that appears before
+    # or interleaved with the canonical block.
     targets=(
-        check-plugin-structure
         check-agents-ai-references-resolve
         check-aggregate-completeness
+        check-all-declared
+        check-assert-never-exhaustiveness
         check-branch-protection-alignment
         check-canonical-recipe-fidelity
         check-check-coverage-incremental
@@ -121,39 +128,31 @@ check:
         check-check-tools
         check-ci-matrix-completeness
         check-claude-md-coverage
+        check-comment-line-anchors
         check-commit-pairs-source-and-test
+        check-file-lloc
         check-fleet-marketplace-relative-sources
+        check-global-writes
+        check-heading-coverage
+        check-keyword-only-args
+        check-main-guard
         check-master-ci-green
+        check-match-keyword-only
         check-newtype-domain-primitives
         check-no-direct-destructive-cli
         check-no-direct-tool-invocation
         check-no-except-outside-io
         check-no-fmt-directives
+        check-no-inheritance
+        check-no-lloc-soft-warnings
         check-no-raise-outside-io
         check-no-shadow-ledger-body-identical
         check-no-todo-registry
+        check-no-write-direct
+        check-partition-completeness
         check-pbt-coverage-pure-modules
         check-per-file-coverage
         check-plugin-resolution
-        check-lint
-        check-format
-        check-hooks
-        check-e2e-cli
-        check-codex-skill-picker
-        check-heading-coverage
-        check-doctor-static
-        check-all-declared
-        check-assert-never-exhaustiveness
-        check-comment-line-anchors
-        check-file-lloc
-        check-global-writes
-        check-keyword-only-args
-        check-main-guard
-        check-match-keyword-only
-        check-no-inheritance
-        check-no-lloc-soft-warnings
-        check-no-write-direct
-        check-partition-completeness
         check-primary-checkout-commit-refuse-hook-installed
         check-private-calls
         check-public-api-result-typed
@@ -166,6 +165,23 @@ check:
         check-tool-backed-check-completeness
         check-vendor-manifest
         check-wrapper-shape
+        # Repo-private extras (NOT canonical) — MUST stay after the canonical
+        # block above. check-lint / check-format / check-types /
+        # check-coverage are the four fixed-policy tool-backed gates
+        # (ruff / pyright / coverage) that check-tool-backed-check-completeness
+        # requires on both surfaces; check-doctor-static runs core's doctor
+        # static phase; the rest are Codex-Driver-specific (plugin structure,
+        # the plugin-shipped hook tests, the e2e-cli harness, the live Codex
+        # TUI picker acceptance).
+        check-plugin-structure
+        check-lint
+        check-format
+        check-types
+        check-coverage
+        check-hooks
+        check-e2e-cli
+        check-codex-skill-picker
+        check-doctor-static
     )
     failed=()
     for target in "${targets[@]}"; do
@@ -213,6 +229,26 @@ check-lint:
 
 check-format:
     uv run ruff format --check .
+
+# `check-types` — the pyright tool-backed gate (fixed fleet policy: every
+# consumer wires check-lint / check-format / check-types / check-coverage,
+# enforced by check-tool-backed-check-completeness). Scoped to the product
+# hook code via [tool.pyright] in pyproject.toml (include = livespec/hooks).
+check-types:
+    uv run pyright
+
+# `check-coverage` — the aggregate `fail_under = 100` coverage gate (the
+# fourth tool-backed check). Measures the hook bodies the SAME clean way a
+# standalone CI job would: COVERAGE_FILE UNSET (`env -u`) so no exported
+# per-target namespace can leniently green-light self-referential lines. The
+# covered source (livespec/hooks, [tool.coverage.report] include) is
+# exercised only by tests/hooks/, so that is the suite run here;
+# check-per-file-coverage adds the per-file dimension over the same data.
+check-coverage:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    echo ":: check-coverage: clean standalone hook suite (COVERAGE_FILE unset) — strict, matches CI"
+    env -u COVERAGE_FILE uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
 
 # Plugin-shipped Codex hook script (livespec/hooks/) — the footgun
 # guard, unit-tested as a subprocess with a JSON stdin payload, asserting
@@ -300,10 +336,17 @@ check-doctor-static:
 # structurally covered. `file_lloc_hard_gate = true` is armed in
 # pyproject after the footgun-guard decomposition brought every hook
 # module under the hard ceiling. Full canonical aggregate/matrix parity
-# remains S6 work per the 2026-07-13 full-parity decision:
-# `check-aggregate-completeness` and `check-tool-backed-check-completeness`
-# stay available as recipes here, but S6 owns wiring them into the
-# aggregate and CI matrix together with `check-coverage` / `check-types`.
+# is now LANDED per the 2026-07-13 full-parity decision (S6, epic
+# livespec-9z8h): the `check:` aggregate above wires every canonical
+# slug as one contiguous alphabetical block (guarded by
+# `check-aggregate-completeness`), and `.github/workflows/ci.yml` runs
+# every canonical check — except the two world-gate checks
+# (`check-master-ci-green`, `check-branch-protection-alignment`, which
+# enforce at pre-push under an admin token) and `check-red-green-replay`
+# / `check-doctor-static` (their own dedicated jobs) — with
+# `LIVESPEC_FAIL_IF_CI_MATRIX_GAPS_EXIST` armed so
+# `check-ci-matrix-completeness` fails (not just warns) on any future
+# CI/aggregate drift.
 # ---------------------------------------------------------------
 
 check-all-declared:
