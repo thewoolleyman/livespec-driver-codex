@@ -37,6 +37,23 @@ def test_block_auto_memory_main_returns_zero_without_raising(
     assert captured.err == ""
 
 
+def test_codex_background_memory_audit_main_returns_zero_without_raising(
+    monkeypatch,
+    capsys,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+
+    hook = _reload_hook(module_name="codex_background_memory_audit")
+
+    assert hook.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
+
+
 def test_livespec_footgun_guard_main_returns_zero_without_raising(
     monkeypatch,
     capsys,

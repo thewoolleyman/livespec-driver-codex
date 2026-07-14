@@ -10,6 +10,7 @@ background memory rows exist.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import sqlite3
@@ -28,14 +29,26 @@ _HOOKS_DIR = _REPO_ROOT / "livespec" / "hooks"
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
-import codex_background_memory_audit  # noqa: E402 - path-dependent hook import.
-
 
 @dataclass(frozen=True, kw_only=True)
 class HookResult:
     returncode: int
     stdout: str
     stderr: str
+
+
+def _load_hook_module():
+    assert _HOOK_SCRIPT.is_file(), "Codex background-memory audit hook script must exist"
+    spec = importlib.util.spec_from_file_location(
+        "codex_background_memory_audit_under_test",
+        str(_HOOK_SCRIPT),
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _stop_input(*, transcript_path: str = "/tmp/transcript.jsonl", active: bool = False) -> str:
@@ -49,11 +62,12 @@ def _run_hook(*, stdin: str, project_dir: Path, db_path: Path) -> HookResult:
     stdout = StringIO()
     stderr = StringIO()
     try:
+        hook = _load_hook_module()
         sys.stdin = StringIO(stdin)
         os.environ["CLAUDE_PROJECT_DIR"] = str(project_dir)
         os.environ["LIVESPEC_CODEX_BACKGROUND_MEMORY_DB"] = str(db_path)
         with redirect_stdout(stdout), redirect_stderr(stderr):
-            returncode = codex_background_memory_audit.main()
+            returncode = hook.main()
     finally:
         sys.stdin = old_stdin
         if old_project_dir is None:
@@ -87,6 +101,7 @@ def _run_hook_subprocess(
 
 
 def _governed_project(*, tmp_path: Path, plugin: str = "livespec-orchestrator-beads-fabro") -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / ".livespec.jsonc").write_text(
         json.dumps(
             {
