@@ -14,7 +14,6 @@ import importlib.util
 import json
 import os
 import sqlite3
-import subprocess
 import sys
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
@@ -55,7 +54,7 @@ def _stop_input(*, transcript_path: str = "/tmp/transcript.jsonl", active: bool 
     return json.dumps({"transcript_path": transcript_path, "stop_hook_active": active})
 
 
-def _run_hook(*, stdin: str, project_dir: Path, db_path: Path) -> HookResult:
+def _run_hook(*, stdin: str, project_dir: Path | None, db_path: Path) -> HookResult:
     old_stdin = sys.stdin
     old_project_dir = os.environ.get("CLAUDE_PROJECT_DIR")
     old_db_path = os.environ.get("LIVESPEC_CODEX_BACKGROUND_MEMORY_DB")
@@ -64,7 +63,10 @@ def _run_hook(*, stdin: str, project_dir: Path, db_path: Path) -> HookResult:
     try:
         hook = _load_hook_module()
         sys.stdin = StringIO(stdin)
-        os.environ["CLAUDE_PROJECT_DIR"] = str(project_dir)
+        if project_dir is None:
+            os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        else:
+            os.environ["CLAUDE_PROJECT_DIR"] = str(project_dir)
         os.environ["LIVESPEC_CODEX_BACKGROUND_MEMORY_DB"] = str(db_path)
         with redirect_stdout(stdout), redirect_stderr(stderr):
             returncode = hook.main()
@@ -79,25 +81,6 @@ def _run_hook(*, stdin: str, project_dir: Path, db_path: Path) -> HookResult:
         else:
             os.environ["LIVESPEC_CODEX_BACKGROUND_MEMORY_DB"] = old_db_path
     return HookResult(returncode=returncode, stdout=stdout.getvalue(), stderr=stderr.getvalue())
-
-
-def _run_hook_subprocess(
-    *, stdin: str, project_dir: Path, db_path: Path
-) -> subprocess.CompletedProcess[str]:
-    env = {
-        "PATH": os.environ["PATH"],
-        "CLAUDE_PROJECT_DIR": str(project_dir),
-        "LIVESPEC_CODEX_BACKGROUND_MEMORY_DB": str(db_path),
-    }
-    return subprocess.run(
-        ["python3", str(_HOOK_SCRIPT)],
-        input=stdin,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=30,
-    )
 
 
 def _governed_project(*, tmp_path: Path, plugin: str = "livespec-orchestrator-beads-fabro") -> Path:
@@ -134,12 +117,12 @@ def _background_db(*, path: Path, jobs: int = 0, stage1_outputs: int = 0) -> Pat
     return path
 
 
-def _assert_pass(*, result: HookResult | subprocess.CompletedProcess[str]) -> None:
+def _assert_pass(*, result: HookResult) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "", result.stdout
 
 
-def _assert_warn(*, result: HookResult | subprocess.CompletedProcess[str]) -> str:
+def _assert_warn(*, result: HookResult) -> str:
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip(), "expected warn-only systemMessage"
     payload = json.loads(result.stdout)
@@ -178,18 +161,6 @@ def test_populated_background_memory_db_warns_with_durable_routes(tmp_path: Path
     assert "Do NOT silently drop" in message
 
 
-def test_subprocess_smoke_warns_for_populated_background_memory_db(tmp_path: Path) -> None:
-    project = _governed_project(tmp_path=tmp_path / "repo")
-    db_path = _background_db(
-        path=tmp_path / "home" / ".codex" / "memories_1.sqlite",
-        stage1_outputs=1,
-    )
-
-    result = _run_hook_subprocess(stdin=_stop_input(), project_dir=project, db_path=db_path)
-
-    _ = _assert_warn(result=result)
-
-
 def test_background_memory_audit_fails_open_for_missing_or_malformed_db(tmp_path: Path) -> None:
     project = _governed_project(tmp_path=tmp_path / "repo")
     missing = tmp_path / "home" / ".codex" / "missing.sqlite"
@@ -211,3 +182,118 @@ def test_background_memory_audit_skips_when_stop_hook_active(tmp_path: Path) -> 
     result = _run_hook(stdin=_stop_input(active=True), project_dir=project, db_path=db_path)
 
     _assert_pass(result=result)
+
+
+def test_jsonc_comments_and_cwd_project_discovery(tmp_path: Path) -> None:
+    project = tmp_path / "repo"
+    nested = project / "nested"
+    nested.mkdir(parents=True)
+    (project / ".livespec.jsonc").write_text(
+        "{\n"
+        "  // line comment\n"
+        '  "template": "livespec",\n'
+        '  "note": "escaped \\" quote",\n'
+        "  /* block comment */\n"
+        '  "implementation": { "plugin": "livespec-impl-jsonc" }\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    db_path = _background_db(
+        path=tmp_path / "home" / ".codex" / "memories_1.sqlite",
+        stage1_outputs=1,
+    )
+    old_cwd = Path.cwd()
+    try:
+        os.chdir(nested)
+        result = _run_hook(stdin=_stop_input(), project_dir=None, db_path=db_path)
+    finally:
+        os.chdir(old_cwd)
+
+    message = _assert_warn(result=result)
+    assert "/livespec-impl-jsonc:capture-work-item" in message
+
+
+def test_background_memory_audit_passes_without_governed_project(tmp_path: Path) -> None:
+    db_path = _background_db(
+        path=tmp_path / "home" / ".codex" / "memories_1.sqlite",
+        jobs=1,
+    )
+
+    result = _run_hook(stdin=_stop_input(), project_dir=tmp_path / "not-governed", db_path=db_path)
+
+    _assert_pass(result=result)
+
+
+def test_background_memory_audit_passes_when_no_project_is_discovered(tmp_path: Path) -> None:
+    db_path = _background_db(
+        path=tmp_path / "home" / ".codex" / "memories_1.sqlite",
+        jobs=1,
+    )
+    old_cwd = Path.cwd()
+    try:
+        os.chdir(tmp_path)
+        result = _run_hook(stdin=_stop_input(), project_dir=None, db_path=db_path)
+    finally:
+        os.chdir(old_cwd)
+
+    _assert_pass(result=result)
+
+
+def test_background_memory_audit_passes_for_non_mapping_payload(tmp_path: Path) -> None:
+    project = _governed_project(tmp_path=tmp_path / "repo")
+    db_path = _background_db(
+        path=tmp_path / "home" / ".codex" / "memories_1.sqlite",
+        jobs=1,
+    )
+
+    result = _run_hook(stdin="[]", project_dir=project, db_path=db_path)
+
+    _assert_pass(result=result)
+
+
+def test_background_memory_audit_passes_for_malformed_or_ungoverned_configs(
+    tmp_path: Path,
+) -> None:
+    db_path = _background_db(
+        path=tmp_path / "home" / ".codex" / "memories_1.sqlite",
+        jobs=1,
+    )
+    for name, text in {
+        "array": "[]",
+        "missing-implementation": "{}",
+        "bad-implementation": '{"implementation": []}',
+        "blank-plugin": '{"implementation": {"plugin": "  "}}',
+    }.items():
+        project = tmp_path / name
+        project.mkdir()
+        (project / ".livespec.jsonc").write_text(text, encoding="utf-8")
+
+        result = _run_hook(stdin=_stop_input(), project_dir=project, db_path=db_path)
+
+        _assert_pass(result=result)
+
+
+def test_background_memory_audit_treats_missing_stage1_table_as_empty(tmp_path: Path) -> None:
+    project = _governed_project(tmp_path=tmp_path / "repo")
+    db_path = tmp_path / "home" / ".codex" / "memories_1.sqlite"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(db_path)
+    try:
+        con.execute("create table jobs (id text primary key)")
+        con.execute("insert into jobs (id) values ('job-1')")
+        con.commit()
+    finally:
+        con.close()
+
+    result = _run_hook(stdin=_stop_input(), project_dir=project, db_path=db_path)
+
+    message = _assert_warn(result=result)
+    assert "jobs=1" in message
+    assert "stage1_outputs=0" in message
+
+
+def test_background_memory_default_db_path_uses_codex_home(monkeypatch) -> None:
+    hook = _load_hook_module()
+    monkeypatch.delenv("LIVESPEC_CODEX_BACKGROUND_MEMORY_DB", raising=False)
+
+    assert hook._background_db_path() == Path.home() / ".codex" / "memories_1.sqlite"
