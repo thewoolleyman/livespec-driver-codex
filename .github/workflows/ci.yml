@@ -68,6 +68,7 @@ jobs:
           - check-global-writes
           - check-heading-coverage
           - check-keyword-only-args
+          - check-local-memory-drift-audit
           - check-main-guard
           - check-match-keyword-only
           - check-newtype-domain-primitives
