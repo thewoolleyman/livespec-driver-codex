@@ -91,6 +91,7 @@ jobs:
           - check-private-calls
           - check-public-api-result-typed
           - check-rop-pipeline-shape
+          - check-self-hosted-routing
           - check-skill-invocation-paths
           - check-supervisor-discipline
           - check-tests-mirror-pairing
