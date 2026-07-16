@@ -5,6 +5,14 @@
 # e2e-cli harness consumer). Every step delegates to `just <target>`
 # (direct tool invocations in `run:` lines are forbidden per livespec/
 # SPECIFICATION/non-functional-requirements.md §"Toolchain pins").
+#
+# The check matrix + the dedicated check jobs run in the SAME baked image
+# the Fabro sandbox uses, on the local self-hosted runner — so "green in CI"
+# and "green in sandbox" are the same environment (plan/fabro-ci-image-factoring).
+# runs-on resolves from the repo variable CI_RUNNER_LABELS, defaulting to the
+# self-hosted label; set it to '["ubuntu-latest"]' to reroute to GitHub-hosted
+# when the local host is down (the merge-gate fallback). ci-green and
+# export-telemetry stay ubuntu-latest so the gate is reportable host-down.
 
 name: CI
 
@@ -17,16 +25,27 @@ name: CI
 env:
   UV_HTTP_RETRIES: "5"
 
+# merge_group is deliberately ABSENT: no merge queue is configured for this repo
+# (verified live — zero rulesets, required_merge_queue: null; branch protection
+# requires only ci-green). Keeping the vestigial trigger would be exactly the
+# routing hole the trusted-event audit forbids, since merge_group is not a
+# fork-gated event. Re-add it WITH hosted routing only if a merge queue is adopted.
 on:
   pull_request:
   push:
     branches: [master]
-  merge_group:
 
 jobs:
   check:
     name: ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
+    container:
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.43.2
+    env:
+      MISE_DATA_DIR: /root/.local/share/mise
+      MISE_NOT_FOUND_AUTO_INSTALL: "0"
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
     strategy:
       fail-fast: false
       matrix:
@@ -124,15 +143,15 @@ jobs:
           # for the other legs.
           fetch-depth: 0
 
-      - name: Install pinned binaries via mise
-        uses: jdx/mise-action@v2
-
-      - name: Restore uv download cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-${{ runner.os }}-
+      # Tools are baked into the image; `mise install` is a near-no-op that just
+      # confirms the pinned versions. A fresh container does not TRUST the repo
+      # .mise.toml, so `mise trust` is required for the shims to resolve.
+      # (Replaces the GitHub-hosted mise-action install + the actions/cache uv
+      # restore — the local runner's persistent ~/.cache/uv is the cache now.)
+      - name: mise trust + install (baked tools — install is a near-no-op)
+        run: |
+          mise trust
+          mise install
 
       - name: Install Python dev deps via uv
         run: uv sync --all-groups
@@ -160,7 +179,16 @@ jobs:
           # from CI reddens this leg instead of silently warning. Harmless for
           # the other legs — they do not read this var.
           LIVESPEC_FAIL_IF_CI_MATRIX_GAPS_EXIST: "true"
-        run: just ${{ matrix.target }}
+        run: |
+          # pyright (check-types) shells out to `npm`; under the container-hooks
+          # HOME the mise npm shim busy-loops (no node registered for that HOME).
+          # Put the image's real node/npm — derived from the shim's own location,
+          # never a hardcoded image path — ahead of the shim on PATH. Harmless
+          # for the non-npm targets.
+          shims_dir="$(dirname "$(command -v npm)")"
+          node_bin="$(cd "$shims_dir/../installs/node/latest/bin" 2>/dev/null && pwd || ls -d "$shims_dir/../installs/node"/*/bin 2>/dev/null | head -1)"
+          [ -n "$node_bin" ] && export PATH="$node_bin:$PATH"
+          just ${{ matrix.target }}
 
   # livespec core's doctor STATIC phase (reference-discipline + out-of-band
   # invariants), wired fleet-wide per livespec epic livespec-6jfq. core ships
@@ -171,13 +199,27 @@ jobs:
   # that no other target does.
   check-doctor-static:
     name: check-doctor-static
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
+    container:
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.43.2
+    env:
+      MISE_DATA_DIR: /root/.local/share/mise
+      MISE_NOT_FOUND_AUTO_INSTALL: "0"
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install pinned binaries via mise
-        uses: jdx/mise-action@v2
+      # Tools are baked into the image; `mise install` is a near-no-op that just
+      # confirms the pinned versions. A fresh container does not TRUST the repo
+      # .mise.toml, so `mise trust` is required for the shims to resolve.
+      # (Replaces the GitHub-hosted mise-action install + the actions/cache uv
+      # restore — the local runner's persistent ~/.cache/uv is the cache now.)
+      - name: mise trust + install (baked tools — install is a near-no-op)
+        run: |
+          mise trust
+          mise install
 
       - name: Resolve pinned livespec core ref (.livespec.jsonc compat.pinned)
         id: corepin
@@ -193,9 +235,12 @@ jobs:
           path: .livespec-core
 
       - name: just check-doctor-static
-        env:
-          LIVESPEC_CORE_PLUGIN_ROOT: ${{ github.workspace }}/.livespec-core/.claude-plugin
-        run: just check-doctor-static
+        run: |
+          # In a container job, github.workspace (context) may be the HOST path;
+          # $GITHUB_WORKSPACE (env) is the in-container mount, so derive the core
+          # plugin root from it to stay container-correct.
+          export LIVESPEC_CORE_PLUGIN_ROOT="${GITHUB_WORKSPACE}/.livespec-core/.claude-plugin"
+          just check-doctor-static
 
   # Red→Green→Replay commit-range gate (epic livespec-gcp2). A
   # lefthook-only gate is locally bypassable, and this fleet is
@@ -211,7 +256,14 @@ jobs:
   # actionably.
   red-green-replay:
     name: check-red-green-replay
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
+    container:
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.43.2
+    env:
+      MISE_DATA_DIR: /root/.local/share/mise
+      MISE_NOT_FOUND_AUTO_INSTALL: "0"
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -223,15 +275,15 @@ jobs:
           # check actionably — never a silent pass.
           fetch-depth: 0
 
-      - name: Install pinned binaries via mise
-        uses: jdx/mise-action@v2
-
-      - name: Restore uv download cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
-          restore-keys: uv-${{ runner.os }}-
+      # Tools are baked into the image; `mise install` is a near-no-op that just
+      # confirms the pinned versions. A fresh container does not TRUST the repo
+      # .mise.toml, so `mise trust` is required for the shims to resolve.
+      # (Replaces the GitHub-hosted mise-action install + the actions/cache uv
+      # restore — the local runner's persistent ~/.cache/uv is the cache now.)
+      - name: mise trust + install (baked tools — install is a near-no-op)
+        run: |
+          mise trust
+          mise install
 
       - name: Install Python dev deps via uv
         run: uv sync --all-groups
@@ -242,7 +294,7 @@ jobs:
   export-telemetry:
     name: export-telemetry
     needs: [check, red-green-replay]
-    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'merge_group') }}
+    if: ${{ !cancelled() && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
