@@ -111,7 +111,16 @@ def _run_guard_subprocess(
     stdin: str,
     project_dir: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    env = {"PATH": os.environ["PATH"]}
+    # HOME must be propagated, not just PATH. The guard derives the memories
+    # directory it protects from Path.home(), and so does this module's
+    # _MEMORIES_PATH expectation — but Path.home() falls back to the passwd
+    # entry when HOME is absent. Scrubbing HOME therefore made the subprocess
+    # guard a DIFFERENT directory than the one the test targets, so the guard
+    # matched nothing and emitted no decision. That stayed invisible wherever
+    # HOME happens to equal the passwd home (GitHub-hosted runners, a plain
+    # `docker run` as root) and only surfaced under the CI container hooks,
+    # which run steps with HOME=/github/home while passwd still says /root.
+    env = {"PATH": os.environ["PATH"], "HOME": str(Path.home())}
     if project_dir is not None:
         env["CLAUDE_PROJECT_DIR"] = project_dir
     return subprocess.run(
