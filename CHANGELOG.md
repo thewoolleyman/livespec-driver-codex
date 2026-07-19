@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.4...v0.4.0) (2026-07-19)
+
+
+### Features
+
+* cover codex tmux default socket guard ([10452d4](https://github.com/thewoolleyman/livespec-driver-codex/commit/10452d4389c5fa47451fcd75e114c123e48051e2))
+
 ## [0.3.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.3...v0.3.4) (2026-07-13)
 
 
