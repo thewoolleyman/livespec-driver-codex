@@ -256,7 +256,7 @@ def main() -> int:
         payload = decision.unwrap()
         if payload is not None:
             _ = sys.stdout.write(payload + "\n")
-    except Exception:  # noqa: BLE001 — fail-open by contract
+    except Exception:  # noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0
         pass
     return 0
 

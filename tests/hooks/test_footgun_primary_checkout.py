@@ -19,6 +19,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 _HOOKS_DIR = Path(__file__).resolve().parent.parent.parent / "livespec" / "hooks"
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
@@ -123,3 +125,16 @@ def test_is_primary_checkout_false_for_non_repo(tmp_path: Path) -> None:
     plain = tmp_path / "not-a-repo"
     plain.mkdir()
     assert _footgun_primary_checkout.is_primary_checkout(path=str(plain)) is False
+
+
+def test_is_primary_checkout_propagates_unexpected_probe_bug(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    def bug(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del args, kwargs
+        raise AttributeError("unexpected probe bug")
+
+    monkeypatch.setattr(_footgun_primary_checkout.subprocess, "run", bug)
+
+    with pytest.raises(AttributeError, match="unexpected probe bug"):
+        _footgun_primary_checkout.is_primary_checkout(path=str(tmp_path))

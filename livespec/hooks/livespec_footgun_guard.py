@@ -202,7 +202,8 @@ def _check_segment(*, seg: str) -> tuple[bool, str]:
             probe = cand if os.path.isdir(cand) else os.path.dirname(cand) or "."
             if is_primary_checkout(path=probe):
                 return True, PRIMARY_EDIT_REASON
-    except Exception:  # noqa: BLE001 — fail-open by contract
+    # os.getcwd/os.path resolution can raise OSError; path probes can raise ValueError.
+    except (OSError, ValueError):
         pass
 
     core, lefthook_off = strip_leading_noise(tokens=tokens)
@@ -301,7 +302,7 @@ def main() -> int:
         if payload is not None:
             print(payload)
         return 0
-    except Exception:  # noqa: BLE001 — fail-open by contract
+    except Exception:  # noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0
         return 0
 
 
