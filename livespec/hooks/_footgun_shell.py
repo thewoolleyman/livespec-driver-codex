@@ -18,6 +18,15 @@ a pure cohesion move, not a logic change.
 
 import re
 
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from _vendor.returns.result import Failure, Result, Success
+
 __all__: list[str] = ["segments", "strip_leading_noise", "git_subcommand"]
 
 _ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -56,12 +65,20 @@ def _strip_heredoc_bodies(*, command: str) -> str:
     return "\n".join(out)
 
 
-def segments(*, command: str) -> list[str]:
+def _segments_result(*, command: str) -> Result[list[str], Exception]:
     cleaned = _strip_heredoc_bodies(command=command)
-    return [s.strip() for s in _SEGMENT_SPLIT.split(cleaned) if s.strip()]
+    return Success([s.strip() for s in _SEGMENT_SPLIT.split(cleaned) if s.strip()])
 
 
-def strip_leading_noise(*, tokens: list[str]) -> tuple[list[str], bool]:
+def segments(*, command: str) -> list[str]:
+    result = _segments_result(command=command)
+    if isinstance(result, Failure):
+        _ = result.failure()
+        return []
+    return result.unwrap()
+
+
+def _strip_leading_noise_result(*, tokens: list[str]) -> Result[tuple[list[str], bool], Exception]:
     """Strip leading env-assignments and `mise exec [--] ` / `sudo` / `env`.
 
     Returns (remaining tokens, lefthook_disabled_seen).
@@ -98,15 +115,23 @@ def strip_leading_noise(*, tokens: list[str]) -> tuple[list[str], bool]:
                 i = j
                 changed = True
             continue
-    return tokens[i:], lefthook_off
+    return Success((tokens[i:], lefthook_off))
 
 
-def git_subcommand(*, tokens: list[str]) -> tuple[str | None, list[str]]:
+def strip_leading_noise(*, tokens: list[str]) -> tuple[list[str], bool]:
+    result = _strip_leading_noise_result(tokens=tokens)
+    if isinstance(result, Failure):
+        _ = result.failure()
+        return [], False
+    return result.unwrap()
+
+
+def _git_subcommand_result(*, tokens: list[str]) -> Result[tuple[str | None, list[str]], Exception]:
     """If tokens is a git invocation, return (subcommand, args_after_subcommand)."""
     if not tokens:
-        return None, []
+        return Success((None, []))
     if tokens[0].rsplit("/", 1)[-1] != "git":
-        return None, []
+        return Success((None, []))
     i = 1
     n = len(tokens)
     while i < n:
@@ -120,5 +145,13 @@ def git_subcommand(*, tokens: list[str]) -> tuple[str | None, list[str]]:
         if t in _GIT_GLOBAL_OPTS_WITH_ARG and i < n:
             i += 1
     if i >= n:
+        return Success((None, []))
+    return Success((tokens[i], tokens[i + 1 :]))
+
+
+def git_subcommand(*, tokens: list[str]) -> tuple[str | None, list[str]]:
+    result = _git_subcommand_result(tokens=tokens)
+    if isinstance(result, Failure):
+        _ = result.failure()
         return None, []
-    return tokens[i], tokens[i + 1 :]
+    return result.unwrap()

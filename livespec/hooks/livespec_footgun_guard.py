@@ -49,6 +49,15 @@ import re
 import shlex
 import sys
 
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from _vendor.returns.io import IOFailure, IOResult, IOSuccess
+from _vendor.returns.result import Failure, Result, Success
+
 from _footgun_primary_checkout import (
     PRIMARY_EDIT_REASON,
     is_primary_checkout,
@@ -201,8 +210,8 @@ def _check_segment(*, seg: str) -> tuple[bool, str]:
             probe = cand if os.path.isdir(cand) else os.path.dirname(cand) or "."
             if is_primary_checkout(path=probe):
                 return True, PRIMARY_EDIT_REASON
-    except Exception:
-        pass  # fail open
+    except Exception:  # noqa: BLE001 — fail-open by contract
+        pass
 
     core, lefthook_off = strip_leading_noise(tokens=tokens)
     if lefthook_off:
@@ -227,7 +236,7 @@ def _check_segment(*, seg: str) -> tuple[bool, str]:
     return False, ""
 
 
-def _deny(*, reason: str, command: str) -> None:
+def _deny_payload(*, reason: str, command: str) -> str:
     payload = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -242,29 +251,65 @@ def _deny(*, reason: str, command: str) -> None:
             ),
         }
     }
-    print(json.dumps(payload))
+    return json.dumps(payload)
+
+
+def _payload_from_stdin() -> Result[dict[str, object] | None, Exception]:
+    raw = sys.stdin.read()
+    if not raw.strip():
+        return Success(None)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return Failure(exc)
+    if not isinstance(parsed, dict):
+        return Success(None)
+    return Success(parsed)
+
+
+def _command_from_payload(*, data: dict[str, object]) -> Result[str | None, Exception]:
+    if data.get("tool_name", "") != "Bash":
+        return Success(None)
+    tool_input = data.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return Success(None)
+    command = tool_input.get("command", "")
+    if not isinstance(command, str) or not command:
+        return Success(None)
+    return Success(command)
+
+
+def _decision() -> IOResult[str | None, Exception]:
+    payload_result = _payload_from_stdin()
+    if isinstance(payload_result, Failure):
+        return IOFailure(payload_result.failure())
+    data = payload_result.unwrap()
+    if data is None:
+        return IOSuccess(None)
+    command_result = _command_from_payload(data=data)
+    if isinstance(command_result, Failure):
+        return IOFailure(command_result.failure())
+    command = command_result.unwrap()
+    if command is None:
+        return IOSuccess(None)
+    for seg in segments(command=command):
+        blocked, reason = _check_segment(seg=seg)
+        if blocked:
+            return IOSuccess(_deny_payload(reason=reason, command=command))
+    return IOSuccess(None)
 
 
 def main() -> int:
     try:
-        raw = sys.stdin.read()
-        if not raw.strip():
+        decision = _decision()
+        if isinstance(decision, IOFailure):
+            _ = decision.failure()
             return 0
-        data = json.loads(raw)
-        if data.get("tool_name", "") != "Bash":
-            return 0
-        command = data.get("tool_input", {}).get("command", "")
-        if not command:
-            return 0
-        for seg in segments(command=command):
-            blocked, reason = _check_segment(seg=seg)
-            if blocked:
-                _deny(reason=reason, command=command)
-                return 0
+        payload = decision.unwrap()
+        if payload is not None:
+            print(payload)
         return 0
-    except json.JSONDecodeError:
-        return 0
-    except Exception:
+    except Exception:  # noqa: BLE001 — fail-open by contract
         return 0
 
 

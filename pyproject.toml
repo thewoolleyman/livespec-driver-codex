@@ -63,6 +63,7 @@ select = [
     "F",     # pyflakes
     "I",     # isort
     "B",     # flake8-bugbear
+    "BLE",   # flake8-blind-except
     "UP",    # pyupgrade
     "SIM",   # flake8-simplify
     "C90",   # mccabe complexity
@@ -103,6 +104,8 @@ ignore = [
 # first-party stdlib-only modules, no stubs needed).
 [tool.pyright]
 include = ["livespec/hooks"]
+ignore = ["livespec/hooks/no_shadow_ledger.py"]
+reportUnusedCallResult = "error"
 exclude = ["**/__pycache__/**"]
 extraPaths = ["livespec/hooks"]
 
