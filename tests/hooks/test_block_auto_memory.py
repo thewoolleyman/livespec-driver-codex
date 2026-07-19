@@ -422,3 +422,15 @@ def test_apply_patch_target_extraction_scans_nested_strings() -> None:
         payload={"tool_name": "apply_patch", "tool_input": {"items": [123, {"patch": patch}]}}
     )
     assert paths == [target]
+
+
+def test_main_fails_open_when_decision_raises(monkeypatch, capsys) -> None:
+    def explode():
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(block_auto_memory, "_decision", explode)
+
+    assert block_auto_memory.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""

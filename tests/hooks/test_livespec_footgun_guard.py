@@ -460,3 +460,52 @@ def test_fail_open_when_segment_iteration_raises(monkeypatch) -> None:
     monkeypatch.setattr(livespec_footgun_guard, "segments", boom)
     result = _run_guard(stdin=_hook_input(command="git status"))
     _assert_pass(result=result)
+
+
+def test_vendor_path_bootstrap_inserts_repo_root_for_footgun_guard() -> None:
+    import importlib.util
+
+    old_path = list(sys.path)
+    try:
+        sys.path = [entry for entry in sys.path if entry != str(_REPO_ROOT)]
+        spec = importlib.util.spec_from_file_location(
+            "livespec_footgun_guard_bootstrap_under_test",
+            str(_GUARD_SCRIPT),
+        )
+        assert spec is not None
+        assert spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+    finally:
+        sys.path = old_path
+
+    assert module._REPO_ROOT == _REPO_ROOT
+
+
+def test_passes_non_mapping_payload() -> None:
+    result = _run_guard(stdin="[]")
+
+    _assert_pass(result=result)
+
+
+def test_passes_bash_payload_without_mapping_tool_input() -> None:
+    result = _run_guard(stdin=json.dumps({"tool_name": "Bash", "tool_input": None}))
+
+    _assert_pass(result=result)
+
+
+def test_decision_returns_failure_when_command_parser_returns_failure(monkeypatch) -> None:
+    def fail_command(*, data: dict[str, object]):
+        assert data["tool_name"] == "Bash"
+        return livespec_footgun_guard.Failure(ValueError("boom"))
+
+    monkeypatch.setattr(livespec_footgun_guard, "_command_from_payload", fail_command)
+    old_stdin = sys.stdin
+    try:
+        sys.stdin = StringIO(_hook_input(command="git status"))
+        result = livespec_footgun_guard._decision()
+    finally:
+        sys.stdin = old_stdin
+
+    assert isinstance(result, livespec_footgun_guard.IOFailure)

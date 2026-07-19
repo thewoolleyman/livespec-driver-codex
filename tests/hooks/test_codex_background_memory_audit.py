@@ -297,3 +297,63 @@ def test_background_memory_default_db_path_uses_codex_home(monkeypatch) -> None:
     monkeypatch.delenv("LIVESPEC_CODEX_BACKGROUND_MEMORY_DB", raising=False)
 
     assert hook._background_db_path() == Path.home() / ".codex" / "memories_1.sqlite"
+
+
+def test_vendor_path_bootstrap_inserts_repo_root_for_background_audit() -> None:
+    old_path = list(sys.path)
+    try:
+        sys.path = [entry for entry in sys.path if entry != str(_REPO_ROOT)]
+        hook = _load_hook_module()
+    finally:
+        sys.path = old_path
+
+    assert hook._REPO_ROOT == _REPO_ROOT
+
+
+def test_background_counts_returns_failure_when_sqlite_connect_raises(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    hook = _load_hook_module()
+    db_path = tmp_path / "memories_1.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    def fail_connect(database: str, *, uri: bool):
+        assert str(db_path) in database
+        assert uri is True
+        raise sqlite3.Error("boom")
+
+    monkeypatch.setattr(sqlite3, "connect", fail_connect)
+
+    result = hook._background_counts(db_path=db_path)
+
+    assert isinstance(result, hook.IOFailure)
+
+
+def test_background_memory_audit_fails_open_for_malformed_stdin(tmp_path: Path) -> None:
+    project = _governed_project(tmp_path=tmp_path / "repo")
+    db_path = _background_db(
+        path=tmp_path / "home" / ".codex" / "memories_1.sqlite",
+        jobs=1,
+    )
+
+    result = _run_hook(stdin="{", project_dir=project, db_path=db_path)
+
+    _assert_pass(result=result)
+
+
+def test_background_memory_audit_main_fails_open_when_decision_raises(
+    monkeypatch,
+    capsys,
+) -> None:
+    hook = _load_hook_module()
+
+    def explode():
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(hook, "_warning_decision", explode)
+
+    assert hook.main() == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
