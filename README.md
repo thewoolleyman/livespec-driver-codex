@@ -86,10 +86,13 @@ overridable per livespec `contracts.md` §"Spec-side CLI contract").
 The plugin ships a fail-open Codex PreToolUse hook
 (`livespec/hooks/livespec_footgun_guard.py`) that refuses
 `--no-verify` on commit/push, `LEFTHOOK=0/false`, `core.bare=true`,
-and shell edits that would write at a livespec primary checkout. It
-always exits 0 and fails OPEN on any uncertainty, so it never blocks
-legitimate work; the family commit-refuse hook + branch protection are
-the real backstops.
+shell edits that would write at a livespec primary checkout, and tmux
+fleet-kill hazards against the shared default socket namespace
+(`tmux kill-server` without explicit non-default `-L`/`-S`, default/fleet
+socket targets, and `pkill`/`killall tmux`). It always exits 0. The
+legacy git/primary-checkout checks fail OPEN on uncertainty; the tmux
+kill hazard fails CLOSED when a hazard-shaped command cannot parse
+safely, because Codex agents share the host tmux namespace.
 
 ## Development
 
