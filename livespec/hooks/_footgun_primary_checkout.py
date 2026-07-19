@@ -55,11 +55,12 @@ def _is_primary_checkout_result(*, path: str) -> Result[bool, Exception]:
     NOT a primary, i.e. fail open / do not block) on any uncertainty — a missing
     git, a non-repo path, a config without the key, or any subprocess error.
     """
-    real = os.path.realpath(path)
-    if real in _PRIMARY_CHECKOUT_CACHE:
-        return Success(_PRIMARY_CHECKOUT_CACHE[real])
-    result = False
+    real: str | None = None
     try:
+        real = os.path.realpath(path)
+        if real in _PRIMARY_CHECKOUT_CACHE:
+            return Success(_PRIMARY_CHECKOUT_CACHE[real])
+        result = False
         toplevel = subprocess.run(
             ["git", "-C", real, "rev-parse", "--show-toplevel"],
             capture_output=True,
@@ -77,8 +78,11 @@ def _is_primary_checkout_result(*, path: str) -> Result[bool, Exception]:
             if primary.returncode == 0:
                 declared = os.path.realpath(primary.stdout.strip())
                 result = bool(declared) and declared == worktree_root
-    except Exception as exc:  # noqa: BLE001 — git probing fails open by contract
-        _PRIMARY_CHECKOUT_CACHE[real] = False
+    # os.path.realpath can raise OSError; subprocess.run can raise OSError
+    # for git launch failures and SubprocessError for timeouts.
+    except (OSError, subprocess.SubprocessError) as exc:
+        if real is not None:
+            _PRIMARY_CHECKOUT_CACHE[real] = False
         return Failure(exc)
     _PRIMARY_CHECKOUT_CACHE[real] = result
     return Success(result)

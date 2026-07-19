@@ -433,10 +433,12 @@ def test_check_segment_empty_and_dash_prefixed_redirect_target(monkeypatch) -> N
     assert livespec_footgun_guard._check_segment(seg="echo hi") == (False, "")
 
 
-def test_check_segment_fails_open_when_redirect_target_probe_raises(monkeypatch) -> None:
-    def boom(*, seg, tokens):
+def test_check_segment_fails_open_when_redirect_target_probe_raises_os_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(*, seg: str, tokens: list[str]) -> list[str]:
         del seg, tokens
-        raise RuntimeError("probe failed")
+        raise OSError("probe failed")
 
     monkeypatch.setattr(livespec_footgun_guard, "redirect_targets", boom)
     assert livespec_footgun_guard._check_segment(seg="echo hi") == (False, "")
