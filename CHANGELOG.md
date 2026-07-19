@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.2...v0.5.3) (2026-07-19)
+
+
+### Bug Fixes
+
+* **hooks:** close demonstrated tmux fleet-kill guard bypasses ([8e56c59](https://github.com/thewoolleyman/livespec-driver-codex/commit/8e56c59f4f4ffa67f4102c00ee2760ea83221c21))
+
 ## [0.5.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.1...v0.5.2) (2026-07-19)
 
 
