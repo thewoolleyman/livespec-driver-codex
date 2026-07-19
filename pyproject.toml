@@ -135,9 +135,14 @@ markers = [
 # checks do NOT read the heavy `source_trees`-family role keys for their
 # universe — they derive it from the root-anchored git index
 # (`resolve_check_universe` = `git ls-files '*.py'` minus `_vendor/`,
-# `tests_tree_prefix`, `templates/`, and `@generated`). So the three hook
-# `.py` (livespec/hooks/{block_auto_memory,livespec_footgun_guard,
-# no_shadow_ledger}.py) ARE the universe, and the Config role keys these
+# `tests_tree_prefix`, `templates/`, and `@generated`). So the shipped hook
+# `.py` under livespec/hooks/ ARE the universe — the four hooks.json entry
+# points plus the sibling modules they import (`_footgun_shell`,
+# `_footgun_primary_checkout`, `_result`), all of which must live INSIDE the
+# packaged `livespec/` subtree because nothing above it ships. (The repo-root
+# `_vendor/` tree the resolver excludes is gone: the hooks that reached out to
+# it failed open in the install cache, so its railway shim moved to the
+# sibling `livespec/hooks/_result.py`.) The Config role keys these
 # newly-wired checks actually consult here are only:
 #   - `source_tree_prefixes` — the `partition_completeness` broad-role claim
 #     for the hooks (also the `commit_pairs` co-staging surface);
@@ -190,6 +195,7 @@ subprocess_spawn_allowlist = [
     "tests/hooks/test_block_auto_memory.py",
     "tests/hooks/test_livespec_footgun_guard.py",
     "tests/hooks/test_no_shadow_ledger.py",
+    "tests/hooks/test_shipped_hooks_install_shape.py",
 ]
 # no_write_direct file-scope exemption. Two of the three hooks emit their
 # payload on stdout as their documented I/O boundary: `no_shadow_ledger.py`

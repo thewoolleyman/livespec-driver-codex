@@ -18,14 +18,7 @@ a pure cohesion move, not a logic change.
 
 import re
 
-import sys
-from pathlib import Path
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from _vendor.returns.result import Failure, Result, Success
+from _result import Failure, Result, Success
 
 __all__: list[str] = ["segments", "strip_leading_noise", "git_subcommand"]
 
