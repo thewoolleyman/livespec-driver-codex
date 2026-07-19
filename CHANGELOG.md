@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.0...v0.5.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* make shipped Codex hooks self-contained under the install layout ([7979da2](https://github.com/thewoolleyman/livespec-driver-codex/commit/7979da209cae7fc07c7b719ac0679b5846d01a1c))
+
 ## [0.5.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.4.0...v0.5.0) (2026-07-19)
 
 
