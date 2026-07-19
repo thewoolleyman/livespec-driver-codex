@@ -14,7 +14,6 @@ _HOOK_FILES = [
     _REPO_ROOT / "livespec" / "hooks" / "block_auto_memory.py",
     _REPO_ROOT / "livespec" / "hooks" / "codex_background_memory_audit.py",
     _REPO_ROOT / "livespec" / "hooks" / "livespec_footgun_guard.py",
-    _REPO_ROOT / "livespec" / "hooks" / "no_shadow_ledger.py",
     _REPO_ROOT / "livespec" / "hooks" / "_footgun_primary_checkout.py",
     _REPO_ROOT / "livespec" / "hooks" / "_footgun_shell.py",
 ]

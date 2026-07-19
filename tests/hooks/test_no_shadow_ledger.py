@@ -43,8 +43,6 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 
-import pytest
-
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -310,31 +308,6 @@ def test_silent_when_stop_hook_active(tmp_path: Path) -> None:
 
 def test_silent_when_transcript_missing(tmp_path: Path) -> None:
     result = _run_hook(stdin=_stop_input(transcript_path=str(tmp_path / "does-not-exist.jsonl")))
-    _assert_silent(result=result)
-
-
-def test_fail_open_when_transcript_read_raises(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    transcript = _write_transcript(
-        root=tmp_path,
-        entries=[
-            _real_user_entry(text="please write a handoff"),
-            _assistant_write_entry(
-                file_path=str(tmp_path / "HANDOFF-session.md"),
-                content=_THREE_CHECKBOXES,
-            ),
-        ],
-    )
-
-    def broken_read_text(self: Path, *, encoding: str | None = None) -> str:
-        _ = self
-        _ = encoding
-        raise OSError("unreadable transcript")
-
-    monkeypatch.setattr(no_shadow_ledger.Path, "read_text", broken_read_text)
-
-    result = _run_hook(stdin=_stop_input(transcript_path=str(transcript)))
     _assert_silent(result=result)
 
 

@@ -35,13 +35,6 @@ import re
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from _vendor.returns.io import IOFailure, IOResult, IOSuccess
-from _vendor.returns.result import Failure, Result, Success
-
 # Mechanical "shadow-ledger smell" threshold: number of markdown checkbox
 # task-list items in a single persisted planning artifact.
 CHECKBOX_THRESHOLD = 3
@@ -148,28 +141,19 @@ def _checkbox_count(*, text: str) -> int:
     return sum(1 for line in text.splitlines() if _CHECKBOX_RE.match(line))
 
 
-def _payload_from_stdin() -> Result[dict[str, object] | None, Exception]:
-    raw = sys.stdin.read()
-    if not raw.strip():
-        return Success(None)
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        return Failure(exc)
-    if not isinstance(parsed, dict):
-        return Success(None)
-    return Success(parsed)
-
-
-def _transcript_entries(*, transcript: Path) -> IOResult[list[dict[str, object]] | None, Exception]:
+def _warning() -> str | None:
+    """Return the systemMessage JSON, or None for a silent pass-through."""
+    payload = json.load(sys.stdin)
+    if not isinstance(payload, dict) or payload.get("stop_hook_active"):
+        return None
+    transcript_path = payload.get("transcript_path")
+    if not isinstance(transcript_path, str) or not transcript_path:
+        return None
+    transcript = Path(transcript_path)
     if not transcript.is_file():
-        return IOSuccess(None)
-    entries: list[dict[str, object]] = []
-    try:
-        lines = transcript.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        return IOFailure(exc)
-    for line in lines:
+        return None
+    entries: list[dict] = []
+    for line in transcript.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         try:
@@ -178,26 +162,6 @@ def _transcript_entries(*, transcript: Path) -> IOResult[list[dict[str, object]]
             continue  # fail-open per line: skip malformed transcript lines
         if isinstance(parsed, dict):
             entries.append(parsed)
-    return IOSuccess(entries)
-
-
-def _warning() -> IOResult[str | None, Exception]:
-    """Return the systemMessage JSON, or None for a silent pass-through."""
-    payload_result = _payload_from_stdin()
-    if isinstance(payload_result, Failure):
-        return IOFailure(payload_result.failure())
-    payload = payload_result.unwrap()
-    if payload is None or payload.get("stop_hook_active"):
-        return IOSuccess(None)
-    transcript_path = payload.get("transcript_path")
-    if not isinstance(transcript_path, str) or not transcript_path:
-        return IOSuccess(None)
-    entries_result = _transcript_entries(transcript=Path(transcript_path))
-    if isinstance(entries_result, IOFailure):
-        return IOFailure(entries_result.failure())
-    entries = entries_result.unwrap()
-    if entries is None:
-        return IOSuccess(None)
     for path, text in _last_turn_writes(entries=entries):
         if not _is_planning_artifact(path=path):
             continue
@@ -214,8 +178,8 @@ def _warning() -> IOResult[str | None, Exception]:
                 "queue that shadows the ledger. Replace the embedded checkbox "
                 "queue with ledger-id pointers and a ledger-status query."
             )
-            return IOSuccess(json.dumps({"systemMessage": message}))
-    return IOSuccess(None)
+            return json.dumps({"systemMessage": message})
+    return None
 
 
 def main() -> int:
@@ -227,15 +191,11 @@ def main() -> int:
     body is testable in-process for real per-file coverage.
     """
     try:
-        decision = _warning()
-        if isinstance(decision, IOFailure):
-            _ = decision.failure()
-            return 0
-        warning = decision.unwrap()
-        if warning is not None:
-            _ = sys.stdout.write(warning + "\n")
+        warning = _warning()
     except Exception:  # noqa: BLE001 — fail-open by contract
-        pass
+        warning = None
+    if warning is not None:
+        sys.stdout.write(warning + "\n")
     return 0
 
 
