@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.1...v0.5.2) (2026-07-19)
+
+
+### Bug Fixes
+
+* narrow footgun primary checkout probe failures ([cc017ee](https://github.com/thewoolleyman/livespec-driver-codex/commit/cc017ee966c023619dc666dafc90c1f98705e43e))
+
 ## [0.5.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.0...v0.5.1) (2026-07-19)
 
 
