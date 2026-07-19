@@ -21,6 +21,7 @@ exactly as `python3 <guard>.py` puts that dir on `sys.path[0]` at runtime).
 
 from __future__ import annotations
 
+import shlex
 import sys
 from pathlib import Path
 
@@ -41,105 +42,122 @@ __all__: list[str] = []
 
 # Every one of these reaches a shared/default tmux server. DATA, never executed.
 _DENY_CASES = (
-    # Binary spelling and resolution.
-    ("bare unscoped", "tmux kill-server"),
-    ("absolute path", "/usr/bin/tmux kill-server"),
-    ("relative path", "./tmux kill-server"),
-    # Wrapper prefixes that re-exec the real command.
-    ("env -i clears TMUX_TMPDIR", "env -i tmux kill-server"),
-    ("env -u wrapper", "env -u TMUX_TMPDIR tmux kill-server"),
-    ("env with assignment", "env TMUX_TMPDIR=/tmp tmux kill-server"),
-    ("leading assignment", "TMUX_TMPDIR=/tmp tmux kill-server"),
-    ("command builtin", "command tmux kill-server"),
-    ("exec prefix", "exec tmux kill-server"),
-    ("sudo prefix", "sudo tmux kill-server"),
-    ("sudo with flag", "sudo -u ubuntu tmux kill-server"),
-    ("nice prefix", "nice tmux kill-server"),
-    ("nice -n argument", "nice -n 5 tmux kill-server"),
-    ("nice numeric flag", "nice -5 tmux kill-server"),
-    ("timeout duration", "timeout 5 tmux kill-server"),
-    ("timeout flags then duration", "timeout -k 10 5s tmux kill-server"),
-    ("nohup", "nohup tmux kill-server"),
-    ("setsid", "setsid tmux kill-server"),
-    ("stdbuf", "stdbuf -oL tmux kill-server"),
-    ("ionice", "ionice -c2 -n7 tmux kill-server"),
-    ("time", "time tmux kill-server"),
-    ("mise exec", "mise exec -- tmux kill-server"),
-    ("stacked wrappers", "sudo env -i timeout 5 tmux kill-server"),
-    ("wrapper double dash", "env -- tmux kill-server"),
-    # Scope spellings that still resolve to the fleet server.
-    ("explicit default label", "tmux -L default kill-server"),
-    ("clustered default label", "tmux -Ldefault kill-server"),
-    ("equals default label", "tmux -L=default kill-server"),
-    ("label after subcommand", "tmux kill-server -L default"),
-    ("fleet default socket", "tmux -S /tmp/tmux-1000/default kill-server"),
-    ("double slash socket", "tmux -S /tmp/tmux-1000//default kill-server"),
-    ("dotdot socket", "tmux -S /tmp/tmux-1000/../tmux-1000/default kill-server"),
-    ("dotdot into namespace", "tmux -S /tmp/scratch/../tmux-1000/default kill-server"),
-    ("trailing slash socket", "tmux -S /tmp/tmux-1000/default/ kill-server"),
-    ("namespace sibling socket", "tmux -S /tmp/tmux-1000/other kill-server"),
-    ("clustered default socket", "tmux -S/tmp/tmux-1000/default kill-server"),
-    ("fleet-named socket", "tmux -S /tmp/fleet-sock kill-server"),
-    ("empty socket value", "tmux kill-server -S"),
-    ("empty label value", "tmux kill-server -L"),
-    # Nested payloads.
-    ("bash -c", "bash -c 'tmux kill-server'"),
-    ("sh -lc login shell", "sh -lc 'tmux kill-server'"),
-    ("zsh -c", "zsh -c 'tmux kill-server'"),
-    ("zsh -ic interactive", "zsh -ic 'tmux kill-server'"),
-    ("clustered -c payload", "sh -c'tmux kill-server'"),
-    ("doubly nested", "bash -c \"bash -c 'tmux kill-server'\""),
-    ("xargs indirect", "echo kill-server | xargs tmux"),
-    ("xargs with flags", "echo x | xargs -n 1 tmux"),
-    ("xargs double dash", "echo x | xargs -- tmux"),
-    ("xargs into shell", "echo x | xargs sh -c 'tmux kill-server'"),
-    ("command substitution", "$(echo tmux) kill-server"),
-    # Separators and control operators.
-    ("chained after cd", "cd /tmp && tmux kill-server"),
-    ("semicolon chain", "echo hi; tmux kill-server"),
-    ("pipe chain", "true | tmux kill-server"),
-    ("or chain", "false || tmux kill-server"),
-    ("newline chain", "echo hi\ntmux kill-server"),
-    ("background operator", "tmux kill-server &"),
-    # Process killers.
-    ("pkill exact", "pkill tmux"),
-    ("pkill -f", "pkill -f tmux"),
-    ("pkill full match", "pkill -f 'tmux -L default'"),
-    ("pkill server binary", "pkill -f /usr/bin/tmux"),
-    ("killall", "killall tmux"),
-    ("killall with signal", "killall -9 tmux"),
-    # Parse-hostile but hazard-shaped: fail CLOSED.
-    ("unbalanced quote hazard", "tmux kill-server '"),
+    # --- Reviewer corpus: wrapper / prefix evasions -------------------------
+    ("W1 timeout wrapper", "timeout 5 tmux kill-server"),
+    ("W2 nohup wrapper", "nohup tmux kill-server"),
+    ("W3 exec builtin", "exec tmux kill-server"),
+    ("W4 command builtin", "command tmux kill-server"),
+    ("W5 nice wrapper", "nice -n 5 tmux kill-server"),
+    ("W6 sudo prefix", "sudo tmux kill-server"),
+    ("W7 mise exec --", "mise exec -- tmux kill-server"),
+    ("W8 xargs", "echo | xargs tmux kill-server"),
+    ("W9 stdbuf", "stdbuf -o0 tmux kill-server"),
+    # --- Reviewer corpus: scope-flag ordering and spelling ------------------
+    ("S1 -L default after subcommand", "tmux kill-server -L default"),
+    ("S2 -Ldefault attached", "tmux -Ldefault kill-server"),
+    ("S3 -L=default", "tmux -L=default kill-server"),
+    ("S4 -S bare relative name", "tmux -S default kill-server"),
+    ("S5 double slash", "tmux -S /tmp/tmux-1000//default kill-server"),
+    ("S6 dotdot spelling", "tmux -S /tmp/tmux-1000/../tmux-1000/default kill-server"),
+    ("S7 dot spelling", "tmux -S /tmp/./tmux-1000/./default kill-server"),
+    ("S8 trailing slash", "tmux -S /tmp/tmux-1000/default/ kill-server"),
+    ("S9 -L scratch then -S default", "tmux -L scratch -S /tmp/tmux-1000/default kill-server"),
+    ("S10 -S default then -L scratch", "tmux -S /tmp/tmux-1000/default -L scratch kill-server"),
+    ("S11 agents tmpdir default", "tmux -S /tmp/tmux-agents-1000/default kill-server"),
+    ("S12 -S attached default", "tmux -S/tmp/tmux-1000/default kill-server"),
+    ("S13 repeated -S, last wins", "tmux -S /tmp/scratch/a -S /tmp/tmux-1000/default kill-server"),
+    ("S14 repeated -L, last wins", "tmux -L scratch -L default kill-server"),
+    ("S15 namespace sibling socket", "tmux -S /tmp/tmux-1000/other kill-server"),
+    ("S16 empty socket value", "tmux kill-server -S"),
+    ("S17 empty label value", "tmux kill-server -L"),
+    # --- Reviewer corpus: nesting depth -------------------------------------
+    ("N1 2-level -c", "bash -c 'bash -c \"tmux kill-server\"'"),
+    (
+        "N2 5-level -c exhausts the budget",
+        'bash -c "bash -c \'bash -c \\"bash -c \\\\\\"bash -c tmux kill-server' '\\\\\\"\\"\'"',
+    ),
+    ("N3 sh -lc", "sh -lc 'tmux kill-server'"),
+    ("N4 attached -ctmux", "bash -ctmux' kill-server'"),
+    ("N5 zsh -c", "zsh -c 'tmux kill-server'"),
+    ("N6 zsh -ic interactive", "zsh -ic 'tmux kill-server'"),
+    ("N7 nested payload with its own separator", "sh -c 'cd /tmp && tmux kill-server'"),
+    ("N8 eval payload", "eval 'tmux kill-server'"),
+    ("N9 xargs into shell", "echo x | xargs sh -c 'tmux kill-server'"),
+    ("N10 xargs with flags", "echo x | xargs -n 1 tmux"),
+    ("N11 xargs double dash", "echo x | xargs -- tmux"),
+    # --- Reviewer corpus: process killers -----------------------------------
+    ("P1 pkill anchored regex", "pkill -f '^tmux'"),
+    ("P2 pkill attached -ftmux", "pkill -ftmux"),
+    ("P3 pkill exact", "pkill -x tmux"),
+    ("P4 killall -9", "killall -9 tmux"),
+    ("P5 pkill server pattern", "pkill -f 'tmux: server'"),
+    ("P6 pkill bare", "pkill tmux"),
+    ("P7 pkill server binary path", "pkill -f /usr/bin/tmux"),
+    ("P8 killall bare", "killall tmux"),
+    ("P9 kill via pgrep substitution", "kill -9 $(pgrep tmux)"),
+    # --- Reviewer corpus: separators, grouping, substitution ----------------
+    ("C1 newline separator", "cd /tmp\ntmux kill-server"),
+    ("C2 background operator", "tmux kill-server &"),
+    ("C3 subshell parens", "(tmux kill-server)"),
+    ("C4 command substitution", "$(echo tmux) kill-server"),
+    ("C5 brace group", "{ tmux kill-server; }"),
+    ("C6 absolute path", "/usr/bin/tmux kill-server"),
+    ("C7 relative path", "./tmux kill-server"),
+    ("C8 semicolon chain", "echo hi; tmux kill-server"),
+    ("C9 pipe chain", "true | tmux kill-server"),
+    ("C10 or chain", "false || tmux kill-server"),
+    ("C11 backslash line continuation", "tmux \\\n kill-server"),
+    ("C12 subshell behind a wrapper", "nohup (tmux kill-server)"),
+    # --- Reviewer corpus: environment-clearing wrappers ---------------------
+    ("E1 env -i clears TMUX_TMPDIR", "env -i tmux kill-server"),
+    ("E2 env -u wrapper", "env -u TMUX_TMPDIR tmux kill-server"),
+    ("E3 env with assignment", "env TMUX_TMPDIR=/tmp tmux kill-server"),
+    ("E4 leading assignment", "TMUX_TMPDIR=/tmp tmux kill-server"),
+    ("E5 sudo with flag", "sudo -u ubuntu tmux kill-server"),
+    ("E6 stacked wrappers", "sudo env -i timeout 5 tmux kill-server"),
+    ("E7 setsid", "setsid tmux kill-server"),
+    ("E8 ionice", "ionice -c2 -n7 tmux kill-server"),
+    ("E9 time", "time tmux kill-server"),
+    ("E10 chained after cd", "cd /tmp && tmux kill-server"),
+    # --- Parse-hostile but hazard-shaped: must fail CLOSED ------------------
+    ("X1 unbalanced quote hazard", "tmux kill-server '"),
 )
 
 # Legitimate work the guard must NOT block. A false positive here pushes agents
 # into working around the guard, which is how the fleet gets killed anyway.
 _ALLOW_CASES = (
-    ("scoped label", "tmux -L lc_e2e_1 kill-server"),
-    ("scoped label numeric suffix", "tmux -L lc_e2e_123 kill-server"),
-    ("scoped socket", "tmux -S /tmp/scratch-x/sock kill-server"),
-    ("scoped socket abc", "tmux -S /tmp/scratch-abc/sock kill-server"),
-    ("scoped label after subcommand", "tmux kill-server -L scratch99"),
-    ("scoped under env -i", "env -i tmux -L scratch9 kill-server"),
-    ("scoped under exec", "exec tmux -L scratch9 kill-server"),
-    ("scoped xargs target", "echo kill-server | xargs tmux -L scratch9"),
-    ("list sessions", "tmux list-sessions"),
-    ("new scoped session", "tmux -L scratch new -d -s probe"),
-    ("scoped kill-session", "tmux -L scratch9 kill-session -t x"),
-    ("quoted mention", "echo 'tmux kill-server'"),
-    ("grep pattern", "git log --grep='tmux kill-server'"),
-    ("commit message", "git commit -m 'never run tmux kill-server'"),
-    ("heredoc body", "cat <<'EOF'\ntmux kill-server\nEOF"),
-    ("python string", "python3 -c \"print('tmux kill-server')\""),
-    ("pkill unrelated process", "pkill -f my-worker"),
-    ("unrelated command", "ls -la"),
-    ("plain git", "git status --short"),
-    ("unbalanced quote benign", "echo 'unterminated"),
-    # Wrappers whose arguments run to the end of the token stream: peeling must
-    # terminate on exhaustion rather than reading past it.
-    ("wrapper with no command", "env -i"),
-    ("xargs with no target", "echo x | xargs -n 1"),
-    ("mise with no command", "mise exec --"),
+    # --- Reviewer corpus: the false-positive direction ----------------------
+    ("F1 scoped -L scratch", "tmux -L lc_e2e_9 kill-server"),
+    ("F2 scoped -L attached", "tmux -Lscratch kill-server"),
+    ("F3 scoped -S scratch", "tmux -S /tmp/scratch-abc/sock kill-server"),
+    ("F4 echo with a quoted semicolon", "echo 'first; tmux kill-server'"),
+    ("F5 grep pattern", "grep -r 'tmux kill-server' /data/projects"),
+    ("F6 git commit message", "git commit -m 'guard blocks tmux kill-server'"),
+    ("F7 heredoc body", "cat > /tmp/x <<'EOF'\ntmux kill-server\nEOF"),
+    ("F8 tmux list-sessions", "tmux list-sessions"),
+    ("F9 python string", "python3 -c \"print('tmux kill-server')\""),
+    ("F10 pkill non-tmux", "pkill -f myserver"),
+    ("F11 scoped kill-session", "tmux -L scratch kill-session -t foo"),
+    ("F12 echo pkill mention", "echo 'do not run pkill -f tmux'"),
+    ("F13 fleet-NAMED scratch socket", "tmux -S /tmp/scratch/fleetwood kill-server"),
+    ("F14 fleet-named socket in /tmp", "tmux -S /tmp/fleet-sock kill-server"),
+    ("F15 -S wins over a default -L", "tmux -L default -S /tmp/scratch/sock kill-server"),
+    ("F16 git log grep", "git log --grep='tmux kill-server'"),
+    ("F17 scoped under env -i", "env -i tmux -L scratch9 kill-server"),
+    ("F18 scoped under exec", "exec tmux -L scratch9 kill-server"),
+    ("F19 scoped xargs target", "echo kill-server | xargs tmux -L scratch9"),
+    ("F20 new scoped session", "tmux -L scratch new -d -s probe"),
+    ("F21 kill with a plain pid", "kill -9 12345"),
+    ("F22 eval of benign text", "eval 'echo hi'"),
+    ("F23 pgrep alone is read-only", "pgrep tmux"),
+    ("F24 unrelated command", "ls -la"),
+    ("F25 plain git", "git status --short"),
+    ("F26 empty command", ""),
+    # --- Wrappers and lexing edges that must terminate cleanly --------------
+    ("F27 xargs flags run to end of tokens", "echo x | xargs -n 1"),
+    ("F28 eval with no payload", "eval"),
+    ("F29 unbalanced quote, no hazard", "echo 'unterminated"),
+    ("F30 mise with no command", "mise exec --"),
 )
 
 
@@ -174,6 +192,21 @@ def test_empty_segment_is_not_a_hazard() -> None:
     assert reason == ""
 
 
-def test_depth_budget_is_exhausted_explicitly() -> None:
-    blocked, _ = check_tmux_segment(seg="tmux kill-server", depth=99)
-    assert blocked is False
+def test_deep_nesting_terminates_and_denies() -> None:
+    """Nesting past the depth budget must fail CLOSED, not open.
+
+    An earlier guard returned "allowed" once the budget ran out, so simply
+    nesting `sh -c` six deep walked the whole classifier. Nothing legitimate
+    nests that deep, so running out of budget is evidence of evasion.
+    """
+    payload = "tmux kill-server"
+    for _ in range(8):
+        payload = f"sh -c {shlex.quote(payload)}"
+    blocked, _ = check_tmux_segment(seg=payload)
+    assert blocked is True
+
+
+def test_depth_budget_exhaustion_denies() -> None:
+    blocked, reason = check_tmux_segment(seg="anything at all", depth=99)
+    assert blocked is True
+    assert reason == TMUX_PARSE_REASON

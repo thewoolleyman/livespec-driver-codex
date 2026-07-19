@@ -55,11 +55,12 @@ from _footgun_primary_checkout import (
     redirect_targets,
 )
 from _footgun_shell import git_subcommand, segments, strip_leading_noise
-from _footgun_tmux import check_tmux_segment
+from _footgun_tmux import TMUX_PARSE_REASON, check_tmux_segment
 from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 
 __all__: list[str] = []
 
+_TMUX_HAZARD_HINT = re.compile(r"\b(?:kill-server|pkill|killall)\b")
 _NO_VERIFY_REASON = (
     "NEVER use --no-verify in the livespec family. The lefthook gates "
     "(commit-msg, pre-commit, pre-push, Red-Green-Replay trailers) are "
@@ -148,8 +149,7 @@ def _deny_payload(*, reason: str, command: str) -> str:
     return json.dumps(payload)
 
 
-def _payload_from_stdin() -> Result[dict[str, object] | None, Exception]:
-    raw = sys.stdin.read()
+def _payload_from_raw(*, raw: str) -> Result[dict[str, object] | None, Exception]:
     if not raw.strip():
         return Success(None)
     try:
@@ -173,8 +173,8 @@ def _command_from_payload(*, data: dict[str, object]) -> Result[str | None, Exce
     return Success(command)
 
 
-def _decision() -> IOResult[str | None, Exception]:
-    payload_result = _payload_from_stdin()
+def _decision(*, raw: str) -> IOResult[str | None, Exception]:
+    payload_result = _payload_from_raw(raw=raw)
     if isinstance(payload_result, Failure):
         return IOFailure(payload_result.failure())
     data = payload_result.unwrap()
@@ -193,18 +193,33 @@ def _decision() -> IOResult[str | None, Exception]:
     return IOSuccess(None)
 
 
+def _fail_closed_on_hazard_hint(*, raw: str) -> int:
+    """Deny a payload the guard could not parse when it CARRIES a tmux hazard.
+
+    The guard fails OPEN in general — a guard bug must never block legitimate
+    work. tmux fleet kills are the one exception: a malformed payload whose text
+    still mentions `kill-server`/`pkill`/`killall` is exactly the shape an
+    evasion takes, and allowing it costs every live agent session on the host.
+    """
+    if _TMUX_HAZARD_HINT.search(raw):
+        print(_deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200]))
+    return 0
+
+
 def main() -> int:
+    raw = ""
     try:
-        decision = _decision()
+        raw = sys.stdin.read()
+        decision = _decision(raw=raw)
         if isinstance(decision, IOFailure):
             _ = decision.failure()
-            return 0
+            return _fail_closed_on_hazard_hint(raw=raw)
         payload = decision.unwrap()
         if payload is not None:
             print(payload)
         return 0
-    except Exception:  # noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0
-        return 0
+    except Exception:  # noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0
+        return _fail_closed_on_hazard_hint(raw=raw)
 
 
 if __name__ == "__main__":

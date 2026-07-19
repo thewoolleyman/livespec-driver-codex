@@ -511,11 +511,30 @@ def test_decision_returns_failure_when_command_parser_returns_failure(monkeypatc
         return livespec_footgun_guard.Failure(ValueError("boom"))
 
     monkeypatch.setattr(livespec_footgun_guard, "_command_from_payload", fail_command)
-    old_stdin = sys.stdin
-    try:
-        sys.stdin = StringIO(_hook_input(command="git status"))
-        result = livespec_footgun_guard._decision()
-    finally:
-        sys.stdin = old_stdin
+    result = livespec_footgun_guard._decision(raw=_hook_input(command="git status"))
 
     assert isinstance(result, livespec_footgun_guard.IOFailure)
+
+
+def test_malformed_payload_carrying_a_tmux_hazard_fails_closed() -> None:
+    """A payload the guard cannot PARSE still denies when it mentions the hazard.
+
+    The guard fails OPEN in general — a guard bug must never block legitimate
+    work. tmux fleet kills are the one exception: truncating the JSON is exactly
+    the shape an evasion takes, and allowing it costs every live agent session
+    on the host. DATA only; nothing here executes tmux.
+    """
+    truncated = '{"tool_name":"Bash","tool_input":{"command":"tmux kill-server"'
+
+    result = _run_guard(stdin=truncated)
+
+    payload = _assert_deny(result=result)
+    reason = payload["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "fail CLOSED" in reason
+
+
+def test_malformed_payload_without_a_hazard_still_fails_open() -> None:
+    """Fail-closed is scoped to the tmux hazard, not to every parse failure."""
+    truncated = '{"tool_name":"Bash","tool_input":{"command":"git status"'
+
+    _assert_pass(result=_run_guard(stdin=truncated))
