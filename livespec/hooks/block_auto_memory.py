@@ -33,6 +33,13 @@ import re
 import sys
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from _vendor.returns.io import IOFailure, IOResult, IOSuccess
+from _vendor.returns.result import Failure, Result, Success
+
 __all__: list[str] = []
 
 _CODEX_MEMORIES = Path.home() / ".codex" / "memories"
@@ -209,28 +216,51 @@ def _deny_payload(*, namespace: str) -> str:
     )
 
 
+def _payload_from_stdin() -> Result[dict[str, object] | None, Exception]:
+    raw = sys.stdin.read()
+    if not raw.strip():
+        return Success(None)
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return Failure(exc)
+    if not isinstance(parsed, dict):
+        return Success(None)
+    return Success(parsed)
+
+
+def _decision() -> IOResult[str | None, Exception]:
+    payload_result = _payload_from_stdin()
+    if isinstance(payload_result, Failure):
+        return IOFailure(payload_result.failure())
+    payload = payload_result.unwrap()
+    if payload is None:
+        return IOSuccess(None)
+    paths = _target_file_paths(payload=payload)
+    if not paths:
+        return IOSuccess(None)
+    if not any(_is_under_memories(path_str=p) for p in paths):
+        return IOSuccess(None)
+    # Positively identified a write into the Codex memory store.
+    # Gate on governance before denying.
+    project_dir = _find_project_dir()
+    if project_dir is None:
+        return IOSuccess(None)
+    namespace = _resolve_plugin_namespace(project_dir=project_dir)
+    if namespace is None:
+        return IOSuccess(None)
+    return IOSuccess(_deny_payload(namespace=namespace))
+
+
 def main() -> int:
     try:
-        raw = sys.stdin.read()
-        if not raw.strip():
+        decision = _decision()
+        if isinstance(decision, IOFailure):
+            _ = decision.failure()
             return 0
-        payload: dict[str, object] = json.loads(raw)
-        if not isinstance(payload, dict):
-            return 0
-        paths = _target_file_paths(payload=payload)
-        if not paths:
-            return 0
-        if not any(_is_under_memories(path_str=p) for p in paths):
-            return 0
-        # Positively identified a write into the Codex memory store.
-        # Gate on governance before denying.
-        project_dir = _find_project_dir()
-        if project_dir is None:
-            return 0
-        namespace = _resolve_plugin_namespace(project_dir=project_dir)
-        if namespace is None:
-            return 0
-        sys.stdout.write(_deny_payload(namespace=namespace) + "\n")
+        payload = decision.unwrap()
+        if payload is not None:
+            _ = sys.stdout.write(payload + "\n")
     except Exception:  # noqa: BLE001 — fail-open by contract
         pass
     return 0

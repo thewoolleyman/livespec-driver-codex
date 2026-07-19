@@ -24,6 +24,15 @@ import os
 import re
 import subprocess
 
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from _vendor.returns.result import Failure, Result, Success
+
 from _footgun_shell import git_subcommand
 
 __all__: list[str] = ["is_primary_checkout", "redirect_targets", "PRIMARY_EDIT_REASON"]
@@ -46,7 +55,7 @@ _FD_DUP_REDIR = re.compile(r"^[0-9]*[<>]&(?:[0-9]+|-)$")
 _PRIMARY_CHECKOUT_CACHE: dict[str, bool] = {}
 
 
-def is_primary_checkout(*, path: str) -> bool:
+def _is_primary_checkout_result(*, path: str) -> Result[bool, Exception]:
     """True iff `path` resolves into a git repo that is its OWN primary checkout.
 
     A primary checkout is a repo whose `git config --get livespec.primaryPath`
@@ -56,7 +65,7 @@ def is_primary_checkout(*, path: str) -> bool:
     """
     real = os.path.realpath(path)
     if real in _PRIMARY_CHECKOUT_CACHE:
-        return _PRIMARY_CHECKOUT_CACHE[real]
+        return Success(_PRIMARY_CHECKOUT_CACHE[real])
     result = False
     try:
         toplevel = subprocess.run(
@@ -76,13 +85,22 @@ def is_primary_checkout(*, path: str) -> bool:
             if primary.returncode == 0:
                 declared = os.path.realpath(primary.stdout.strip())
                 result = bool(declared) and declared == worktree_root
-    except Exception:
-        result = False  # fail open — never block on uncertainty
+    except Exception as exc:  # noqa: BLE001 — git probing fails open by contract
+        _PRIMARY_CHECKOUT_CACHE[real] = False
+        return Failure(exc)
     _PRIMARY_CHECKOUT_CACHE[real] = result
-    return result
+    return Success(result)
 
 
-def redirect_targets(*, seg: str, tokens: list[str]) -> list[str]:
+def is_primary_checkout(*, path: str) -> bool:
+    result = _is_primary_checkout_result(path=path)
+    if isinstance(result, Failure):
+        _ = result.failure()
+        return False
+    return result.unwrap()
+
+
+def _redirect_targets_result(*, seg: str, tokens: list[str]) -> Result[list[str], Exception]:
     """Collect candidate write-target paths from a shell segment.
 
     Best-effort, token/segment based:
@@ -120,7 +138,7 @@ def redirect_targets(*, seg: str, tokens: list[str]) -> list[str]:
         idx += 1
 
     if not tokens:
-        return targets
+        return Success(targets)
     base = tokens[0].rsplit("/", 1)[-1]
 
     if base == "tee":
@@ -149,4 +167,11 @@ def redirect_targets(*, seg: str, tokens: list[str]) -> list[str]:
             # writes into the current worktree; the cwd is the target
             targets.append(".")
 
-    return targets
+    return Success(targets)
+
+def redirect_targets(*, seg: str, tokens: list[str]) -> list[str]:
+    result = _redirect_targets_result(seg=seg, tokens=tokens)
+    if isinstance(result, Failure):
+        _ = result.failure()
+        return []
+    return result.unwrap()
