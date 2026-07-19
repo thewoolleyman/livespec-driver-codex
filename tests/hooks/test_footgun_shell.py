@@ -16,6 +16,8 @@ import shlex
 import sys
 from pathlib import Path
 
+import pytest
+
 _HOOKS_DIR = Path(__file__).resolve().parent.parent.parent / "livespec" / "hooks"
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
@@ -92,6 +94,60 @@ def test_strip_leading_noise_leaves_plain_command() -> None:
     core, lefthook_off = _footgun_shell.strip_leading_noise(tokens=["git", "commit"])
     assert core == ["git", "commit"]
     assert lefthook_off is False
+
+
+# Every wrapper below re-execs the command that follows it, so treating the
+# wrapper name as the invocation is a bypass of every downstream check. Each
+# entry is (label, tokens, expected remaining core).
+_WRAPPER_CASES = [
+    ("exec", ["exec", "git", "commit"], ["git", "commit"]),
+    ("command builtin", ["command", "git", "commit"], ["git", "commit"]),
+    ("nice bare", ["nice", "git", "commit"], ["git", "commit"]),
+    ("nice -n argument", ["nice", "-n", "5", "git", "commit"], ["git", "commit"]),
+    ("nice numeric flag", ["nice", "-5", "git", "commit"], ["git", "commit"]),
+    ("timeout duration", ["timeout", "5", "git", "commit"], ["git", "commit"]),
+    ("timeout flag then duration", ["timeout", "-k", "10", "5s", "git"], ["git"]),
+    ("env -i", ["env", "-i", "git", "commit"], ["git", "commit"]),
+    ("env -u NAME", ["env", "-u", "HOME", "git", "commit"], ["git", "commit"]),
+    ("env double dash", ["env", "--", "git", "commit"], ["git", "commit"]),
+    ("nohup", ["nohup", "git", "commit"], ["git", "commit"]),
+    ("setsid", ["setsid", "git", "commit"], ["git", "commit"]),
+    ("stdbuf", ["stdbuf", "-oL", "git", "commit"], ["git", "commit"]),
+    ("ionice", ["ionice", "-c2", "-n7", "git", "commit"], ["git", "commit"]),
+    ("time", ["time", "git", "commit"], ["git", "commit"]),
+    ("sudo with flag", ["sudo", "-u", "ubuntu", "git", "commit"], ["git", "commit"]),
+    ("absolute wrapper path", ["/usr/bin/env", "-i", "git"], ["git"]),
+    ("stacked wrappers", ["sudo", "env", "-i", "timeout", "5", "git"], ["git"]),
+    ("wrapper then assignment", ["sudo", "FOO=bar", "git"], ["git"]),
+    ("wrapper alone", ["env"], []),
+]
+
+
+@pytest.mark.parametrize(("label", "tokens", "expected"), _WRAPPER_CASES)
+def test_strip_leading_noise_peels_every_reexec_wrapper(
+    label: str, tokens: list[str], expected: list[str]
+) -> None:
+    core, lefthook_off = _footgun_shell.strip_leading_noise(tokens=tokens)
+    assert core == expected, label
+    assert lefthook_off is False
+
+
+def test_strip_leading_noise_sees_lefthook_disable_behind_a_wrapper() -> None:
+    # The assignment sits AFTER a wrapper, so a stripper that only inspected the
+    # leading position would miss it.
+    core, lefthook_off = _footgun_shell.strip_leading_noise(
+        tokens=["sudo", "env", "LEFTHOOK=0", "git", "commit"]
+    )
+    assert core == ["git", "commit"]
+    assert lefthook_off is True
+
+
+def test_strip_leading_noise_flags_lefthook_disable_before_a_wrapper() -> None:
+    core, lefthook_off = _footgun_shell.strip_leading_noise(
+        tokens=["LEFTHOOK=false", "sudo", "git", "commit"]
+    )
+    assert core == ["git", "commit"]
+    assert lefthook_off is True
 
 
 # --------------------------------------------------------------------------

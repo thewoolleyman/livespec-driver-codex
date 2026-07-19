@@ -32,11 +32,11 @@ emission, and the stdin/stdout main loop. Two cohesive sub-responsibilities are
 extracted into sibling modules under this same `hooks/` directory (livespec epic
 livespec-i5ebqd, file_lloc decomposition), imported below:
   - `_footgun_shell` — shell tokenization primitives (segment splitting,
-    noise-stripping, git-invocation recognition);
+    wrapper-prefix stripping, git-invocation recognition);
   - `_footgun_primary_checkout` — the "would this write files at a primary
-    checkout?" detector (write-target extraction + primary-checkout probe).
-The split is a pure cohesion move; behavior is IDENTICAL to the prior
-single-file guard.
+    checkout?" detector (write-target extraction + primary-checkout probe);
+  - `_footgun_tmux` — the evasion-aware tmux fleet-kill classifier (wrapper
+    prefixes, `-S` socket-path normalization, nested shell/xargs payloads).
 
 Always exits 0; fails OPEN on any parse/tokenize error (a guard bug must never
 block legitimate work — the commit-refuse hook + branch protection are the real
@@ -55,6 +55,7 @@ from _footgun_primary_checkout import (
     redirect_targets,
 )
 from _footgun_shell import git_subcommand, segments, strip_leading_noise
+from _footgun_tmux import check_tmux_segment
 from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 
 __all__: list[str] = []
@@ -79,108 +80,8 @@ _LEFTHOOK_REASON = (
     "equivalent. Fix the failing hook's root cause or HALT and ask. "
     "(memory feedback_sub_agent_dispatch_no_verify_ban)"
 )
-_TMUX_REASON = (
-    "NEVER run unscoped tmux fleet-kill commands from Codex. Codex agents "
-    "share the host tmux socket namespace, so `tmux kill-server` on the "
-    "default socket, `tmux -L default kill-server`, fleet `-S` socket kills, "
-    "and `pkill`/`killall tmux` can terminate unrelated agents. Use an "
-    "explicit non-default `tmux -L <agent-scope>` or `tmux -S <agent-socket>` "
-    "target instead; TMUX_TMPDIR is not a safe scoping control."
-)
-_TMUX_PARSE_REASON = (
-    "BLOCKED because a command containing a tmux kill hazard could not parse "
-    "safely. Codex agents share the host tmux socket namespace, so tmux kill "
-    "hazards fail CLOSED; rewrite with a parseable, explicitly scoped "
-    "non-default `tmux -L <agent-scope>` or `tmux -S <agent-socket>` command."
-)
-_SHELLS = {"bash", "dash", "sh", "zsh"}
-
-
-def _looks_like_tmux_kill_hazard(*, seg: str) -> bool:
-    return bool(
-        re.search(r"\btmux\b", seg)
-        and (
-            re.search(r"\bkill-server\b", seg)
-            or re.search(r"\b(?:pkill|killall)\b", seg)
-        )
-    )
-
-
-def _tmux_socket_is_default_or_fleet(*, socket: str) -> bool:
-    return socket.rsplit("/", 1)[-1] == "default" or "fleet" in socket
-
-
-def _tmux_scope_allows_kill_server(*, tokens: list[str]) -> bool:
-    labels: list[str] = []
-    sockets: list[str] = []
-    i = 1
-    while i < len(tokens):
-        token = tokens[i]
-        if token == "-L" and i + 1 < len(tokens):
-            labels.append(tokens[i + 1])
-            i += 2
-            continue
-        if token == "-S" and i + 1 < len(tokens):
-            sockets.append(tokens[i + 1])
-            i += 2
-            continue
-        i += 1
-    if any(label == "default" for label in labels):
-        return False
-    if any(_tmux_socket_is_default_or_fleet(socket=socket) for socket in sockets):
-        return False
-    return bool(labels or sockets)
-
-
-def _shell_c_payload(*, tokens: list[str]) -> str | None:
-    if not tokens or tokens[0].rsplit("/", 1)[-1] not in _SHELLS:
-        return None
-    payloads = (
-        tokens[i + 1]
-        for i, token in enumerate(tokens[1:], start=1)
-        if token in ("-c", "-lc") and i + 1 < len(tokens)
-    )
-    return next(payloads, None)
-
-
-def _targets_tmux_process(*, args: list[str]) -> bool:
-    for arg in args:
-        if arg.startswith("-"):
-            continue
-        if re.search(r"(?:^|[\s/])tmux(?:$|[\s/])", arg):
-            return True
-    return False
-
-
-def _check_tmux_tokens(*, tokens: list[str], depth: int = 0) -> tuple[bool, str]:
-    if depth > 4 or not tokens:
-        return False, ""
-    payload = _shell_c_payload(tokens=tokens)
-    if payload is not None:
-        return _check_tmux_segment(seg=payload, depth=depth + 1)
-    command = tokens[0].rsplit("/", 1)[-1]
-    if command == "tmux" and "kill-server" in tokens[1:]:
-        if _tmux_scope_allows_kill_server(tokens=tokens):
-            return False, ""
-        return True, _TMUX_REASON
-    if command in ("pkill", "killall") and _targets_tmux_process(args=tokens[1:]):
-        return True, _TMUX_REASON
-    return False, ""
-
-
-def _check_tmux_segment(*, seg: str, depth: int = 0) -> tuple[bool, str]:
-    try:
-        tokens = shlex.split(seg, posix=True)
-    except ValueError:
-        if _looks_like_tmux_kill_hazard(seg=seg):
-            return True, _TMUX_PARSE_REASON
-        return False, ""
-    core, _ = strip_leading_noise(tokens=tokens)
-    return _check_tmux_tokens(tokens=core, depth=depth)
-
-
 def _check_segment(*, seg: str) -> tuple[bool, str]:
-    tmux_blocked, tmux_reason = _check_tmux_segment(seg=seg)
+    tmux_blocked, tmux_reason = check_tmux_segment(seg=seg)
     if tmux_blocked:
         return True, tmux_reason
 
