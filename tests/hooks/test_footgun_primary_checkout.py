@@ -127,9 +127,34 @@ def test_is_primary_checkout_false_for_non_repo(tmp_path: Path) -> None:
     assert _footgun_primary_checkout.is_primary_checkout(path=str(plain)) is False
 
 
+@pytest.mark.parametrize(
+    "probe_error",
+    [
+        OSError("git launch failed"),
+        subprocess.SubprocessError("git probe timed out"),
+    ],
+)
+def test_is_primary_checkout_fails_open_and_caches_false_for_expected_probe_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, probe_error: Exception
+) -> None:
+    real = str(tmp_path.resolve())
+    _footgun_primary_checkout._PRIMARY_CHECKOUT_CACHE.clear()
+
+    def fail_probe(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del args, kwargs
+        raise probe_error
+
+    monkeypatch.setattr(_footgun_primary_checkout.subprocess, "run", fail_probe)
+
+    assert _footgun_primary_checkout.is_primary_checkout(path=str(tmp_path)) is False
+    assert _footgun_primary_checkout._PRIMARY_CHECKOUT_CACHE[real] is False
+
+
 def test_is_primary_checkout_propagates_unexpected_probe_bug(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    _footgun_primary_checkout._PRIMARY_CHECKOUT_CACHE.clear()
+
     def bug(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         del args, kwargs
         raise AttributeError("unexpected probe bug")
