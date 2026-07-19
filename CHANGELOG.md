@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.4.0...v0.5.0) (2026-07-19)
+
+
+### Features
+
+* require hook railway policy ([3dc8174](https://github.com/thewoolleyman/livespec-driver-codex/commit/3dc81746a5fa8de771c3492d74950224b0318a3b))
+
+
+### Bug Fixes
+
+* put no-shadow hook on railway ([46b6524](https://github.com/thewoolleyman/livespec-driver-codex/commit/46b6524a36d1ba6204eed5425b9f5aa7face4915))
+
+
+### Reverts
+
+* keep no-shadow hook canonical ([8225656](https://github.com/thewoolleyman/livespec-driver-codex/commit/8225656e8b5f079817b1212cbc7fd46325765891))
+
 ## [0.4.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.3.4...v0.4.0) (2026-07-19)
 
 
