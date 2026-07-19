@@ -37,6 +37,8 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -281,6 +283,65 @@ def test_denies_dd_of_into_primary_checkout(tmp_path: Path) -> None:
     result = _run_guard(stdin=_hook_input(command=f"dd if=/dev/zero of={target} bs=1 count=1"))
     payload = _assert_deny(result=result)
     assert "PRIMARY" in payload["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+# --------------------------------------------------------------------------
+# (e) tmux default-socket / fleet-kill hazard -> deny
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "tmux kill-server",
+        "/usr/bin/tmux kill-server",
+        "tmux -L default kill-server",
+        "tmux kill-server -L default",
+        "tmux -S /tmp/livespec-fleet/tmux/default kill-server",
+        "tmux kill-server -S /tmp/livespec-fleet/tmux/default",
+        "TMUX_TMPDIR=/safe tmux kill-server",
+        "mise exec -- tmux kill-server",
+        "echo ok && tmux kill-server",
+        "sh -c 'tmux kill-server'",
+        "bash -lc 'tmux -L default kill-server'",
+        "env bash -c 'pkill tmux'",
+        "pkill tmux",
+        "killall tmux",
+    ],
+)
+def test_denies_tmux_default_socket_hazards(command: str) -> None:
+    result = _run_guard(stdin=_hook_input(command=command))
+    payload = _assert_deny(result=result)
+    assert "tmux" in payload["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "tmux -L livespec-work kill-server",
+        "tmux kill-server -L livespec-work",
+        "tmux -S /tmp/livespec-agent/socket kill-server",
+        "tmux kill-server -S /tmp/livespec-agent/socket",
+        "tmux new-session -d -s work",
+        "tmux list-sessions",
+        "echo 'tmux kill-server'",
+        "cat <<'EOF'\ntmux kill-server\nEOF",
+        "pkill -f codex",
+        "killall python3",
+        "sh -c 'tmux -L livespec-work kill-server'",
+        "bash -lc 'tmux -S /tmp/livespec-agent/socket kill-server'",
+        "python3 -c 'print(\"tmux kill-server\")'",
+    ],
+)
+def test_passes_scoped_or_non_tmux_kill_commands(command: str) -> None:
+    result = _run_guard(stdin=_hook_input(command=command))
+    _assert_pass(result=result)
+
+
+def test_denies_unparseable_tmux_kill_hazard_fail_closed() -> None:
+    result = _run_guard(stdin=_hook_input(command="tmux kill-server 'unterminated"))
+    payload = _assert_deny(result=result)
+    assert "could not parse" in payload["hookSpecificOutput"]["permissionDecisionReason"]
 
 
 # --------------------------------------------------------------------------
