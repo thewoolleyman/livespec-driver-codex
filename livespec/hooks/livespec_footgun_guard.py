@@ -105,6 +105,10 @@ def _looks_like_tmux_kill_hazard(*, seg: str) -> bool:
     )
 
 
+def _tmux_socket_is_default_or_fleet(*, socket: str) -> bool:
+    return socket.rsplit("/", 1)[-1] == "default" or "fleet" in socket
+
+
 def _tmux_scope_allows_kill_server(*, tokens: list[str]) -> bool:
     labels: list[str] = []
     sockets: list[str] = []
@@ -122,20 +126,29 @@ def _tmux_scope_allows_kill_server(*, tokens: list[str]) -> bool:
         i += 1
     if any(label == "default" for label in labels):
         return False
-    if any("fleet" in socket for socket in sockets):
+    if any(_tmux_socket_is_default_or_fleet(socket=socket) for socket in sockets):
         return False
     return bool(labels or sockets)
 
 
 def _shell_c_payload(*, tokens: list[str]) -> str | None:
-    if (
-        not tokens
-        or tokens[0].rsplit("/", 1)[-1] not in _SHELLS
-        or len(tokens) < 3
-        or tokens[1] not in ("-c", "-lc")
-    ):
+    if not tokens or tokens[0].rsplit("/", 1)[-1] not in _SHELLS:
         return None
-    return tokens[2]
+    payloads = (
+        tokens[i + 1]
+        for i, token in enumerate(tokens[1:], start=1)
+        if token in ("-c", "-lc") and i + 1 < len(tokens)
+    )
+    return next(payloads, None)
+
+
+def _targets_tmux_process(*, args: list[str]) -> bool:
+    for arg in args:
+        if arg.startswith("-"):
+            continue
+        if re.search(r"(?:^|[\s/])tmux(?:$|[\s/])", arg):
+            return True
+    return False
 
 
 def _check_tmux_tokens(*, tokens: list[str], depth: int = 0) -> tuple[bool, str]:
@@ -149,7 +162,7 @@ def _check_tmux_tokens(*, tokens: list[str], depth: int = 0) -> tuple[bool, str]
         if _tmux_scope_allows_kill_server(tokens=tokens):
             return False, ""
         return True, _TMUX_REASON
-    if command in ("pkill", "killall") and "tmux" in tokens[1:]:
+    if command in ("pkill", "killall") and _targets_tmux_process(args=tokens[1:]):
         return True, _TMUX_REASON
     return False, ""
 

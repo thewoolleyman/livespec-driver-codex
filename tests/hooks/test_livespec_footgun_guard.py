@@ -304,9 +304,13 @@ def test_denies_dd_of_into_primary_checkout(tmp_path: Path) -> None:
         "echo ok && tmux kill-server",
         "sh -c 'tmux kill-server'",
         "bash -lc 'tmux -L default kill-server'",
+        "bash -e -c 'tmux kill-server'",
         "env bash -c 'pkill tmux'",
         "pkill tmux",
+        "pkill -f tmux",
+        "pkill -f 'tmux kill-server'",
         "killall tmux",
+        "tmux -S /tmp/tmux-1000/default kill-server",
     ],
 )
 def test_denies_tmux_default_socket_hazards(command: str) -> None:
