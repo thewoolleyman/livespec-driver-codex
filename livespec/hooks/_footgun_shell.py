@@ -24,8 +24,8 @@ __all__: list[str] = ["segments", "strip_leading_noise", "git_subcommand"]
 
 _ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _GIT_GLOBAL_OPTS_WITH_ARG = ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path")
-_SEGMENT_SPLIT = re.compile(r"&&|\|\||;|\||\n")
 _HEREDOC = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)['\"]?")
+_LINE_CONTINUATION = re.compile(r"\\\n")
 _LEFTHOOK_OFF = re.compile(r"^LEFTHOOK=(?:0|false|off|no)$", re.IGNORECASE)
 _DURATION = re.compile(r"^[0-9]+(?:\.[0-9]+)?[smhd]?$")
 # Wrappers that merely re-exec another command, mapped to the flags of THEIRS
@@ -78,9 +78,65 @@ def _strip_heredoc_bodies(*, command: str) -> str:
     return "\n".join(out)
 
 
+def _join_line_continuations(*, command: str) -> str:
+    """Fold `\\<newline>` the way a shell does, BEFORE anything splits on newline.
+
+    `tmux \\<newline> kill-server` is ONE command to the shell. Splitting on the
+    raw newline first would hand the analyzer two harmless-looking halves.
+    """
+    return _LINE_CONTINUATION.sub(" ", command)
+
+
+def _split_on_operators(*, command: str) -> list[str]:
+    """Split into shell segments on unquoted `;` `&&` `||` `|` `&` and newline.
+
+    QUOTING-AWARE by construction. A regex split cuts inside quoted strings, so
+    `echo 'first; tmux kill-server'` used to arrive as a segment beginning
+    `tmux kill-server` — a false positive on text that is pure DATA. Quote state
+    is tracked here so a separator inside quotes is never a separator.
+    """
+    found: list[str] = []
+    current: list[str] = []
+    quote = ""
+    index = 0
+    total = len(command)
+    while index < total:
+        char = command[index]
+        if quote:
+            current.append(char)
+            if char == quote:
+                quote = ""
+            index += 1
+            continue
+        if char in "'\"":
+            quote = char
+            current.append(char)
+            index += 1
+            continue
+        if char == "\\" and index + 1 < total:
+            current.append(char)
+            current.append(command[index + 1])
+            index += 2
+            continue
+        if command[index : index + 2] in ("&&", "||"):
+            found.append("".join(current))
+            current = []
+            index += 2
+            continue
+        if char in ";|&\n":
+            found.append("".join(current))
+            current = []
+            index += 1
+            continue
+        current.append(char)
+        index += 1
+    found.append("".join(current))
+    return [segment.strip() for segment in found if segment.strip()]
+
+
 def _segments_result(*, command: str) -> Result[list[str], Exception]:
-    cleaned = _strip_heredoc_bodies(command=command)
-    return Success([s.strip() for s in _SEGMENT_SPLIT.split(cleaned) if s.strip()])
+    cleaned = _join_line_continuations(command=_strip_heredoc_bodies(command=command))
+    return Success(_split_on_operators(command=cleaned))
 
 
 def segments(*, command: str) -> list[str]:
