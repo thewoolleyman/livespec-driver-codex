@@ -462,7 +462,14 @@ def test_fail_open_when_segment_iteration_raises(monkeypatch) -> None:
     _assert_pass(result=result)
 
 
-def test_vendor_path_bootstrap_inserts_repo_root_for_footgun_guard() -> None:
+def test_footgun_guard_imports_without_the_repo_root_on_sys_path() -> None:
+    """The guard must load from its own directory alone.
+
+    Only `livespec/` is packaged, so the repo root does not exist in Codex's
+    install cache. Importing with it removed from `sys.path` is the in-repo
+    proxy for that layout; `tests/hooks/test_shipped_hooks_install_shape.py`
+    asserts the same property against a real copied install tree.
+    """
     import importlib.util
 
     old_path = list(sys.path)
@@ -480,7 +487,8 @@ def test_vendor_path_bootstrap_inserts_repo_root_for_footgun_guard() -> None:
     finally:
         sys.path = old_path
 
-    assert module._REPO_ROOT == _REPO_ROOT
+    assert not hasattr(module, "_REPO_ROOT")
+    assert module.IOSuccess is module.Success
 
 
 def test_passes_non_mapping_payload() -> None:

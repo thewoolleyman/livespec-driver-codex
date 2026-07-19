@@ -22,12 +22,7 @@ import sys
 from pathlib import Path
 from urllib.parse import quote
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-
-from _vendor.returns.io import IOFailure, IOResult, IOSuccess
-from _vendor.returns.result import Failure, Result, Success
+from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 
 __all__: list[str] = []
 

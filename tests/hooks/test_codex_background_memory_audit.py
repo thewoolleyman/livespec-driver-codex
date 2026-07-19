@@ -299,7 +299,14 @@ def test_background_memory_default_db_path_uses_codex_home(monkeypatch) -> None:
     assert hook._background_db_path() == Path.home() / ".codex" / "memories_1.sqlite"
 
 
-def test_vendor_path_bootstrap_inserts_repo_root_for_background_audit() -> None:
+def test_background_audit_imports_without_the_repo_root_on_sys_path() -> None:
+    """The audit hook must load from its own directory alone.
+
+    Only `livespec/` is packaged, so the repo root does not exist in Codex's
+    install cache. Importing with it removed from `sys.path` is the in-repo
+    proxy for that layout; `tests/hooks/test_shipped_hooks_install_shape.py`
+    asserts the same property against a real copied install tree.
+    """
     old_path = list(sys.path)
     try:
         sys.path = [entry for entry in sys.path if entry != str(_REPO_ROOT)]
@@ -307,7 +314,8 @@ def test_vendor_path_bootstrap_inserts_repo_root_for_background_audit() -> None:
     finally:
         sys.path = old_path
 
-    assert hook._REPO_ROOT == _REPO_ROOT
+    assert not hasattr(hook, "_REPO_ROOT")
+    assert hook.IOSuccess is hook.Success
 
 
 def test_background_counts_returns_failure_when_sqlite_connect_raises(

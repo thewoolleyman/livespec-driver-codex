@@ -23,7 +23,7 @@ plugin itself.
 | `.agents/plugins/marketplace.json` | Marketplace catalog (`livespec-driver-codex`) listing the single `livespec` Driver plugin, sourced from the `./livespec` subdir. |
 | `livespec/.codex-plugin/plugin.json` | Plugin manifest. The plugin is NAMED `livespec` (not `livespec-driver-codex`) so the established `/livespec:*` command surface is preserved. |
 | `livespec/skills/<name>/SKILL.md` | The eight thin Codex bindings: seed, propose-change, critique, revise, doctor, prune-history, next, help. |
-| `livespec/hooks/` | Plugin-shipped Codex hooks: `hooks.json` declares the events; `livespec_footgun_guard.py` is a fail-open PreToolUse guard resolved via the Driver's plugin root (this IS Driver-owned runtime surface, unlike prose/CLIs). |
+| `livespec/hooks/` | Plugin-shipped Codex hooks: `hooks.json` declares the events; `livespec_footgun_guard.py` is a fail-open PreToolUse guard resolved via the Driver's plugin root (this IS Driver-owned runtime surface, unlike prose/CLIs). Every hook here MUST be self-contained — see "Shipped hooks are self-contained" below. |
 | `.livespec.jsonc` | Project-local livespec config: `template`, `spec_root`, active impl-plugin, the Driver `compat` block, and the per-repo beads tenant connection block (mirroring the committed `.beads/config.yaml`). |
 | `dev-tooling/` | The family-standard git-hook scaffolds. The structural gate is no longer vendored here — `check-plugin-structure` consumes the profile-auto-detecting check from the shared `livespec-dev-tooling` package (`python -m livespec_dev_tooling.driver_checks.plugin_structure`). The commit-refuse hook is likewise no longer a vendored `git-hook-wrapper.sh` scaffold here — `just bootstrap` installs the canonical structural hook from the same package (`python -m livespec_dev_tooling.install_commit_refuse_hooks`, the SINGLE source of the hook body; both pinned in `pyproject.toml`). |
 | `tests/` | `tests/hooks/` (footgun-guard subprocess unit tests) and `tests/e2e-cli/` (the CLI end-to-end harness consumer: mock-tier discovery + fail-closed coverage gate + static binding assertions + live Codex `/skills` picker acceptance). |
@@ -69,6 +69,37 @@ Invocation-form rule for fenced commands in SKILL.md files: use
 `python3 "$LIVESPEC_CORE_ROOT/scripts/bin/<name>.py"`, never `uv run`,
 never a literal `.claude-plugin/scripts` path, and never the Driver's
 own plugin-root placeholder for core paths.
+
+## Shipped hooks are self-contained
+
+The plugin's packaged root is `./livespec` (`.agents/plugins/marketplace.json`
+`plugins[0].source.path`), so Codex copies `livespec/` — and **nothing above
+it** — into its install cache at `<cache>/livespec/<version>/hooks/<file>.py`,
+then runs each hook with a bare `python3`: no venv, no third-party packages.
+
+Two rules follow, and both are load-bearing for safety:
+
+1. **Every import a shipped hook makes must resolve inside `livespec/`** — the
+   stdlib, or a plain sibling module (`from _footgun_shell import ...`,
+   `from _result import ...`), which resolves because Python puts a script's
+   own directory on `sys.path`.
+2. **No path arithmetic.** Never reconstruct a repo root with
+   `Path(__file__).resolve().parents[N]` and insert it on `sys.path`.
+
+Violating either produces a failure mode that looks like success. A module-scope
+`ModuleNotFoundError` raises BEFORE `main()`'s fail-open `try`/`except`, so the
+process exits non-zero and Codex fails the hook OPEN — the dangerous command
+runs unblocked while `codex plugin list` still shows the guard installed and
+`${CLAUDE_PLUGIN_ROOT}` still resolves. This actually shipped: five hooks
+imported a repo-root `_vendor.returns` shim that is not packaged, and the
+footgun guard silently stopped blocking tmux fleet-kills.
+
+The in-repo test suite cannot catch this on its own, because it runs the hooks
+from the checkout where the repo root happens to be reachable — which is exactly
+why the defect shipped green. `tests/hooks/test_shipped_hooks_install_shape.py`
+is the gate that does catch it: it copies ONLY `livespec/` into a mock install
+cache, runs each hook there under an interpreter that ignores `PYTHONPATH`, and
+asserts real verdicts. Any new shipped hook belongs in that test.
 
 ## Relationship to the family
 

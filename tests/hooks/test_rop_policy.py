@@ -23,12 +23,44 @@ def _pyproject() -> dict[str, object]:
     return tomli.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
-def test_dry_python_returns_is_vendored_under_repo_vendor_tree() -> None:
-    vendor_root = _REPO_ROOT / "_vendor" / "returns"
+def test_railway_types_live_inside_the_packaged_plugin_subtree() -> None:
+    """The railway shim must ship WITH the hooks, not above them.
 
-    assert (vendor_root / "__init__.py").is_file()
-    assert (vendor_root / "result.py").is_file()
-    assert (vendor_root / "io.py").is_file()
+    Only `livespec/` is packaged, so a railway module anywhere else is absent
+    at runtime and every hook importing it fails open.
+    """
+    assert (_REPO_ROOT / "livespec" / "hooks" / "_result.py").is_file()
+
+
+def test_no_shipped_hook_reaches_outside_the_packaged_subtree() -> None:
+    """Regression guard for the fail-open packaging defect.
+
+    Reconstructing a repo root with `Path(__file__).resolve().parents[N]` and
+    inserting it on `sys.path` works in the checkout and breaks in the install
+    cache. No shipped hook may do it, and none may import the repo-root
+    `_vendor` tree that arithmetic existed to reach.
+    """
+    for hook_file in _HOOK_FILES:
+        source = hook_file.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        offender = hook_file.relative_to(_REPO_ROOT)
+
+        reaches_out = any(
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.split(".")[0] == "_vendor"
+            for node in ast.walk(tree)
+        )
+        mutates_path = any(
+            isinstance(node, ast.Attribute)
+            and node.attr == "path"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "sys"
+            for node in ast.walk(tree)
+        )
+
+        assert not reaches_out, f"{offender} imports the unpackaged _vendor tree"
+        assert not mutates_path, f"{offender} manipulates sys.path at import time"
 
 
 def test_linter_and_typechecker_policy_enable_ble_and_unused_call_results() -> None:
@@ -44,10 +76,7 @@ def test_hook_modules_import_and_use_returns_railway_types() -> None:
     for hook_file in _HOOK_FILES:
         tree = ast.parse(hook_file.read_text(encoding="utf-8"))
         imports_returns = any(
-            isinstance(node, ast.ImportFrom)
-            and node.module
-            and node.module.startswith("_vendor.returns")
-            for node in ast.walk(tree)
+            isinstance(node, ast.ImportFrom) and node.module == "_result" for node in ast.walk(tree)
         )
         constructs_result = any(
             isinstance(node, ast.Name)
@@ -55,7 +84,9 @@ def test_hook_modules_import_and_use_returns_railway_types() -> None:
             for node in ast.walk(tree)
         )
 
-        assert imports_returns, f"{hook_file.relative_to(_REPO_ROOT)} must import vendored returns"
+        assert (
+            imports_returns
+        ), f"{hook_file.relative_to(_REPO_ROOT)} must import the sibling railway shim"
         assert (
             constructs_result
         ), f"{hook_file.relative_to(_REPO_ROOT)} must construct railway values"
