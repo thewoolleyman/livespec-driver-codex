@@ -43,6 +43,10 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 
+from livespec_dev_tooling.install_no_shadow_ledger import (
+    CANONICAL_NO_SHADOW_LEDGER_BODY,
+)
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -411,3 +415,16 @@ def test_silent_on_non_mapping_stop_payload() -> None:
 def test_silent_on_missing_transcript_path_key() -> None:
     result = _run_hook(stdin=json.dumps({}))
     _assert_silent(result=result)
+
+
+def test_installed_body_is_byte_identical_to_packaged_canonical() -> None:
+    """The shipped hook body must equal the canonical constant it is installed from.
+
+    The body is single-sourced upstream as
+    `livespec_dev_tooling.install_no_shadow_ledger.CANONICAL_NO_SHADOW_LEDGER_BODY`
+    and written here by `just install-no-shadow-ledger`. BOTH sides are derived —
+    nothing about the body is hardcoded in this test — so it keeps working when the
+    canonical body changes upstream: it simply requires the reinstall to land
+    alongside the dev-tooling pin bump that introduced the new body.
+    """
+    assert _HOOK_SCRIPT.read_text(encoding="utf-8") == CANONICAL_NO_SHADOW_LEDGER_BODY
