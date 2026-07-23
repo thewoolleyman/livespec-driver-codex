@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.4...v0.5.5) (2026-07-23)
+
+
+### Bug Fixes
+
+* pin no-shadow-ledger body byte-identity to the packaged canonical ([dd1b5e6](https://github.com/thewoolleyman/livespec-driver-codex/commit/dd1b5e6a160a39f0823a47f903a6ba4b9df364eb))
+
 ## [0.5.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.3...v0.5.4) (2026-07-19)
 
 
