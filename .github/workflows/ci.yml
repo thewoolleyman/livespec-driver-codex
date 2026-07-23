@@ -40,7 +40,7 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.53.2
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.54.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -100,6 +100,7 @@ jobs:
           - check-no-lloc-soft-warnings
           - check-no-raise-outside-io
           - check-no-shadow-ledger-body-identical
+          - check-no-shadow-ledger-body-typechecks
           - check-no-todo-registry
           - check-no-write-direct
           - check-partition-completeness
@@ -215,7 +216,7 @@ jobs:
     name: check-doctor-static
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.53.2
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.54.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -282,7 +283,7 @@ jobs:
     name: check-red-green-replay
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["self-hosted","local-ci"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.53.2
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v0.54.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
