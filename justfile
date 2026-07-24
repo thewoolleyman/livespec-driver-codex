@@ -207,6 +207,19 @@ check:
     # STRICTLY advisory-local; CI remains authoritative.
     uv run python -m livespec_dev_tooling.green_token write || true
 
+# Factory-branch guard: implementation branches must not carry workflow edits.
+# Maintainer-side workflow diffs are reported out-of-band instead of landing
+# from Fabro slices.
+check-no-workflow-edits:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    base_ref="${LIVESPEC_FACTORY_BASE_REF:-master}"
+    if ! git diff --quiet "${base_ref}...HEAD" -- .github/workflows; then
+        echo "Factory branch boundary violation: .github/workflows differs from ${base_ref}." >&2
+        git diff "${base_ref}...HEAD" -- .github/workflows >&2
+        exit 1
+    fi
+
 # Structural gate for the Codex plugin bundle: marketplace + manifest
 # validity (subdir layout), the 8-skill set, frontmatter names +
 # descriptions, the Codex core-resolution invocation + Claude-marker
