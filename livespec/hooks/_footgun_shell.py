@@ -20,7 +20,7 @@ import re
 
 from _result import Failure, Result, Success
 
-__all__: list[str] = ["segments", "strip_leading_noise", "git_subcommand"]
+__all__: list[str] = ["git_subcommand", "segments", "strip_leading_noise"]
 
 _ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _GIT_GLOBAL_OPTS_WITH_ARG = ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path")

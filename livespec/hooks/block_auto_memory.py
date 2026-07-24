@@ -112,9 +112,7 @@ def _resolve_plugin_namespace(*, project_dir: str) -> str | None:
     config_path = Path(project_dir) / ".livespec.jsonc"
     if not config_path.is_file():
         return None
-    config = json.loads(
-        _strip_jsonc_comments(text=config_path.read_text(encoding="utf-8"))
-    )
+    config = json.loads(_strip_jsonc_comments(text=config_path.read_text(encoding="utf-8")))
     if not isinstance(config, dict):
         return None
     implementation = config.get("implementation")

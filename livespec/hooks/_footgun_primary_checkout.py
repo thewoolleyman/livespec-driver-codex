@@ -27,7 +27,7 @@ import subprocess
 from _footgun_shell import git_subcommand
 from _result import Failure, Result, Success
 
-__all__: list[str] = ["is_primary_checkout", "redirect_targets", "PRIMARY_EDIT_REASON"]
+__all__: list[str] = ["PRIMARY_EDIT_REASON", "is_primary_checkout", "redirect_targets"]
 
 PRIMARY_EDIT_REASON = (
     "NEVER edit files directly at a livespec PRIMARY checkout (a repo whose "
@@ -96,24 +96,9 @@ def is_primary_checkout(*, path: str) -> bool:
     return result.unwrap()
 
 
-def _redirect_targets_result(*, seg: str, tokens: list[str]) -> Result[list[str], Exception]:
-    """Collect candidate write-target paths from a shell segment.
-
-    Best-effort, token/segment based:
-      - redirections `> file` / `>> file` (also `1>`, `2>>`, etc.)
-      - `tee [-a] file...`
-      - `sed -i ... file` / `sed --in-place ... file`
-      - `git apply` / `git am`            (writes into the cwd's worktree)
-      - `dd of=file`
-
-    Returns the raw path tokens (caller resolves them against cwd). Fails open
-    (returns []) on anything it cannot confidently parse.
-    """
+def _redirection_targets(*, tokens: list[str]) -> list[str]:
+    """Return paths introduced by shell redirection operators."""
     targets: list[str] = []
-
-    # Redirections: a token matching `[0-9]*>` or `[0-9]*>>` introduces a file
-    # target as the NEXT token. Scan the raw segment text for `>`/`>>` operators
-    # since shlex keeps them as standalone tokens.
     redir = re.compile(r"^[0-9]*>>?$")
     idx = 0
     while idx < len(tokens):
@@ -128,45 +113,61 @@ def _redirect_targets_result(*, seg: str, tokens: list[str]) -> Result[list[str]
             targets.append(tokens[idx + 1])
         else:
             # combined form `>file` / `>>file` (shlex may keep it joined)
-            m = re.match(r"^[0-9]*>>?(.+)$", tok)
-            if m and m.group(1):
-                targets.append(m.group(1))
+            match = re.match(r"^[0-9]*>>?(.+)$", tok)
+            if match and match.group(1):
+                targets.append(match.group(1))
         idx += 1
+    return targets
 
+
+def _sed_targets(*, tokens: list[str]) -> list[str]:
+    in_place = any(
+        t == "-i" or t.startswith(("-i", "--in-place")) or t == "--in-place" for t in tokens[1:]
+    )
+    if not in_place:
+        return []
+    # the file operand(s) are the trailing non-option tokens
+    return [tok for tok in tokens[1:] if not tok.startswith("-")]
+
+
+def _command_targets(*, tokens: list[str]) -> list[str]:
     if not tokens:
-        return Success(targets)
+        return []
     base = tokens[0].rsplit("/", 1)[-1]
-
     if base == "tee":
-        for tok in tokens[1:]:
-            if tok.startswith("-"):
-                continue
-            targets.append(tok)
-    elif base == "sed":
-        in_place = any(
-            t == "-i" or t.startswith("-i") or t == "--in-place" or t.startswith("--in-place")
-            for t in tokens[1:]
-        )
-        if in_place:
-            # the file operand(s) are the trailing non-option tokens
-            for tok in tokens[1:]:
-                if not tok.startswith("-"):
-                    targets.append(tok)
-    elif base == "dd":
-        for tok in tokens[1:]:
-            m = re.match(r"^of=(.+)$", tok)
-            if m:
-                targets.append(m.group(1))
-    elif base == "git":
+        return [tok for tok in tokens[1:] if not tok.startswith("-")]
+    if base == "sed":
+        return _sed_targets(tokens=tokens)
+    if base == "dd":
+        return [match.group(1) for tok in tokens[1:] if (match := re.match(r"^of=(.+)$", tok))]
+    if base == "git":
         sub, _ = git_subcommand(tokens=tokens)
         if sub in ("apply", "am"):
             # writes into the current worktree; the cwd is the target
-            targets.append(".")
+            return ["."]
+    return []
 
-    return Success(targets)
+
+def _redirect_targets_result(*, tokens: list[str]) -> Result[list[str], Exception]:
+    """Collect candidate write-target paths from a shell segment.
+
+    Best-effort, token/segment based:
+      - redirections `> file` / `>> file` (also `1>`, `2>>`, etc.)
+      - `tee [-a] file...`
+      - `sed -i ... file` / `sed --in-place ... file`
+      - `git apply` / `git am`            (writes into the cwd's worktree)
+      - `dd of=file`
+
+    Returns the raw path tokens (caller resolves them against cwd). Fails open
+    (returns []) on anything it cannot confidently parse.
+    """
+    return Success([*_redirection_targets(tokens=tokens), *_command_targets(tokens=tokens)])
+
 
 def redirect_targets(*, seg: str, tokens: list[str]) -> list[str]:
-    result = _redirect_targets_result(seg=seg, tokens=tokens)
+    if not seg.strip():
+        return []
+    result = _redirect_targets_result(tokens=tokens)
     if isinstance(result, Failure):
         _ = result.failure()
         return []
