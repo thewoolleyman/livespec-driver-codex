@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.7](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.6...v0.5.7) (2026-07-24)
+
+
+### Bug Fixes
+
+* restore hook lint backstop ([3c26389](https://github.com/thewoolleyman/livespec-driver-codex/commit/3c26389f61a5844b71c7c65a0003da56802c7623))
+
 ## [0.5.6](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.5...v0.5.6) (2026-07-24)
 
 
