@@ -84,9 +84,7 @@ def _resolve_plugin_namespace(*, project_dir: str) -> str | None:
     config_path = Path(project_dir) / ".livespec.jsonc"
     if not config_path.is_file():
         return None
-    config = json.loads(
-        _strip_jsonc_comments(text=config_path.read_text(encoding="utf-8"))
-    )
+    config = json.loads(_strip_jsonc_comments(text=config_path.read_text(encoding="utf-8")))
     if not isinstance(config, dict):
         return None
     implementation = config.get("implementation")
@@ -118,10 +116,7 @@ def _background_counts(*, db_path: Path) -> IOResult[dict[str, int] | None, Exce
         return IOFailure(exc)
     try:
         available = {
-            row[0]
-            for row in con.execute(
-                "select name from sqlite_master where type = 'table'"
-            )
+            row[0] for row in con.execute("select name from sqlite_master where type = 'table'")
         }
         counts: dict[str, int] = {}
         for table in _BACKGROUND_TABLES:

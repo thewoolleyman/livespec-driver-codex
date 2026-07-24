@@ -44,10 +44,10 @@ backstops; this guard is only a fast early warning).
 """
 
 import json
-import os
 import re
 import shlex
 import sys
+from pathlib import Path
 
 from _footgun_primary_checkout import (
     PRIMARY_EDIT_REASON,
@@ -81,6 +81,60 @@ _LEFTHOOK_REASON = (
     "equivalent. Fix the failing hook's root cause or HALT and ask. "
     "(memory feedback_sub_agent_dispatch_no_verify_ban)"
 )
+
+
+def _probe_path_for_target(*, target: str) -> str:
+    """Directory path whose checkout status decides a write target."""
+    target_path = Path(target)
+    candidate = target_path if target_path.is_absolute() else Path.cwd() / target_path
+    probe = candidate if candidate.is_dir() else candidate.parent
+    return str(probe) or "."
+
+
+def _primary_checkout_reason(*, seg: str, tokens: list[str]) -> str | None:
+    # (d) primary-checkout edit — checked on the RAW token stream BEFORE the
+    # noise-strip, so redirections like `cmd > /primary/file` are seen.
+    try:
+        for target in redirect_targets(seg=seg, tokens=tokens):
+            if target.startswith("-"):
+                continue
+            if is_primary_checkout(path=_probe_path_for_target(target=target)):
+                return PRIMARY_EDIT_REASON
+    # Path resolution can raise OSError; path probes can raise ValueError.
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def _git_config_reason(*, args: list[str]) -> str | None:
+    # Reads/removes are fine; only a SET of core.bare to a truthy value is the footgun.
+    if any(a in ("--get", "--unset", "--list", "--get-all", "--unset-all") for a in args):
+        return None
+    joined = " ".join(args)
+    if any(a == "core.bare" for a in args) and any(
+        re.fullmatch(r"(?:true|1|yes|on)", a, re.IGNORECASE) for a in args
+    ):
+        return _CORE_BARE_REASON
+    # also catches `config core.bare=true`
+    if re.search(r"\bcore\.bare\s*=\s*(?:true|1|yes|on)\b", joined, re.IGNORECASE):
+        return _CORE_BARE_REASON
+    return None
+
+
+def _git_reason(*, tokens: list[str]) -> str | None:
+    core, lefthook_off = strip_leading_noise(tokens=tokens)
+    if lefthook_off:
+        return _LEFTHOOK_REASON
+    sub, args = git_subcommand(tokens=core)
+    if sub is None:
+        return None
+    if sub in ("commit", "push") and "--no-verify" in args:
+        return _NO_VERIFY_REASON
+    if sub == "config":
+        return _git_config_reason(args=args)
+    return None
+
+
 def _check_segment(*, seg: str) -> tuple[bool, str]:
     tmux_blocked, tmux_reason = check_tmux_segment(seg=seg)
     if tmux_blocked:
@@ -93,42 +147,8 @@ def _check_segment(*, seg: str) -> tuple[bool, str]:
     if not tokens:
         return False, ""
 
-    # (d) primary-checkout edit — checked on the RAW token stream BEFORE the
-    # noise-strip, so redirections like `cmd > /primary/file` are seen.
-    try:
-        for target in redirect_targets(seg=seg, tokens=tokens):
-            if target.startswith("-"):
-                continue
-            # Resolve the directory the write would land in.
-            cand = target if os.path.isabs(target) else os.path.join(os.getcwd(), target)
-            probe = cand if os.path.isdir(cand) else os.path.dirname(cand) or "."
-            if is_primary_checkout(path=probe):
-                return True, PRIMARY_EDIT_REASON
-    # os.getcwd/os.path resolution can raise OSError; path probes can raise ValueError.
-    except (OSError, ValueError):
-        pass
-
-    core, lefthook_off = strip_leading_noise(tokens=tokens)
-    if lefthook_off:
-        return True, _LEFTHOOK_REASON
-    sub, args = git_subcommand(tokens=core)
-    if sub is None:
-        return False, ""  # leading command isn't git → not a commit/config footgun
-    if sub in ("commit", "push") and "--no-verify" in args:
-        return True, _NO_VERIFY_REASON
-    if sub == "config":
-        # Reads/removes are fine; only a SET of core.bare to a truthy value is the footgun.
-        if any(a in ("--get", "--unset", "--list", "--get-all", "--unset-all") for a in args):
-            return False, ""
-        joined = " ".join(args)
-        if any(a == "core.bare" for a in args) and any(
-            re.fullmatch(r"(?:true|1|yes|on)", a, re.IGNORECASE) for a in args
-        ):
-            return True, _CORE_BARE_REASON
-        # also catches `config core.bare=true`
-        if re.search(r"\bcore\.bare\s*=\s*(?:true|1|yes|on)\b", joined, re.IGNORECASE):
-            return True, _CORE_BARE_REASON
-    return False, ""
+    reason = _primary_checkout_reason(seg=seg, tokens=tokens) or _git_reason(tokens=tokens)
+    return (True, reason) if reason is not None else (False, "")
 
 
 def _deny_payload(*, reason: str, command: str) -> str:
@@ -202,7 +222,7 @@ def _fail_closed_on_hazard_hint(*, raw: str) -> int:
     evasion takes, and allowing it costs every live agent session on the host.
     """
     if _TMUX_HAZARD_HINT.search(raw):
-        print(_deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200]))
+        _ = sys.stdout.write(_deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200]) + "\n")
     return 0
 
 
@@ -216,7 +236,7 @@ def main() -> int:
             return _fail_closed_on_hazard_hint(raw=raw)
         payload = decision.unwrap()
         if payload is not None:
-            print(payload)
+            _ = sys.stdout.write(payload + "\n")
         return 0
     except Exception:  # noqa: BLE001 — sole fail-closed guard boundary: deny per policy, exit 0
         return _fail_closed_on_hazard_hint(raw=raw)
