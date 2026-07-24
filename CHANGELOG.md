@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.5...v0.5.6) (2026-07-24)
+
+
+### Bug Fixes
+
+* route growing jq inputs to stdin in the CI telemetry export ([6b8e5cf](https://github.com/thewoolleyman/livespec-driver-codex/commit/6b8e5cf609718596771ea225729b75490356af7f))
+
 ## [0.5.5](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.4...v0.5.5) (2026-07-23)
 
 
