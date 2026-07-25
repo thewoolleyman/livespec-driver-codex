@@ -175,6 +175,16 @@ scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.cons
 source_trees = [
     "livespec/hooks",
 ]
+# Hook I/O is narrowed at the supervisor seams; this repo has no separate io tree.
+io_trees = []
+# This Driver ships hook entry points, not spec-side command modules.
+commands_trees = []
+# This repo has no pure parse/validate layer for mutation/PBT/API-result gates.
+pure_trees = []
+# Coverage is configured via coverage.py over livespec/hooks; no legacy covered tree role.
+covered_trees = []
+# This repo has no legacy hard-gate target directories beyond git-derived coverage.
+target_dirs = []
 # The source `.py` surface of this binding repo: the plugin-shipped Codex
 # hooks (livespec/hooks/ — the footgun guard + the no-shadow-ledger hook).
 # Prefixes are matched against repo-root-relative staged paths. The bare
@@ -190,6 +200,8 @@ tests_tree_prefix = "tests/"
 mirror_pairings = [
     { source_tree = "livespec/hooks", test_tree = "tests/hooks" },
 ]
+# This repo has no schemas/dataclasses layer.
+dataclasses_tree = ""
 neutral_hook_body_path = "livespec/hooks/no_shadow_ledger.py"
 subprocess_spawn_allowlist = [
     "tests/hooks/test_block_auto_memory.py",
