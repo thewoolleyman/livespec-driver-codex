@@ -116,11 +116,22 @@ markers = [
 ]
 
 # `[tool.livespec_dev_tooling]` — this binding repo's dev-tooling layout
-# config. IMPORTANT (the empty-baseline flip): the MOMENT any key exists in
-# this block, livespec_dev_tooling.config.load_config STOPS falling back to
-# the livespec-core historical layout, and every OMITTED role key reverts to
-# an EMPTY baseline. This block already existed (carrying `scenario_tiers`),
-# so the source-tree role keys were silently at the empty baseline — which
+# config. IMPORTANT: every role key MUST be DECLARED. An undeclared key that a
+# wired check consumes is a hard ERROR naming the key and the two sanctioned
+# outs — declare its real value, or declare it explicitly empty (`[]` for list
+# keys, `""` for the scalar `dataclasses_tree` / `neutral_hook_body_path`) with
+# a comment giving the reason. Declared-empty is the sanctioned, VISIBLE
+# opt-out: the gating check no-ops and says so in a structured `info` event.
+# Omission is NOT a silent empty baseline and NOT a way to opt out.
+#
+# HISTORY, retained because it explains why these keys exist: under the
+# PRE-v0.54.12 regime the loader fell back to livespec-core's historical layout
+# whenever this whole block was absent, and the moment any key appeared every
+# omitted key reverted to an empty baseline. That fallback and that "flip" are
+# both RETIRED (livespec-dev-tooling epic livespec-dev-tooling-e9j slice L,
+# v0.54.12) — the mechanism the old warning described no longer exists. It
+# mattered here because this block already existed (carrying `scenario_tiers`),
+# so the source-tree role keys sat silently at the empty baseline — which
 # made `commit_pairs_source_and_test` a NO-OP here: with
 # `source_tree_prefixes = ()`, `path.startswith(())` is always False, so the
 # "every source-touching commit also touches tests/" gate flagged nothing
