@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.8](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.7...v0.5.8) (2026-07-26)
+
+
+### Bug Fixes
+
+* **config:** describe the current role-key regime, not the retired fallback ([1cdc1f9](https://github.com/thewoolleyman/livespec-driver-codex/commit/1cdc1f91cbadf7ab24c3c9ac811e9b96e07194b9))
+
 ## [0.5.7](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.6...v0.5.7) (2026-07-24)
 
 
