@@ -117,12 +117,26 @@ markers = [
 
 # `[tool.livespec_dev_tooling]` — this binding repo's dev-tooling layout
 # config. IMPORTANT: every role key MUST be DECLARED. An undeclared key that a
-# wired check consumes is a hard ERROR naming the key and the two sanctioned
-# outs — declare its real value, or declare it explicitly empty (`[]` for list
-# keys, `""` for the scalar `dataclasses_tree` / `neutral_hook_body_path`) with
-# a comment giving the reason. Declared-empty is the sanctioned, VISIBLE
-# opt-out: the gating check no-ops and says so in a structured `info` event.
+# wired check consumes is a hard ERROR naming the key and its legal spellings.
 # Omission is NOT a silent empty baseline and NOT a way to opt out.
+#
+# HOW A ROLE THIS REPO LACKS IS DECLARED (livespec-dev-tooling-8o8e.1). The five
+# UNION keys — `pure_trees`, `target_dirs`, `source_tree_prefixes`,
+# `dataclasses_tree`, `neutral_hook_body_path` — are the ones whose value IS a
+# check's scan universe, so an empty value made that check scan NOTHING and exit
+# 0. `[]` / `""` there meant two incompatible things at once: "the concept does
+# not apply to this repo" and "it applies and is switched off". Each now carries
+# a real value or exactly ONE blessed variant (`not_applicable`, `superseded_by`,
+# `unarmed_until`, `convention_not_adopted`), with its reason in the PARSED VALUE
+# rather than in a comment no checker can read. A bare `[]` / `""` on those five
+# parses to `LegacyAmbiguousEmpty` and WARNs today, and becomes a hard
+# `ConfigParseError` once the fleet has migrated.
+#
+# Every OTHER role key keeps a bare `[]` as a LEGITIMATE spelling. Those are
+# exemption / severity predicates whose consuming checks derive the universe from
+# `resolve_check_universe()`, so an empty value makes them STRICTER rather than
+# blinder — which is why `io_trees`, `commands_trees` and `covered_trees` below
+# are correct as they stand.
 #
 # HISTORY, retained because it explains why these keys exist: under the
 # PRE-v0.54.12 regime the loader fell back to livespec-core's historical layout
@@ -163,9 +177,12 @@ markers = [
 #     now SET (see the armed-flip note below).
 # `source_trees` is declared for the plugin-shipped hook tree so the
 # source-tree-scoped checks inspect a non-empty first-party surface. The
-# remaining heavy product-tree role keys (`io_trees`, etc.) stay deliberately
-# OMITTED: naming a tree this repo lacks would mislead readers and add a config
-# key that guards nothing.
+# remaining heavy product-tree role keys are DECLARED rather than omitted —
+# `io_trees` / `commands_trees` / `covered_trees` as a bare `[]` (the legitimate
+# exemption-predicate spelling), and the union keys with a blessed variant naming
+# WHY the tree is absent. Naming a tree this repo lacks would still mislead
+# readers; declaring the absence explicitly, with its reason parsed rather than
+# commented, is what replaced that.
 [tool.livespec_dev_tooling]
 # Phase-2 file_lloc FLIP (fleet-check-coverage epic livespec-i5ebqd). With this
 # key true, `file_lloc` hard-gates this repo's WHOLE git-derived first-party-.py
@@ -190,12 +207,19 @@ source_trees = [
 io_trees = []
 # This Driver ships hook entry points, not spec-side command modules.
 commands_trees = []
-# This repo has no pure parse/validate layer for mutation/PBT/API-result gates.
-pure_trees = []
+# NOT APPLICABLE: this Driver ships hook entry points, so there is no pure
+# parse/validate layer for the mutation / PBT / API-result gates to scan.
+# Deliberately NOT `unarmed_until`: this repo's SPECIFICATION/constraints.md
+# asserts no property-based-coverage-on-pure-modules obligation, so nothing here
+# is switched off pending work — unlike the two orchestrators, whose ratified
+# constraints DO require it and which therefore declare `unarmed_until`.
+pure_trees = { not_applicable = "this Driver ships hook entry points, not a pure parse/validate layer" }
 # Coverage is configured via coverage.py over livespec/hooks; no legacy covered tree role.
 covered_trees = []
-# This repo has no legacy hard-gate target directories beyond git-derived coverage.
-target_dirs = []
+# SUPERSEDED, not not-applicable: the concept applies and IS satisfied, by the
+# git-derived first-party universe (`resolve_check_universe`) that owns this
+# repo's hook coverage rather than by a declared target-dir list.
+target_dirs = { superseded_by = "git-derived first-party universe owns the hook coverage" }
 # The source `.py` surface of this binding repo: the plugin-shipped Codex
 # hooks (livespec/hooks/ — the footgun guard + the no-shadow-ledger hook).
 # Prefixes are matched against repo-root-relative staged paths. The bare
@@ -211,8 +235,8 @@ tests_tree_prefix = "tests/"
 mirror_pairings = [
     { source_tree = "livespec/hooks", test_tree = "tests/hooks" },
 ]
-# This repo has no schemas/dataclasses layer.
-dataclasses_tree = ""
+# NOT APPLICABLE: this repo has no schemas/dataclasses layer.
+dataclasses_tree = { not_applicable = "this repo has no schemas/dataclasses layer" }
 neutral_hook_body_path = "livespec/hooks/no_shadow_ledger.py"
 subprocess_spawn_allowlist = [
     "tests/hooks/test_block_auto_memory.py",
