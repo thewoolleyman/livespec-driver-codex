@@ -31,6 +31,7 @@ finds the Codex skill set.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -41,7 +42,55 @@ from livespec_dev_tooling.testing.cli_e2e import (
     HarnessConfig,
 )
 
+_VENDOR_DIR = Path(cli_e2e.__file__).resolve().parent.parent / "_vendor"
+if str(_VENDOR_DIR) not in sys.path:
+    sys.path.insert(0, str(_VENDOR_DIR))
+
+from returns.primitives.exceptions import (  # noqa: E402  — vendor-path-aware import.
+    UnwrapFailedError,
+)
+from returns.result import Failure, Success  # noqa: E402  — vendor-path-aware import.
+
 __all__: list[str] = []
+
+
+def _round_trip_result(outcome: object) -> cli_e2e.WorkflowResult:
+    """Normalize BOTH harness return shapes so the dev-tooling pin can move either way.
+
+    Through `v1.0.x`, `test_workflow_full_round_trip` RAISED `WorkflowFailedError`
+    on a failing step and returned a bare `WorkflowResult`. After the ROP
+    conversion in dev-tooling it returns a `Result[WorkflowResult, ...]` instead.
+
+    *** THE FAILURE THIS EXISTS TO PREVENT IS SILENT. *** A `Failure` is TRUTHY and
+    carries no `.passed`, so a wrapper written for the old shape does NOT blow up
+    against the new one — it simply STOPS CHECKING, and this suite goes GREEN on a
+    broken round trip. That is `livespec-dev-tooling-dx8l`'s failure mode aimed at
+    a test gate: the guard does not fail, it stops being a guard.
+
+    Accepting BOTH shapes satisfies "consumer wiring lands before the change that
+    assumes it" for EVERY pin version at once, so the pin can move in either
+    direction — forward to the conversion or back on a revert — without re-breaking.
+
+    Duck-typed on purpose: the helper must not depend on dev-tooling's vendored
+    `returns` layout at call time, since it has to work across pin versions on
+    both sides of the conversion. The tests below pin the REAL `Success`/`Failure`
+    shapes, so the tolerance is proven rather than assumed.
+    """
+    if isinstance(outcome, cli_e2e.WorkflowResult):
+        return outcome  # pre-conversion shape; a failing step would already have raised
+    unwrap = getattr(outcome, "unwrap", None)
+    assert unwrap is not None, (
+        f"unexpected harness return shape {type(outcome).__name__}; "
+        "expected a WorkflowResult or a returns Result"
+    )
+    # `.unwrap()` RAISES on a Failure, so a failed round trip fails this test LOUDLY
+    # rather than passing silently. Asserting on the unwrapped VALUE is the point:
+    # proving the call succeeded is exactly what the silent-pass bug also does.
+    unwrapped = unwrap()
+    assert isinstance(
+        unwrapped, cli_e2e.WorkflowResult
+    ), f"harness Result carried {type(unwrapped).__name__}, not a WorkflowResult"
+    return unwrapped
 
 
 # The repo root is three levels up from this file:
@@ -285,12 +334,50 @@ def test_cli_e2e_full_round_trip_real_tier(*, impl_plugin_id: str, tmp_path: Pat
     fixtures = cli_e2e.discover_fixtures(fixtures_root=_FIXTURES_ROOT)
     creates = {fx.prompt: fx.expected_files for fx in fixtures.values()}
     runner = _FakeCliRunner(creates=creates)
-    result = cli_e2e.test_workflow_full_round_trip(
-        config=config,
-        home=tmp_path / "home",
-        project_root=tmp_path / "project",
-        injected_runner=runner,
+    result = _round_trip_result(
+        cli_e2e.test_workflow_full_round_trip(
+            config=config,
+            home=tmp_path / "home",
+            project_root=tmp_path / "project",
+            injected_runner=runner,
+        )
     )
     assert set(result.discovered_skills) == set(_EXPECTED_SKILLS)
     assert set(result.fixtured_skills) == set(result.discovered_skills)
     assert result.passed is True
+
+
+def test_round_trip_result_accepts_the_pre_conversion_shape() -> None:
+    """A bare `WorkflowResult` passes straight through — the shape today's pin returns."""
+    result = cli_e2e.WorkflowResult(discovered_skills=("seed",), fixtured_skills=("seed",))
+
+    assert _round_trip_result(result) is result
+
+
+def test_round_trip_result_unwraps_the_post_conversion_success_to_its_value() -> None:
+    """A `Success` yields the WorkflowResult ITSELF, not the container.
+
+    Asserting on the VALUE is the whole point. `frozenset(IOResult.unwrap())`
+    silently yielding a set holding the wrapper — the bug that shipped in
+    dev-tooling's own conversion — passes any test that only checks the call
+    succeeded. A wrapper reaching the caller in place of its payload is exactly
+    what this class of bug produces.
+    """
+    result = cli_e2e.WorkflowResult(discovered_skills=("seed",), fixtured_skills=("seed",))
+
+    unwrapped = _round_trip_result(Success(result))
+
+    assert unwrapped is result
+    assert isinstance(unwrapped, cli_e2e.WorkflowResult)
+    assert unwrapped.discovered_skills == ("seed",)
+
+
+def test_round_trip_result_fails_loudly_on_the_post_conversion_failure() -> None:
+    """A `Failure` RAISES rather than passing.
+
+    This is the assertion the whole helper exists for. A `Failure` is TRUTHY and
+    has no `.passed`, so wiring written for the old shape would neither raise nor
+    check — this suite would go green on a broken round trip.
+    """
+    with pytest.raises(UnwrapFailedError):
+        _ = _round_trip_result(Failure(RuntimeError("two skills failed")))
