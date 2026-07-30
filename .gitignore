@@ -16,6 +16,10 @@ tmp/
 .claude/worktrees/
 .idea/
 
+# Playwright MCP browser-tool scratch (page snapshots, console logs) —
+# per-session, never durable state.
+.playwright-mcp/
+
 ### Python toolchain artifacts
 __pycache__/
 .pytest_cache/
