@@ -199,6 +199,7 @@ markers = [
 # directly under the header, above the other keys, per the fleet placement
 # convention.
 file_lloc_hard_gate = true
+plan_lifecycle_anchor = true
 scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
 source_trees = [
     "livespec/hooks",
