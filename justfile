@@ -408,7 +408,7 @@ check-no-todo-registry:
 check-pbt-coverage-pure-modules:
     uv run python -m livespec_dev_tooling.checks.pbt_coverage_pure_modules
 
-check-per-file-coverage:
+check-per-file-coverage: check-coverage
     uv run python -m livespec_dev_tooling.checks.per_file_coverage
 
 check-primary-checkout-commit-refuse-hook-installed:
