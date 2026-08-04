@@ -15,21 +15,15 @@ done < check-targets.txt
 failed=()
 coverage_ran=0
 for target in "${targets[@]}"; do
-    if [ "$target" = "check-per-file-coverage" ]; then
-        echo "=== just check-coverage (prerequisite for check-per-file-coverage) ==="
-        if ! just check-coverage; then
-            failed+=("check-coverage")
-            coverage_ran=1
-            continue
-        fi
-        coverage_ran=1
-    fi
     if [[ "$target" = "check-coverage" && "$coverage_ran" -eq 1 ]]; then
         continue
     fi
     echo "=== just ${target} ==="
     if ! just "${target}"; then
         failed+=("${target}")
+    fi
+    if [ "$target" = "check-per-file-coverage" ]; then
+        coverage_ran=1
     fi
 done
 
