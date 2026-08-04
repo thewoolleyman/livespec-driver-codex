@@ -465,6 +465,13 @@ check-plan-thread-anchor-declared:
 check-plan-thread-epic-parity:
     uv run python -m livespec_dev_tooling.checks.plan_thread_epic_parity
 
+# Plan-lifecycle tombstone ban: a topic must not exist at BOTH
+# plan/<topic>/ and plan/archive/<topic>/. Fail-closed with no opt-in
+# lever — unlike check-plan-thread-anchor-declared, whose
+# plan_lifecycle_anchor opt-in is why it never fired on a real tombstone.
+check-plan-thread-no-tombstone:
+    uv run python -m livespec_dev_tooling.checks.plan_thread_no_tombstone
+
 check-no-shadow-ledger-body-typechecks:
     uv run python -m livespec_dev_tooling.checks.no_shadow_ledger_body_typechecks
 
