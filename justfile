@@ -120,140 +120,20 @@ ensure-plugins:
 # codex-plugins row routes to it by name; it was formerly the `ensure-plugins`
 # recipe, which mislabeled Codex provisioning as the Claude-plugins row.
 ensure-codex-plugins:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if ! command -v codex >/dev/null 2>&1; then
-        echo "codex CLI not found; skipping host-wide Codex plugin install." >&2
-        exit 0
-    fi
-    codex plugin marketplace add thewoolleyman/livespec --ref release
-    codex plugin marketplace add thewoolleyman/livespec-driver-codex --ref release
-    codex plugin marketplace add thewoolleyman/livespec-orchestrator-beads-fabro --ref release
-    codex plugin marketplace upgrade livespec
-    codex plugin marketplace upgrade livespec-driver-codex
-    codex plugin marketplace upgrade livespec-orchestrator-beads-fabro
-    codex plugin add livespec@livespec
-    codex plugin add livespec@livespec-driver-codex
-    codex plugin add livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
+    bash dev-tooling/ensure-codex-plugins.sh
 
 # ---------------------------------------------------------------
 # Enforcement aggregate.
 # ---------------------------------------------------------------
 
 check:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    # ONE contiguous canonical block first — every canonical check in the
-    # exact order emitted by dev-tooling's `canonical_check_slugs()`
-    # (alphabetical) — FOLLOWED BY this repo's private extras. This ordering
-    # is mandatory: `check-aggregate-completeness` fails on any canonical
-    # slug that is out of canonical order or on an extra that appears before
-    # or interleaved with the canonical block.
-    targets=(
-        check-agents-ai-references-resolve
-        check-aggregate-completeness
-        check-all-declared
-        check-assert-never-exhaustiveness
-        check-branch-protection-alignment
-        check-canonical-recipe-fidelity
-        check-check-coverage-incremental
-        check-check-mutation
-        check-check-tools
-        check-ci-matrix-completeness
-        check-claude-md-coverage
-        check-comment-line-anchors
-        check-commit-pairs-source-and-test
-        check-file-lloc
-        check-fleet-marketplace-relative-sources
-        check-global-writes
-        check-handoff-dispatch-routing
-        check-heading-coverage
-        check-hook-trees-not-io-exempt
-        check-keyword-only-args
-        check-local-memory-drift-audit
-        check-main-guard
-        check-master-ci-green
-        check-match-keyword-only
-        check-newtype-domain-primitives
-        check-no-direct-destructive-cli
-        check-no-direct-tool-invocation
-        check-no-except-outside-io
-        check-no-fmt-directives
-        check-no-inheritance
-        check-no-lloc-soft-warnings
-        check-no-raise-outside-io
-        check-no-shadow-ledger-body-identical
-        check-no-shadow-ledger-body-typechecks
-        check-no-todo-registry
-        check-no-write-direct
-        check-partition-completeness
-        check-pbt-coverage-pure-modules
-        check-per-file-coverage
-        check-plan-thread-anchor-declared
-        check-plan-thread-epic-parity
-        check-plugin-resolution
-        check-primary-checkout-commit-refuse-hook-installed
-        check-private-calls
-        check-public-api-result-typed
-        check-red-green-replay
-        check-required-role-keys-declared
-        check-rop-pipeline-shape
-        check-self-hosted-routing
-        check-skill-invocation-paths
-        check-source-trees-scoped-to-consumer
-        check-supervisor-discipline
-        check-tests-mirror-pairing
-        check-tests-no-subprocess-spawn
-        check-tool-backed-check-completeness
-        check-vendor-manifest
-        check-wrapper-shape
-        # Repo-private extras (NOT canonical) — MUST stay after the canonical
-        # block above. check-lint / check-format / check-types /
-        # check-coverage are the four fixed-policy tool-backed gates
-        # (ruff / pyright / coverage) that check-tool-backed-check-completeness
-        # requires on both surfaces; check-doctor-static runs core's doctor
-        # static phase; the rest are Codex-Driver-specific (plugin structure,
-        # the plugin-shipped hook tests, the e2e-cli harness, the live Codex
-        # TUI picker acceptance).
-        check-plugin-structure
-        check-lint
-        check-format
-        check-types
-        check-coverage
-        check-hooks
-        check-e2e-cli
-        check-codex-skill-picker
-        check-doctor-static
-    )
-    failed=()
-    for target in "${targets[@]}"; do
-        echo "=== just ${target} ==="
-        if ! just "${target}"; then
-            failed+=("${target}")
-        fi
-    done
-    if [ "${#failed[@]}" -gt 0 ]; then
-        echo "FAILED targets: ${failed[*]}" >&2
-        exit 1
-    fi
-    # Advisory-local green token — keyed on the current HEAD tree-hash so
-    # check-pre-push can skip the full aggregate on a clean, unchanged tree.
-    # || true: a write failure must never abort a successful check aggregate.
-    # STRICTLY advisory-local; CI remains authoritative.
-    uv run python -m livespec_dev_tooling.green_token write || true
+    bash dev-tooling/check-aggregate.sh
 
 # Factory-branch guard: implementation branches must not carry workflow edits.
 # Maintainer-side workflow diffs are reported out-of-band instead of landing
 # from Fabro slices.
 check-no-workflow-edits:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    base_ref="${LIVESPEC_FACTORY_BASE_REF:-master}"
-    if ! git diff --quiet "${base_ref}...HEAD" -- .github/workflows; then
-        echo "Factory branch boundary violation: .github/workflows differs from ${base_ref}." >&2
-        git diff "${base_ref}...HEAD" -- .github/workflows >&2
-        exit 1
-    fi
+    bash dev-tooling/check-no-workflow-edits.sh
 
 # Structural gate for the Codex plugin bundle: marketplace + manifest
 # validity (subdir layout), the 8-skill set, frontmatter names +
@@ -300,9 +180,6 @@ check-types:
 # exercised only by tests/hooks/, so that is the suite run here;
 # check-per-file-coverage adds the per-file dimension over the same data.
 check-coverage:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    echo ":: check-coverage: clean standalone hook suite (COVERAGE_FILE unset) — strict, matches CI"
     env -u COVERAGE_FILE uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
 
 # Plugin-shipped Codex hook script (livespec/hooks/) — the footgun
@@ -328,17 +205,7 @@ check-e2e-cli:
 # a runner explicitly opts in because GitHub-hosted CI does not provide an
 # authenticated interactive Codex TUI.
 check-codex-skill-picker:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [[ "${CI:-}" == "true" && "${LIVESPEC_REQUIRE_CODEX_TUI_PICKER:-}" != "1" ]]; then
-        echo ":: check-codex-skill-picker: skipped in CI; set LIVESPEC_REQUIRE_CODEX_TUI_PICKER=1 on an authenticated Codex runner to enforce it"
-        exit 0
-    fi
-    if ! command -v codex >/dev/null 2>&1; then
-        echo ":: check-codex-skill-picker: codex CLI not found; skipping live TUI picker acceptance"
-        exit 0
-    fi
-    LIVESPEC_E2E_HARNESS=real LIVESPEC_CODEX_SKILL_PICKER=1 uv run pytest tests/e2e-cli/test_codex_skill_picker.py -v
+    bash dev-tooling/check-codex-skill-picker.sh
 
 # Spec heading-coverage gate (shipped by livespec-dev-tooling): every
 # `## ` H2 in each SPECIFICATION/ NLSpec file MUST have an entry in
@@ -367,21 +234,7 @@ check-heading-coverage:
 # history backfill into the worktree and fails, and committing that backfill
 # heals the track; on a clean tree it never fires.
 check-doctor-static:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    core_root="${LIVESPEC_CORE_PLUGIN_ROOT:-}"
-    if [ -z "$core_root" ]; then
-      # Resolve the CURRENT released core build (== marketplace clone HEAD), NOT
-      # installed_plugins.json[...]["livespec@livespec"][0] — that per-project list is
-      # unordered and its first row can be a different, stale project on a mixed-build
-      # host, which the c1k9 currency gate then correctly blocks (livespec-q2me).
-      core_root="$(python3 -c 'import subprocess, pathlib; mk = pathlib.Path.home() / ".claude" / "plugins" / "marketplaces" / "livespec"; head = subprocess.run(["git", "-C", str(mk), "rev-parse", "--short=12", "HEAD"], capture_output=True, text=True).stdout.strip().lower(); cache = pathlib.Path.home() / ".claude" / "plugins" / "cache" / "livespec" / "livespec" / head; print(cache if head and (cache / "scripts" / "bin" / "doctor_static.py").is_file() else "")' 2>/dev/null || true)"
-    fi
-    if [ -z "$core_root" ] || [ ! -f "$core_root/scripts/bin/doctor_static.py" ]; then
-      echo "livespec core not found. Set LIVESPEC_CORE_PLUGIN_ROOT to a livespec checkout's .claude-plugin, or install the livespec@livespec plugin (claude plugin install livespec@livespec)." >&2
-      exit 1
-    fi
-    python3 "$core_root/scripts/bin/doctor_static.py" --project-root .
+    bash dev-tooling/check-doctor-static.sh
 
 # ---------------------------------------------------------------
 # Applies-to-all structural coverage checks (fleet-check-coverage,
@@ -459,8 +312,9 @@ check-rop-pipeline-shape:
 # argv[1] (the load-bearing per-commit verifier). The no-arg variant
 # (e.g. from `just check`) DERIVES the message from `git log -1
 # --format=%B` (HEAD) and validates it.
+[positional-arguments]
 check-red-green-replay *args:
-    uv run python -m livespec_dev_tooling.checks.red_green_replay {{args}}
+    uv run python -m livespec_dev_tooling.checks.red_green_replay "$@"
 
 # Commit-pair gate: every commit touching source files also touches
 # tests. Lefthook pre-commit is the load-bearing per-commit invocation.
@@ -488,36 +342,14 @@ check-commit-pairs-source-and-test:
 # body, breaking its byte-identity with the claude Driver's copy.
 # `--force-exclude` makes the explicit-path runs honor the exclude.
 lint-autofix-staged:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    staged=$(git diff --cached --name-only --diff-filter=AM | grep -E '\.py$' || true)
-    if [[ -z "$staged" ]]; then
-        exit 0
-    fi
-    echo "$staged" | xargs uv run ruff check --fix --exit-zero --force-exclude
-    echo "$staged" | xargs uv run ruff format --force-exclude
-    echo "$staged" | xargs git add
+    bash dev-tooling/lint-autofix-staged.sh
 
 # Fast pre-commit subset (no test run; pre-push runs the full
 # aggregate).
-check-pre-commit:
-    just check-plugin-structure
-    just check-lint
-    just check-format
+check-pre-commit: check-plugin-structure check-lint check-format
 
 check-pre-push:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    # Advisory-local green-token short-circuit: if the current HEAD tree was
-    # already verified clean by a successful full `just check` run, skip the
-    # full aggregate. The token is invalidated by any new commit (tree-hash
-    # change) or an uncommitted worktree modification. STRICTLY advisory-local;
-    # CI is authoritative — a token match never bypasses the remote gate.
-    if uv run python -m livespec_dev_tooling.green_token check 2>&1; then
-        echo ":: pre-push: green token matched — tree byte-identical to last green check; skipping full aggregate (CI is authoritative)"
-        exit 0
-    fi
-    just check
+    bash dev-tooling/check-pre-push.sh
 
 check-agents-ai-references-resolve:
     uv run python -m livespec_dev_tooling.checks.agents_ai_references_resolve
@@ -577,9 +409,6 @@ check-pbt-coverage-pure-modules:
     uv run python -m livespec_dev_tooling.checks.pbt_coverage_pure_modules
 
 check-per-file-coverage:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing
     uv run python -m livespec_dev_tooling.checks.per_file_coverage
 
 check-primary-checkout-commit-refuse-hook-installed:
@@ -623,6 +452,9 @@ check-handoff-dispatch-routing:
 
 check-self-hosted-routing:
     uv run python -m livespec_dev_tooling.checks.self_hosted_routing
+
+check-shell-quality:
+    uv run python -m livespec_dev_tooling.checks.shell_quality
 
 check-source-trees-scoped-to-consumer:
     uv run python -m livespec_dev_tooling.checks.source_trees_scoped_to_consumer
