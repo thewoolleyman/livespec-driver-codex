@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.9](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.8...v0.5.9) (2026-08-05)
+
+
+### Bug Fixes
+
+* make per-file coverage self-contained ([9874dfe](https://github.com/thewoolleyman/livespec-driver-codex/commit/9874dfe0bd96afaabfe34674d90a5f430164585d))
+
 ## [0.5.8](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.7...v0.5.8) (2026-07-26)
 
 
