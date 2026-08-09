@@ -57,6 +57,7 @@ check-tests-no-subprocess-spawn
 check-tool-backed-check-completeness
 check-vendor-manifest
 check-wrapper-shape
+check-spec-governance-default-block
 check-plugin-structure
 check-lint
 check-format

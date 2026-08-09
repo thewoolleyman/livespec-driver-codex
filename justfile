@@ -459,6 +459,9 @@ check-shell-quality:
 check-source-trees-scoped-to-consumer:
     uv run python -m livespec_dev_tooling.checks.source_trees_scoped_to_consumer
 
+check-spec-governance-default-block:
+    uv run python dev-tooling/check-spec-governance-default-block
+
 check-plan-thread-anchor-declared:
     uv run python -m livespec_dev_tooling.checks.plan_thread_anchor_declared
 

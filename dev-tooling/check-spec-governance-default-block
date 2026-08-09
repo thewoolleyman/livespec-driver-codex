@@ -1,0 +1,24 @@
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+from livespec_runtime.spec_governance import verify_livespec_jsonc_default_block
+from returns.result import Failure, Success
+
+
+def main() -> int:
+    result = verify_livespec_jsonc_default_block(path=Path(".livespec.jsonc"))
+    if isinstance(result, Success):
+        sys.stdout.write(json.dumps(result.unwrap(), sort_keys=True) + "\n")
+        return 0
+    if isinstance(result, Failure):
+        sys.stderr.write(result.failure() + "\n")
+        return 2
+    sys.stderr.write("spec-governance-default-block-internal-error\n")
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

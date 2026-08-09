@@ -16,9 +16,9 @@ authors = [
     { name = "Chad Woolley", email = "thewoolleyman@gmail.com" },
 ]
 
-# Per the livespec convention: NO [project.dependencies] table — the
-# plugin bundle carries no third-party runtime Python (the footgun
-# guard is stdlib-only); end users install nothing.
+dependencies = [
+    "livespec-runtime>=0.18.0",
+]
 
 [dependency-groups]
 # Every Python dev tool is uv-managed via this table (resolved into
@@ -40,6 +40,7 @@ dev = [
 # heading_coverage / green_token checks).
 [tool.uv.sources]
 livespec-dev-tooling = { git = "https://github.com/thewoolleyman/livespec-dev-tooling.git", tag = "v1.20.4" }
+livespec-runtime = { git = "https://github.com/thewoolleyman/livespec-runtime.git", tag = "v0.18.0" }
 
 # ---------------------------------------------------------------------------
 # Ruff — sole linter + formatter. Rule set mirrors the family baseline
