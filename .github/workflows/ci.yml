@@ -201,6 +201,45 @@ jobs:
       - name: Trust workspace for git (hosted container root-vs-checkout uid)
         run: git config --global --add safe.directory '*'
 
+      # Self-hosted lane only: actions/checkout's self-hosted fetch for a
+      # pull_request event is a SHALLOW --depth=1 fetch of ONLY the
+      # GitHub-synthesized merge commit, despite fetch-depth: 0 above
+      # requesting full history. Two distinct symptoms, both observed live
+      # on this repo (2026-08-13, PR #437):
+      #
+      # 1. `refs/remotes/origin/*` is never (re-)established, leaving
+      #    `origin/master` unresolvable and failing any origin/master..HEAD
+      #    range enumeration (e.g. check-red-green-replay's "range base
+      #    origin/master is not resolvable").
+      # 2. On a pull_request event, HEAD is a GitHub-synthesized MERGE
+      #    commit with two parents (current master, and the PR branch tip).
+      #    The shallow fetch brings the merge commit's OWN object but never
+      #    the PR branch tip's own commit object, so `git rev-list
+      #    --no-merges origin/master..HEAD` cannot walk that side of the
+      #    graph and misreports the merge commit as a plain, non-merge
+      #    commit in the range.
+      #
+      # `git fetch --unshallow` fixes both: it fetches full history for the
+      # remote's configured refspec (resolving origin/master) and brings in
+      # every object the shallow boundary elided (resolving the merge
+      # commit's absent parent). The explicit `origin master` fetch is kept
+      # as a belt-and-suspenders fallback in case a differently configured
+      # checkout's default refspec ever doesn't cover master. `--unshallow`
+      # errors on an already-complete repository, so it is guarded by
+      # `--is-shallow-repository`. Hosted's fresh, always-shallow-free clone
+      # never hits either symptom, so this step is a cheap no-op there.
+      #
+      # Ported from livespec's own ci.yml (PR #2261, livespec plan/
+      # fleet-ci-runner-pool) — see that repo's handoff for the original
+      # root-causing.
+      - name: Ensure full history is available (self-hosted reused _work dir)
+        if: ${{ !contains(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]', 'ubuntu') }}
+        run: |
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow origin
+          fi
+          git fetch origin master:refs/remotes/origin/master
+
       # Tools are baked into the image; `mise install` is a near-no-op that just
       # confirms the pinned versions. A fresh container does not TRUST the repo
       # .mise.toml, so `mise trust` is required for the shims to resolve.
@@ -305,6 +344,45 @@ jobs:
       - name: Trust workspace for git (hosted container root-vs-checkout uid)
         run: git config --global --add safe.directory '*'
 
+      # Self-hosted lane only: actions/checkout's self-hosted fetch for a
+      # pull_request event is a SHALLOW --depth=1 fetch of ONLY the
+      # GitHub-synthesized merge commit, despite fetch-depth: 0 above
+      # requesting full history. Two distinct symptoms, both observed live
+      # on this repo (2026-08-13, PR #437):
+      #
+      # 1. `refs/remotes/origin/*` is never (re-)established, leaving
+      #    `origin/master` unresolvable and failing any origin/master..HEAD
+      #    range enumeration (e.g. check-red-green-replay's "range base
+      #    origin/master is not resolvable").
+      # 2. On a pull_request event, HEAD is a GitHub-synthesized MERGE
+      #    commit with two parents (current master, and the PR branch tip).
+      #    The shallow fetch brings the merge commit's OWN object but never
+      #    the PR branch tip's own commit object, so `git rev-list
+      #    --no-merges origin/master..HEAD` cannot walk that side of the
+      #    graph and misreports the merge commit as a plain, non-merge
+      #    commit in the range.
+      #
+      # `git fetch --unshallow` fixes both: it fetches full history for the
+      # remote's configured refspec (resolving origin/master) and brings in
+      # every object the shallow boundary elided (resolving the merge
+      # commit's absent parent). The explicit `origin master` fetch is kept
+      # as a belt-and-suspenders fallback in case a differently configured
+      # checkout's default refspec ever doesn't cover master. `--unshallow`
+      # errors on an already-complete repository, so it is guarded by
+      # `--is-shallow-repository`. Hosted's fresh, always-shallow-free clone
+      # never hits either symptom, so this step is a cheap no-op there.
+      #
+      # Ported from livespec's own ci.yml (PR #2261, livespec plan/
+      # fleet-ci-runner-pool) — see that repo's handoff for the original
+      # root-causing.
+      - name: Ensure full history is available (self-hosted reused _work dir)
+        if: ${{ !contains(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]', 'ubuntu') }}
+        run: |
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow origin
+          fi
+          git fetch origin master:refs/remotes/origin/master
+
       # Tools are baked into the image; `mise install` is a near-no-op that just
       # confirms the pinned versions. A fresh container does not TRUST the repo
       # .mise.toml, so `mise trust` is required for the shims to resolve.
@@ -377,6 +455,45 @@ jobs:
       # No-op on the self-hosted lane.
       - name: Trust workspace for git (hosted container root-vs-checkout uid)
         run: git config --global --add safe.directory '*'
+
+      # Self-hosted lane only: actions/checkout's self-hosted fetch for a
+      # pull_request event is a SHALLOW --depth=1 fetch of ONLY the
+      # GitHub-synthesized merge commit, despite fetch-depth: 0 above
+      # requesting full history. Two distinct symptoms, both observed live
+      # on this repo (2026-08-13, PR #437):
+      #
+      # 1. `refs/remotes/origin/*` is never (re-)established, leaving
+      #    `origin/master` unresolvable and failing any origin/master..HEAD
+      #    range enumeration (e.g. check-red-green-replay's "range base
+      #    origin/master is not resolvable").
+      # 2. On a pull_request event, HEAD is a GitHub-synthesized MERGE
+      #    commit with two parents (current master, and the PR branch tip).
+      #    The shallow fetch brings the merge commit's OWN object but never
+      #    the PR branch tip's own commit object, so `git rev-list
+      #    --no-merges origin/master..HEAD` cannot walk that side of the
+      #    graph and misreports the merge commit as a plain, non-merge
+      #    commit in the range.
+      #
+      # `git fetch --unshallow` fixes both: it fetches full history for the
+      # remote's configured refspec (resolving origin/master) and brings in
+      # every object the shallow boundary elided (resolving the merge
+      # commit's absent parent). The explicit `origin master` fetch is kept
+      # as a belt-and-suspenders fallback in case a differently configured
+      # checkout's default refspec ever doesn't cover master. `--unshallow`
+      # errors on an already-complete repository, so it is guarded by
+      # `--is-shallow-repository`. Hosted's fresh, always-shallow-free clone
+      # never hits either symptom, so this step is a cheap no-op there.
+      #
+      # Ported from livespec's own ci.yml (PR #2261, livespec plan/
+      # fleet-ci-runner-pool) — see that repo's handoff for the original
+      # root-causing.
+      - name: Ensure full history is available (self-hosted reused _work dir)
+        if: ${{ !contains(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]', 'ubuntu') }}
+        run: |
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow origin
+          fi
+          git fetch origin master:refs/remotes/origin/master
 
       # Tools are baked into the image; `mise install` is a near-no-op that just
       # confirms the pinned versions. A fresh container does not TRUST the repo
