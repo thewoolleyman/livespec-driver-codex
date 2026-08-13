@@ -36,6 +36,14 @@
 # would read as "this workflow has no self-hosted job" and silently disable the
 # forbidden-trigger check.
 #
+# CI_RUNNER_LABELS was set to self-hosted (2026-08-13) as part of livespec
+# plan/fleet-ci-runner-pool's fleet-wide rollout (epic livespec-s43svm.1),
+# proving this repo's full ~67-job matrix at its own dedicated width on
+# poweredge-xubuntu (67 provisioned slots) before adding the remaining fleet
+# repos. If this repo is ever routed back to hosted capacity, that's a repo-
+# variable edit per the fail-closed design above — this comment does not
+# need to change either way.
+#
 # ci-green and export-telemetry stay ubuntu-latest so the gate is reportable
 # host-down.
 
