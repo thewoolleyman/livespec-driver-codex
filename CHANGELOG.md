@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.11](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.10...v0.5.11) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ci:** unshallow self-hosted checkout so origin/master..HEAD ranges resolve ([af36f13](https://github.com/thewoolleyman/livespec-driver-codex/commit/af36f131136ae75df00a37f380864b840a321c0a))
+
 ## [0.5.10](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.9...v0.5.10) (2026-08-13)
 
 
