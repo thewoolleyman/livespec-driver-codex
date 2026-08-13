@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.11...v0.6.0) (2026-08-13)
+
+
+### Features
+
+* allow supervisor runtime state in primary checkout ([0129b05](https://github.com/thewoolleyman/livespec-driver-codex/commit/0129b0539c9062c474dc3d3a05259f538c76bb66))
+
 ## [0.5.11](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.10...v0.5.11) (2026-08-13)
 
 
