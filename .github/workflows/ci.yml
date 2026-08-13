@@ -47,8 +47,14 @@ name: CI
 # Combined with the ~/.cache/uv actions/cache step (keyed on uv.lock)
 # the uv-sync step below uses, an unchanged lock installs from cache
 # and never contacts PyPI at all.
+#
+# mise reaches the SAME class of CDN (GitHub releases) for its tool binaries
+# and can fail identically. mise's own default is `http_retries = 0` — one
+# attempt, no retry — so the lesson already learned for uv above had to be
+# spelled out again here.
 env:
   UV_HTTP_RETRIES: "5"
+  MISE_HTTP_RETRIES: "5"
 
 # merge_group is deliberately ABSENT: no merge queue is configured for this repo
 # (verified live — zero rulesets, required_merge_queue: null; branch protection
