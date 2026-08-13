@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.10](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.9...v0.5.10) (2026-08-13)
+
+
+### Bug Fixes
+
+* **ci:** add MISE_HTTP_RETRIES alongside UV_HTTP_RETRIES ([f7efedc](https://github.com/thewoolleyman/livespec-driver-codex/commit/f7efedc586f16d00d5cbb5c240217d1a2c9c7123))
+
 ## [0.5.9](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.8...v0.5.9) (2026-08-05)
 
 
