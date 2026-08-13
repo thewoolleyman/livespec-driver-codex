@@ -51,6 +51,7 @@ from pathlib import Path
 
 from _footgun_primary_checkout import (
     PRIMARY_EDIT_REASON,
+    is_allowed_primary_runtime_state,
     is_primary_checkout,
     redirect_targets,
 )
@@ -98,7 +99,12 @@ def _primary_checkout_reason(*, seg: str, tokens: list[str]) -> str | None:
         for target in redirect_targets(seg=seg, tokens=tokens):
             if target.startswith("-"):
                 continue
-            if is_primary_checkout(path=_probe_path_for_target(target=target)):
+            candidate = Path(target)
+            if not candidate.is_absolute():
+                candidate = Path.cwd() / candidate
+            is_primary = is_primary_checkout(path=_probe_path_for_target(target=target))
+            is_runtime_state = is_allowed_primary_runtime_state(path=str(candidate))
+            if is_primary and not is_runtime_state:
                 return PRIMARY_EDIT_REASON
     # Path resolution can raise OSError; path probes can raise ValueError.
     except (OSError, ValueError):
