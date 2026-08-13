@@ -261,6 +261,32 @@ def test_denies_redirect_into_primary_checkout(tmp_path: Path) -> None:
     assert "PRIMARY" in payload["hookSpecificOutput"]["permissionDecisionReason"]
 
 
+def test_allows_gitignored_supervisor_runtime_state(tmp_path: Path) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    _ = (primary / ".gitignore").write_text("tmp/\n", encoding="utf-8")
+    target = primary / "tmp" / "overseer" / "fleet-ci-runner-pool" / "worker-status.log"
+    result = _run_guard(stdin=_hook_input(command=f"echo ready > {target}"), cwd=primary)
+    _assert_pass(result=result)
+
+
+@pytest.mark.parametrize(
+    "relative_target",
+    [
+        "tmp/overseer/status.log",
+        "tmp/other/fleet-ci-runner-pool/status.log",
+        "tmp/overseer/fleet-ci-runner-pool/../../tracked.txt",
+    ],
+)
+def test_denies_primary_writes_outside_exact_supervisor_runtime_subtree(
+    tmp_path: Path, relative_target: str
+) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    _ = (primary / ".gitignore").write_text("tmp/\n", encoding="utf-8")
+    target = primary / relative_target
+    result = _run_guard(stdin=_hook_input(command=f"echo blocked > {target}"), cwd=primary)
+    _assert_deny(result=result)
+
+
 def test_denies_tee_into_primary_checkout(tmp_path: Path) -> None:
     primary = _primary_git_repo(root=tmp_path / "primary")
     target = primary / "scratch_probe.txt"

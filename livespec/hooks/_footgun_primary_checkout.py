@@ -23,11 +23,17 @@ bug — the commit-refuse hook + branch protection are the real backstops).
 import os
 import re
 import subprocess
+from pathlib import Path
 
 from _footgun_shell import git_subcommand
 from _result import Failure, Result, Success
 
-__all__: list[str] = ["PRIMARY_EDIT_REASON", "is_primary_checkout", "redirect_targets"]
+__all__: list[str] = [
+    "PRIMARY_EDIT_REASON",
+    "is_allowed_primary_runtime_state",
+    "is_primary_checkout",
+    "redirect_targets",
+]
 
 PRIMARY_EDIT_REASON = (
     "NEVER edit files directly at a livespec PRIMARY checkout (a repo whose "
@@ -47,6 +53,37 @@ _FD_DUP_REDIR = re.compile(r"^[0-9]*[<>]&(?:[0-9]+|-)$")
 _PRIMARY_CHECKOUT_CACHE: dict[str, bool] = {}
 
 
+def _primary_worktree_root(*, path: str) -> str | None:
+    """Return the declared primary root containing ``path``, if any."""
+    real = os.path.realpath(path)
+    probe_path = Path(real)
+    while not probe_path.is_dir() and probe_path != probe_path.parent:
+        probe_path = probe_path.parent
+    probe = str(probe_path)
+    try:
+        toplevel = subprocess.run(
+            ["git", "-C", probe, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if toplevel.returncode != 0:
+            return None
+        worktree_root = os.path.realpath(toplevel.stdout.strip())
+        primary = subprocess.run(
+            ["git", "-C", probe, "config", "--get", "livespec.primaryPath"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if primary.returncode != 0:
+            return None
+        declared = os.path.realpath(primary.stdout.strip())
+        return worktree_root if declared and declared == worktree_root else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def _is_primary_checkout_result(*, path: str) -> Result[bool, Exception]:
     """True iff `path` resolves into a git repo that is its OWN primary checkout.
 
@@ -60,24 +97,7 @@ def _is_primary_checkout_result(*, path: str) -> Result[bool, Exception]:
         real = os.path.realpath(path)
         if real in _PRIMARY_CHECKOUT_CACHE:
             return Success(_PRIMARY_CHECKOUT_CACHE[real])
-        result = False
-        toplevel = subprocess.run(
-            ["git", "-C", real, "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if toplevel.returncode == 0:
-            worktree_root = os.path.realpath(toplevel.stdout.strip())
-            primary = subprocess.run(
-                ["git", "-C", real, "config", "--get", "livespec.primaryPath"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if primary.returncode == 0:
-                declared = os.path.realpath(primary.stdout.strip())
-                result = bool(declared) and declared == worktree_root
+        result = _primary_worktree_root(path=real) is not None
     # os.path.realpath can raise OSError; subprocess.run can raise OSError
     # for git launch failures and SubprocessError for timeouts.
     except (OSError, subprocess.SubprocessError) as exc:
@@ -94,6 +114,34 @@ def is_primary_checkout(*, path: str) -> bool:
         _ = result.failure()
         return False
     return result.unwrap()
+
+
+def is_allowed_primary_runtime_state(*, path: str) -> bool:
+    """Return whether ``path`` is ignored runtime state for its primary repo.
+
+    The exception is deliberately narrow: a target must resolve below exactly
+    ``tmp/overseer/<topic>/`` and Git's ignore rules must match the target.
+    Any probe uncertainty denies the exception, leaving the caller's primary
+    checkout refusal in force.
+    """
+    root = _primary_worktree_root(path=path)
+    if root is None:
+        return False
+    target = os.path.realpath(path)
+    try:
+        relative = os.path.relpath(target, root)
+    except ValueError:
+        return False
+    parts = Path(relative).parts
+    if len(parts) < 4 or parts[:2] != ("tmp", "overseer") or not parts[2]:
+        return False
+    ignored = subprocess.run(
+        ["git", "-C", root, "check-ignore", "--quiet", "--no-index", "--", relative],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    return ignored.returncode == 0
 
 
 def _redirection_targets(*, tokens: list[str]) -> list[str]:
