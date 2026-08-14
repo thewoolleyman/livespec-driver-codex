@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.6.0...v0.6.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* allow literal runtime log variables in primary guard ([1ce82ef](https://github.com/thewoolleyman/livespec-driver-codex/commit/1ce82efa90d9bba4d05d7d81df571164f4e6dc6e))
+
 ## [0.6.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.5.11...v0.6.0) (2026-08-13)
 
 
