@@ -245,6 +245,7 @@ subprocess_spawn_allowlist = [
     "tests/hooks/test_livespec_footgun_guard.py",
     "tests/hooks/test_no_shadow_ledger.py",
     "tests/hooks/test_shipped_hooks_install_shape.py",
+    "tests/hooks/test_supervisor_completion_gate.py",
 ]
 # Supervisor entry files own the hook stdin/stdout boundary and may carry the
 # single broad catch sanctioned for that boundary. These are exactly the Python
@@ -259,6 +260,7 @@ supervisor_entry_files = [
     "livespec/hooks/codex_background_memory_audit.py",
     "livespec/hooks/livespec_footgun_guard.py",
     "livespec/hooks/no_shadow_ledger.py",
+    "livespec/hooks/supervisor_completion_gate.py",
 ]
 # The `file_lloc_hard_gate = true` arming flag lives directly under the
 # `[tool.livespec_dev_tooling]` header above (fleet placement convention); see
@@ -282,10 +284,12 @@ fail_under = 100
 show_missing = true
 skip_covered = false
 include = [
+    "livespec/hooks/_supervisor_producers.py",
     "livespec/hooks/block_auto_memory.py",
     "livespec/hooks/codex_background_memory_audit.py",
     "livespec/hooks/livespec_footgun_guard.py",
     "livespec/hooks/no_shadow_ledger.py",
+    "livespec/hooks/supervisor_completion_gate.py",
 ]
 exclude_also = [
     "if __name__ == .__main__.:",

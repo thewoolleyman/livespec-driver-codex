@@ -36,6 +36,11 @@
         "hooks": [
           { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/codex_background_memory_audit.py\"", "timeout": 10 }
         ]
+      },
+      {
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/supervisor_completion_gate.py\"", "timeout": 10 }
+        ]
       }
     ]
   }
