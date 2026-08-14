@@ -262,7 +262,7 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a Driver cache update",
-    "test": "TODO",
-    "reason": "Seeded at ratification of the codex-hook-cache-reconciliation proposal. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; this scenario is proved by the tests/dev-tooling/ integration-tier real release-tracking transition test once the reconciler/observer implementation lands. Replace TODO with that test's node ID via a governed revise."
+    "test": "tests.dev-tooling.test_codex_hook_cache_transition_real.test_a_real_payload_transition_keeps_captured_hook_paths_resolving",
+    "reason": "Integration-tier host-aware acceptance driven over the REAL installed Driver payload: it copies the host's actual current cache payload to a scratch CODEX_HOME, runs the real observer while that payload is replaced the way Codex replaces one (successor written incrementally, old version directory removed), and asserts latest does not move while the successor is half-written, then that the hook paths captured under the retired version still resolve, in one hop through latest, to scripts of the validated current payload. Deliberately narrowed — it does not publish a Driver release to make the marketplace advance, because that would couple the suite to the release pipeline; every step downstream of the release is exercised."
   }
 ]

@@ -15,3 +15,13 @@ codex plugin marketplace upgrade livespec-orchestrator-beads-fabro
 codex plugin add livespec@livespec
 codex plugin add livespec@livespec-driver-codex
 codex plugin add livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-fabro
+
+# The install sequence above may have replaced the versioned hook-cache
+# directory that already-running sessions captured their hook commands
+# against. Reconcile the alias topology, then make sure the observer that
+# catches Codex's own startup auto-upgrades is running — both are hard
+# failures, because a silently-unrepaired cache means hooks that no longer
+# fire while everything still reports installed.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+python3 "$here/codex_hook_cache_reconcile.py"
+python3 "$here/codex_hook_cache_observe.py" ensure

@@ -207,6 +207,16 @@ check-e2e-cli:
 check-codex-skill-picker:
     bash dev-tooling/check-codex-skill-picker.sh
 
+# The `tests/dev-tooling/` suite for the Codex hook-cache reconciler and
+# observer. Two legs: the deterministic mock-cache integration tests always
+# run (they build a throwaway cache under tmp_path and need no Codex
+# install), while the real release-tracking transition leg asserts against
+# the host's actual plugin cache and is therefore host-aware — CI skips it
+# unless a runner opts in with LIVESPEC_REQUIRE_CODEX_CACHE_TRANSITION=1,
+# the same lever shape check-codex-skill-picker uses.
+check-dev-tooling:
+    bash dev-tooling/check-dev-tooling.sh
+
 # Spec heading-coverage gate (shipped by livespec-dev-tooling): every
 # `## ` H2 in each SPECIFICATION/ NLSpec file MUST have an entry in
 # tests/heading-coverage.json. This keeps the coverage map in lockstep

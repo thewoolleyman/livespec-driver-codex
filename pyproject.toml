@@ -86,6 +86,12 @@ ignore = [
 # that tree (it is never imported as a package by product code).
 [tool.ruff.lint.per-file-ignores]
 "tests/e2e-cli/**.py" = ["N999"]
+# `tests/dev-tooling/` mirrors the `dev-tooling/` directory it tests, and both
+# names carry the same hyphen: not a valid Python module-name character, and
+# never imported as a package (the modules under test are loaded by putting
+# `dev-tooling/` on sys.path, exactly as their runtime does).
+"tests/dev-tooling/**.py" = ["N999"]
+"dev-tooling/**.py" = ["N999"]
 # `no_shadow_ledger.py` is the byte-identical canonical hook body installed
 # from livespec-dev-tooling; keep BLE active while exempting only its inherited
 # mccabe complexity findings.
@@ -201,7 +207,13 @@ markers = [
 # convention.
 file_lloc_hard_gate = true
 plan_lifecycle_anchor = true
-scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts"]
+# `tests.dev-tooling` is an integration tier here, not a unit one: the suite it
+# names builds a whole Codex plugin cache (payloads, manifests, hook
+# registrations, alias topology) and drives the real reconciler and observer
+# against it end-to-end, and its host-aware leg runs against the host's actual
+# cache. SPECIFICATION/non-functional-requirements.md declares it one of the
+# three test surfaces backing the enforcement suite.
+scenario_tiers = ["tests.e2e-cli", "tests.e2e", "tests.integration", "tests.consumer", "tests.prompts", "tests.dev-tooling"]
 source_trees = [
     "livespec/hooks",
 ]
@@ -225,11 +237,16 @@ target_dirs = { superseded_by = "git-derived first-party universe owns the hook 
 # The source `.py` surface of this binding repo: the plugin-shipped Codex
 # hooks (livespec/hooks/ — the footgun guard + the no-shadow-ledger hook).
 # Prefixes are matched against repo-root-relative staged paths. The bare
-# `dev-tooling/` directory is NOT a prefix — it carries only non-source
-# artifacts (the family-standard git-hook scaffolds) that legitimately have
-# no paired test, now that the structural check ships from the
-# livespec-dev-tooling package rather than as a repo-local
-# `dev-tooling/check_plugin_structure.py` (zs22.7.9.2).
+# `dev-tooling/` directory is NOT a prefix. It now carries two stdlib-only
+# Python executables (the Codex hook-cache reconciler and its observer)
+# alongside the family-standard git-hook scaffolds, but those are HOST
+# PROVISIONING tooling, not the plugin's product source: they run under the
+# bare `python3` that `ensure-codex-plugins.sh` uses before any virtualenv
+# exists, and they are never packaged into the plugin bundle. The product
+# surface these role keys scope — pyright's include, the 100% coverage gate,
+# the shipped-hook install-shape gate — is the `livespec/hooks/` tree Codex
+# actually copies and executes. `tests/dev-tooling/` covers the two
+# executables through the dedicated `check-dev-tooling` gate instead.
 source_tree_prefixes = [
     "livespec/hooks/",
 ]
