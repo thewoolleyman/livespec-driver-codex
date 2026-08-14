@@ -62,6 +62,8 @@ from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 __all__: list[str] = []
 
 _TMUX_HAZARD_HINT = re.compile(r"\b(?:kill-server|pkill|killall)\b")
+_LITERAL_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(/.+)$")
+_VARIABLE_TARGET = re.compile(r"^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$")
 _NO_VERIFY_REASON = (
     "NEVER use --no-verify in the livespec family. The lefthook gates "
     "(commit-msg, pre-commit, pre-push, Red-Green-Replay trailers) are "
@@ -92,17 +94,33 @@ def _probe_path_for_target(*, target: str) -> str:
     return str(probe) or "."
 
 
-def _primary_checkout_reason(*, seg: str, tokens: list[str]) -> str | None:
+def _literal_assignments(*, tokens: list[str], known: dict[str, str]) -> None:
+    """Record literal absolute leading assignments for a later redirect target."""
+    for token in tokens:
+        match = _LITERAL_ASSIGNMENT.fullmatch(token)
+        if match is None:
+            break
+        known[match.group(1)] = match.group(2)
+
+
+def _resolved_target(*, target: str, known: dict[str, str]) -> str:
+    """Resolve only a whole-target reference backed by a literal assignment."""
+    match = _VARIABLE_TARGET.fullmatch(target)
+    return known.get(match.group(1), target) if match is not None else target
+
+
+def _primary_checkout_reason(*, seg: str, tokens: list[str], known: dict[str, str]) -> str | None:
     # (d) primary-checkout edit — checked on the RAW token stream BEFORE the
     # noise-strip, so redirections like `cmd > /primary/file` are seen.
     try:
         for target in redirect_targets(seg=seg, tokens=tokens):
             if target.startswith("-"):
                 continue
-            candidate = Path(target)
+            resolved_target = _resolved_target(target=target, known=known)
+            candidate = Path(resolved_target)
             if not candidate.is_absolute():
                 candidate = Path.cwd() / candidate
-            is_primary = is_primary_checkout(path=_probe_path_for_target(target=target))
+            is_primary = is_primary_checkout(path=_probe_path_for_target(target=resolved_target))
             is_runtime_state = is_allowed_primary_runtime_state(path=str(candidate))
             if is_primary and not is_runtime_state:
                 return PRIMARY_EDIT_REASON
@@ -141,7 +159,7 @@ def _git_reason(*, tokens: list[str]) -> str | None:
     return None
 
 
-def _check_segment(*, seg: str) -> tuple[bool, str]:
+def _check_segment(*, seg: str, known: dict[str, str] | None = None) -> tuple[bool, str]:
     tmux_blocked, tmux_reason = check_tmux_segment(seg=seg)
     if tmux_blocked:
         return True, tmux_reason
@@ -153,7 +171,11 @@ def _check_segment(*, seg: str) -> tuple[bool, str]:
     if not tokens:
         return False, ""
 
-    reason = _primary_checkout_reason(seg=seg, tokens=tokens) or _git_reason(tokens=tokens)
+    known_assignments = {} if known is None else known
+    _literal_assignments(tokens=tokens, known=known_assignments)
+    reason = _primary_checkout_reason(
+        seg=seg, tokens=tokens, known=known_assignments
+    ) or _git_reason(tokens=tokens)
     return (True, reason) if reason is not None else (False, "")
 
 
@@ -212,8 +234,9 @@ def _decision(*, raw: str) -> IOResult[str | None, Exception]:
     command = command_result.unwrap()
     if command is None:
         return IOSuccess(None)
+    known: dict[str, str] = {}
     for seg in segments(command=command):
-        blocked, reason = _check_segment(seg=seg)
+        blocked, reason = _check_segment(seg=seg, known=known)
         if blocked:
             return IOSuccess(_deny_payload(reason=reason, command=command))
     return IOSuccess(None)
