@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.6.1...v0.7.0) (2026-08-14)
+
+
+### Features
+
+* cover supervisor completion Stop gate ([116558a](https://github.com/thewoolleyman/livespec-driver-codex/commit/116558a5562703a439edca5ef1f57c8c21d598d7))
+* **dev-tooling:** reconcile the Codex hook cache across Driver upgrades ([6161209](https://github.com/thewoolleyman/livespec-driver-codex/commit/6161209d40f65adc0da65cd1daad8663ad9fbc25))
+
 ## [0.6.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.6.0...v0.6.1) (2026-08-14)
 
 
