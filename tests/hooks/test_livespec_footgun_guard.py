@@ -269,6 +269,17 @@ def test_allows_gitignored_supervisor_runtime_state(tmp_path: Path) -> None:
     _assert_pass(result=result)
 
 
+def test_allows_literal_variable_for_gitignored_supervisor_runtime_state(tmp_path: Path) -> None:
+    primary = _primary_git_repo(root=tmp_path / "primary")
+    _ = (primary / ".gitignore").write_text("tmp/\n", encoding="utf-8")
+    target = primary / "tmp" / "overseer" / "fleet-ci-runner-pool" / "worker-status.log"
+    result = _run_guard(
+        stdin=_hook_input(command=f'runtime_log="{target}"; echo ready > "$runtime_log"'),
+        cwd=primary,
+    )
+    _assert_pass(result=result)
+
+
 @pytest.mark.parametrize(
     "relative_target",
     [
