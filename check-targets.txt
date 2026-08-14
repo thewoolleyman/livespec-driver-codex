@@ -66,4 +66,5 @@ check-coverage
 check-hooks
 check-e2e-cli
 check-codex-skill-picker
+check-dev-tooling
 check-doctor-static
