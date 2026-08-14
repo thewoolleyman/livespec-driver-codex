@@ -257,5 +257,12 @@
     "heading": "## Scenario: commit at the primary checkout is refused",
     "test": "TODO",
     "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: long-running hooks survive a Driver cache update",
+    "test": "TODO",
+    "reason": "Seeded at ratification of the codex-hook-cache-reconciliation proposal. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; this scenario is proved by the tests/dev-tooling/ integration-tier real release-tracking transition test once the reconciler/observer implementation lands. Replace TODO with that test's node ID via a governed revise."
   }
 ]
