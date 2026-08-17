@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.0...v0.7.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **check:** coverage dedup hardening — clean-env producer + consume-once consumer ([e36fd5e](https://github.com/thewoolleyman/livespec-driver-codex/commit/e36fd5e33d522486a82a3c05a9837329f69681d4))
+
 ## [0.7.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.6.1...v0.7.0) (2026-08-14)
 
 
