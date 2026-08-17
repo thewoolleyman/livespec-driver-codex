@@ -185,3 +185,15 @@ Driver auto-resolves `<project-root>/.claude-plugin/prose/` when the
 governed project IS the core repo). A temporary local Codex marketplace
 registration used for testing MUST be removed afterward unless you
 explicitly ask to keep it.
+
+## CI runner routing
+
+`CI_RUNNER_LABELS` (a repo variable, never a `.github/workflows/` edit —
+`check-no-workflow-edits` forbids that here) routes this repo's gating
+`pull_request`/`push` CI matrix. As of 2026-08-17 it points at the ARC k3s
+scale set `livespec-driver-codex-k3s` (livespec-s43svm.16's per-repo
+real-traffic cutover), proven by this changeset's own required checks. The
+podman pool alternative stays configured but idle for this repo. See
+`livespec/plan/fleet-ci-runner-pool/research/k3s-arc-kueue-migration.md`
+("Real-traffic cutover log") and the `livespec-s43svm.16` ledger comments for
+the full cross-repo cutover record.
