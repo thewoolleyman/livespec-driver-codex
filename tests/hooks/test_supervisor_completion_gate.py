@@ -572,8 +572,15 @@ def test_local_producer_requires_live_pid_expected_command_and_identity(tmp_path
 
         _, output = _run_hook(root=root, env={"CLAUDE_PROJECT_DIR": str(root)})
     finally:
-        proc.terminate()
-        proc.wait(timeout=10)
+        try:
+            proc.terminate()
+        except PermissionError:
+            # Some sandboxed CI runners deny cross-process signals even
+            # within the same pid namespace; the child still exits on its
+            # own once the test process (and its process group) ends.
+            pass
+        else:
+            proc.wait(timeout=10)
 
     _assert_allows(output=output)
 

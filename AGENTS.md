@@ -112,6 +112,91 @@ asserts real verdicts. Any new shipped hook belongs in that test.
   ZERO dependencies on them, and they have ZERO dependencies on the
   Driver (load-bearing invariant).
 
+## Repository mutation protocol
+
+Every repo change uses a worktree → PR → merge → cleanup path. Treat
+leaving dirty state, committing on the primary checkout, or asking the
+user whether to commit as failures of the workflow, not as acceptable
+stopping points.
+
+The prohibition is about tracked repository changes and other persistent
+primary-checkout edits. The sole operational exception is the gitignored
+runtime subtree `<repo-primary>/tmp/overseer/<topic>/`: a supervisor may
+create or update runtime state there (for example `.supervisor-state`, wait
+channels, watcher logs, and PID files) directly in the primary checkout.
+The exception is exact: the path MUST contain a non-empty single `<topic>`
+component immediately below `tmp/overseer/`, MUST resolve beneath that topic
+directory, and MUST remain ignored by the repository. It does not permit
+writes to `tmp/overseer/` itself, sibling `tmp/` paths, tracked files, or any
+other primary-checkout path. Every tracked change and every other persistent
+write still uses the worktree → PR → merge → cleanup path below.
+
+1. Confirm the primary checkout before editing (a primary checkout's
+   git-dir equals its git-common-dir; a secondary worktree's differs —
+   the structural test the commit-refuse hook itself uses):
+
+   ```bash
+   git -C /data/projects/livespec-driver-codex rev-parse --git-dir --git-common-dir
+   git -C /data/projects/livespec-driver-codex status --short --branch
+   ```
+
+2. If the change will modify tracked files, create a dedicated worktree
+   from the primary checkout's `master` and do all edits there. Every
+   worktree lives under the per-user root `~/.worktrees/<repo>/<branch>`
+   — NEVER as a peer of the clones under `/data/projects`, and NEVER
+   under `.claude/worktrees/` (that path is outside mise's
+   `trusted_config_paths`, so `.mise.toml` there is untrusted by
+   default and every `mise exec`/`uv`/`just` invocation fails closed
+   until `mise trust` is run by hand):
+
+   ```bash
+   mise exec -- git -C /data/projects/livespec-driver-codex worktree add -b <branch> "$HOME/.worktrees/livespec-driver-codex/<branch>" master
+   ```
+
+   `just bootstrap` registers `~/.worktrees` as one of mise's
+   `trusted_config_paths`, so a freshly created worktree's `.mise.toml`
+   is auto-trusted and the first `mise exec` inside it never stalls on a
+   "config not trusted" prompt.
+
+3. Use `mise exec -- git commit ...` and `mise exec -- git push ...` so
+   the mise-managed lefthook hooks actually run. Never pass
+   `--no-verify`; if a hook fails, fix the cause or halt with the
+   failure.
+4. Open a PR, wait for required checks, and merge through the PR using
+   the repo's rebase-merge discipline.
+5. After merge, refresh `/data/projects/livespec-driver-codex` to
+   `origin/master`, remove the feature worktree, delete the local
+   branch, and verify the primary checkout is clean on `master`.
+
+Do not leave orphaned worktrees. If a session must stop before cleanup,
+record the active worktree path, branch, PR, validation state, and next
+action in the plan epic's attributed ledger entries, with any supporting
+research preserved under the plan's `research/` directory. For stale
+cleanup outside the current branch's own worktree, use the repo's reaper
+entry point rather than hand-deleting unfamiliar state:
+
+```bash
+just reap-stale-worktrees <repo> --dry-run   # INSPECT — reports, changes nothing
+just reap-stale-worktrees                    # ACTS — removes worktrees, deletes branches
+```
+
+**The bare form is not a report. It reaps.** It removes every worktree it
+classifies stale and deletes those branches, in seconds, with no
+confirmation. Reach for `--dry-run` first, always, and NEVER use the bare
+form to check whether the recipe works — that is running a destructive
+command to see what it does. The two forms sitting side by side is
+precisely what makes this easy to get wrong: a documented `--dry-run`
+variant makes the family *feel* safe, when it means the other form is the
+live one.
+
+The reaper only removes worktrees whose branches it judges stale, so the
+usual outcome is harmless — but that is a property of the tool, not of the
+invocation, and you cannot know it held until after it has run. Never reap
+while a dispatched agent is working in one of that repo's worktrees.
+
+(Adapted from `livespec` core's `AGENTS.md` §"Repository mutation
+protocol" — see that repo for the canonical, most up-to-date version.)
+
 ## Codex dogfooding (OpenAI Codex CLI/TUI)
 
 This repo IS the Codex Driver — the `/livespec:*` operation surface
