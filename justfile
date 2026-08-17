@@ -418,8 +418,28 @@ check-no-todo-registry:
 check-pbt-coverage-pure-modules:
     uv run python -m livespec_dev_tooling.checks.pbt_coverage_pure_modules
 
-check-per-file-coverage: check-coverage
-    uv run python -m livespec_dev_tooling.checks.per_file_coverage
+# Coverage CONSUMER (livespec-dev-tooling-yilyxr.8, dev-tooling PR #1462
+# design). The former `check-coverage` dependency re-ran the whole suite
+# in this target's own just invocation (a separate process from the
+# aggregate's earlier check-coverage run, so no dedup applied): the
+# aggregate paid the suite twice. check-coverage (which the serial
+# aggregate runs first) is the clean-env producer; this target reads
+# its repo-root `.coverage` once and DELETES it (consume-once — a later
+# standalone run can never report from stale data); absent the file
+# (standalone/CI) it runs the clean suite itself first.
+# No-errexit deviation: explicit exit handling preserves the consume-once
+# cleanup on failure (errexit would skip the rm and strand stale data).
+check-per-file-coverage:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    if [[ ! -f .coverage ]]; then
+        echo ":: check-per-file-coverage: no .coverage present (standalone run); running the clean suite"
+        env -u COVERAGE_FILE uv run pytest tests/hooks/ --cov --cov-branch --cov-config=pyproject.toml --cov-report=term-missing || exit $?
+    else
+        echo ":: check-per-file-coverage: reading .coverage from check-coverage's clean run (no duplicate suite run)"
+    fi
+    env -u COVERAGE_FILE uv run python -m livespec_dev_tooling.checks.per_file_coverage || { rm -f .coverage; exit 2; }
+    rm -f .coverage
 
 check-primary-checkout-commit-refuse-hook-installed:
     uv run python -m livespec_dev_tooling.checks.primary_checkout_commit_refuse_hook_installed
