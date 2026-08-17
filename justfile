@@ -492,18 +492,18 @@ check-source-trees-scoped-to-consumer:
 check-spec-governance-default-block:
     uv run python dev-tooling/check-spec-governance-default-block
 
-check-plan-thread-anchor-declared:
-    uv run python -m livespec_dev_tooling.checks.plan_thread_anchor_declared
+check-plan-anchor-declared:
+    uv run python -m livespec_dev_tooling.checks.plan_anchor_declared
 
-check-plan-thread-epic-parity:
-    uv run python -m livespec_dev_tooling.checks.plan_thread_epic_parity
+check-plan-epic-parity:
+    uv run python -m livespec_dev_tooling.checks.plan_epic_parity
 
 # Plan-lifecycle tombstone ban: a topic must not exist at BOTH
 # plan/<topic>/ and plan/archive/<topic>/. Fail-closed with no opt-in
-# lever — unlike check-plan-thread-anchor-declared, whose
+# lever — unlike check-plan-anchor-declared, whose
 # plan_lifecycle_anchor opt-in is why it never fired on a real tombstone.
-check-plan-thread-no-tombstone:
-    uv run python -m livespec_dev_tooling.checks.plan_thread_no_tombstone
+check-plan-no-tombstone:
+    uv run python -m livespec_dev_tooling.checks.plan_no_tombstone
 
 check-no-shadow-ledger-body-typechecks:
     uv run python -m livespec_dev_tooling.checks.no_shadow_ledger_body_typechecks
