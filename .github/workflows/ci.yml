@@ -159,9 +159,14 @@ jobs:
           - check-lint
           - check-format
           - check-types
-          - check-coverage
+          # check-coverage and check-per-file-coverage moved OUT of this matrix
+          # into the producer/consumer job chain below (work-item
+          # livespec-dev-tooling-yilyxr.8, porting dev-tooling PRs #1504 +
+          # #1511): as sibling legs they each ran the full suite on their own
+          # runner, so the pair paid the suite twice. check-coverage stays a
+          # LITERAL matrix member there, in a single-entry matrix, to keep
+          # check-tool-backed-check-completeness satisfied.
           # pytest-spawning, suite-sized runtimes.
-          - check-per-file-coverage
           - check-hooks
           - check-e2e-cli
           - check-codex-skill-picker
@@ -251,6 +256,150 @@ jobs:
           node_bin="$(cd "$shims_dir/../installs/node/latest/bin" 2>/dev/null && pwd || ls -d "$shims_dir/../installs/node"/*/bin 2>/dev/null | head -1)"
           [ -n "$node_bin" ] && export PATH="$node_bin:$PATH"
           just ${{ matrix.target }}
+
+  # Coverage-pair PRODUCER (work-item livespec-dev-tooling-yilyxr.8, porting
+  # dev-tooling PRs #1504 + #1511). This repo's direction is INVERTED relative
+  # to dev-tooling's, and the recipes are what decide it: here `check-coverage`
+  # runs `env -u COVERAGE_FILE uv run pytest tests/hooks/ --cov ...`
+  # UNCONDITIONALLY and leaves the repo-root .coverage behind, while
+  # `check-per-file-coverage` is the one carrying the `if [[ ! -f .coverage ]]`
+  # fallback and the consume-once `rm -f`. So check-coverage produces and
+  # check-per-file-coverage consumes — exactly the local `just check` ordering,
+  # now effective in CI where the two matrix legs used to run the suite
+  # independently on separate runners.
+  #
+  # Kept as a single-entry matrix (NOT a plain job) because check-coverage is a
+  # tool-backed slug and check-tool-backed-check-completeness requires every
+  # tool-backed slug to be a LITERAL matrix.target member.
+  check-coverage:
+    name: ${{ matrix.target }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
+    container:
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.28.8
+    env:
+      MISE_DATA_DIR: /root/.local/share/mise
+      MISE_NOT_FOUND_AUTO_INSTALL: "0"
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+    strategy:
+      matrix:
+        target:
+          - check-coverage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Trust workspace for git (hosted container root-vs-checkout uid)
+        run: git config --global --add safe.directory '*'
+
+      # Same self-hosted shallow-fetch repair as check-python — see that job
+      # for the full rationale.
+      - name: Ensure full history is available (self-hosted reused _work dir)
+        if: ${{ !contains(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]', 'ubuntu') }}
+        run: |
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow origin
+          fi
+          git fetch origin master:refs/remotes/origin/master
+
+      - name: mise trust + install (baked tools — install is a near-no-op)
+        run: |
+          mise trust
+          mise install
+
+      - name: Install Python dev deps via uv
+        run: uv sync --all-groups
+
+      - name: just ${{ matrix.target }}
+        run: |
+          # The suite spawns `node` in some tests; under the container-hooks
+          # HOME the mise node/npm shims busy-loop or miss (no node registered
+          # for that HOME), so put the image's real node bin — derived from the
+          # shim's own location, never a hardcoded image path — ahead of the
+          # shims on PATH. Same block as the check-python matrix legs; its
+          # absence from dev-tooling's equivalent producer job reddened that
+          # repo's master with FileNotFoundError: 'node' (fixed by #1511).
+          shims_dir="$(dirname "$(command -v npm)")"
+          node_bin="$(cd "$shims_dir/../installs/node/latest/bin" 2>/dev/null && pwd || ls -d "$shims_dir/../installs/node"/*/bin 2>/dev/null | head -1)"
+          [ -n "$node_bin" ] && export PATH="$node_bin:$PATH"
+          just ${{ matrix.target }}
+
+      # include-hidden-files is REQUIRED: upload-artifact@v4 excludes dotfiles
+      # by default and .coverage is one; without it the upload silently ships
+      # nothing and the consumer falls back to a full duplicate suite run.
+      - name: Publish .coverage for the check-per-file-coverage consumer
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data
+          path: .coverage
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # Coverage-pair CONSUMER. A plain dedicated job (no matrix): the
+  # literal-matrix-member rule from check-tool-backed-check-completeness
+  # applies only to the tool-backed slugs (lint / format / types / coverage),
+  # and check-per-file-coverage is not one. `needs` the producer so the
+  # downloaded .coverage is present and the recipe takes its reuse branch,
+  # printing ":: check-per-file-coverage: reading .coverage from
+  # check-coverage's clean run (no duplicate suite run)". The recipe then
+  # DELETES the file (consume-once), which is harmless in CI — each job gets a
+  # fresh workspace. Paths inside the data file match because both jobs run in
+  # the same container workspace mount. If the download ever regresses, the
+  # recipe's fallback runs the clean suite standalone — slower, never wrong.
+  check-per-file-coverage:
+    name: check-per-file-coverage
+    needs: check-coverage
+    runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
+    container:
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.28.8
+    env:
+      MISE_DATA_DIR: /root/.local/share/mise
+      MISE_NOT_FOUND_AUTO_INSTALL: "0"
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Trust workspace for git (hosted container root-vs-checkout uid)
+        run: git config --global --add safe.directory '*'
+
+      - name: Ensure full history is available (self-hosted reused _work dir)
+        if: ${{ !contains(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]', 'ubuntu') }}
+        run: |
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --unshallow origin
+          fi
+          git fetch origin master:refs/remotes/origin/master
+
+      - name: mise trust + install (baked tools — install is a near-no-op)
+        run: |
+          mise trust
+          mise install
+
+      - name: Install Python dev deps via uv
+        run: uv sync --all-groups
+
+      - name: Download the producer's .coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-data
+
+      - name: just check-per-file-coverage
+        run: |
+          # Node-PATH shim for the standalone-fallback branch only: the normal
+          # path reads the downloaded .coverage without spawning anything, but
+          # a missing artifact falls back to the clean suite, which spawns
+          # `node` in some tests (see the producer job).
+          shims_dir="$(dirname "$(command -v npm)")"
+          node_bin="$(cd "$shims_dir/../installs/node/latest/bin" 2>/dev/null && pwd || ls -d "$shims_dir/../installs/node"/*/bin 2>/dev/null | head -1)"
+          [ -n "$node_bin" ] && export PATH="$node_bin:$PATH"
+          just check-per-file-coverage
 
   # Batched cheap .py-scanning checks: one container setup for 23 sub-minute
   # AST/structure scanners that used to be 23 matrix legs. Failures are
@@ -583,7 +732,7 @@ jobs:
 
   export-telemetry:
     name: export-telemetry
-    needs: [check-python, check-python-batch, check-metadata, check-metadata-batch]
+    needs: [check-python, check-coverage, check-per-file-coverage, check-python-batch, check-metadata, check-metadata-batch]
     if: ${{ !cancelled() && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     permissions:
@@ -613,6 +762,8 @@ jobs:
     name: ci-green
     needs:
       - check-python
+      - check-coverage
+      - check-per-file-coverage
       - check-python-batch
       - check-metadata
       - check-metadata-batch
