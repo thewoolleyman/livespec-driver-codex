@@ -483,6 +483,9 @@ check-handoff-dispatch-routing:
 check-self-hosted-routing:
     uv run python -m livespec_dev_tooling.checks.self_hosted_routing
 
+check-self-hosted-uv-lane:
+    uv run python -m livespec_dev_tooling.checks.self_hosted_uv_lane
+
 check-shell-quality:
     uv run python -m livespec_dev_tooling.checks.shell_quality
 
