@@ -1,6 +1,6 @@
 ---
 name: revise
-description: Walk the user through accepting or rejecting each pending proposed change in <spec-root>/proposed_changes/, then snapshot the result as a new <spec-root>/history/vNNN/ revision. Invoked by livespec:revise, "revise the livespec", or "process pending proposed changes".
+description: Walk the user through accepting or rejecting pending proposed changes in <spec-root>/proposed_changes/, then snapshot the result as a new <spec-root>/history/vNNN/ revision. Covers every pending proposal by default, or ONE named proposal via --only-topic <topic> — leaving the rest in place — when the user asks to revise a single proposal or their authority covers only their own. Invoked by livespec:revise, "revise the livespec", "process pending proposed changes", or "revise only the <topic> proposal".
 ---
 
 # revise — Codex Driver binding
