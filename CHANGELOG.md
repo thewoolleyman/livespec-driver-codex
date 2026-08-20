@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.1...v0.7.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* **skill:** carry --only-topic in the revise invocation forms ([2122fc9](https://github.com/thewoolleyman/livespec-driver-codex/commit/2122fc96af7770dd39ff44f3253acc69aea9e63d))
+
 ## [0.7.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.0...v0.7.1) (2026-08-17)
 
 
