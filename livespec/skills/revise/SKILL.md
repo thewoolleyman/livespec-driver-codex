@@ -85,7 +85,7 @@ overridable. To "run the revise CLI named in config":
 With the default config this collapses to:
 
 ```bash
-python3 "$LIVESPEC_CORE_ROOT/scripts/bin/revise.py" --revise-json <path> --post-step-doctor [--author <id>] [--spec-target <path>] [--project-root <path>]
+python3 "$LIVESPEC_CORE_ROOT/scripts/bin/revise.py" --revise-json <path> --post-step-doctor [--author <id>] [--spec-target <path>] [--project-root <path>] [--only-topic <topic>]
 ```
 
 ## Runtime bindings
@@ -95,7 +95,7 @@ python3 "$LIVESPEC_CORE_ROOT/scripts/bin/revise.py" --revise-json <path> --post-
   default config:
 
   ```bash
-  python3 "$LIVESPEC_CORE_ROOT/scripts/bin/revise.py" --revise-json <path> --post-step-doctor [--author <id>] [--spec-target <path>] [--project-root <path>]
+  python3 "$LIVESPEC_CORE_ROOT/scripts/bin/revise.py" --revise-json <path> --post-step-doctor [--author <id>] [--spec-target <path>] [--project-root <path>] [--only-topic <topic>]
   ```
 
 - **"run the template-resolution CLI"** — via the shell tool:
