@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.2...v0.7.3) (2026-08-23)
+
+
+### Bug Fixes
+
+* **hooks:** stop laundering a failed git probe into "not a primary checkout" ([eac27c4](https://github.com/thewoolleyman/livespec-driver-codex/commit/eac27c42119b1c0cff79cde25a2dab6c2ef5e439))
+
 ## [0.7.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.1...v0.7.2) (2026-08-20)
 
 
