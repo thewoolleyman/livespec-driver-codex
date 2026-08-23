@@ -53,8 +53,19 @@ _FD_DUP_REDIR = re.compile(r"^[0-9]*[<>]&(?:[0-9]+|-)$")
 _PRIMARY_CHECKOUT_CACHE: dict[str, bool] = {}
 
 
-def _primary_worktree_root(*, path: str) -> str | None:
-    """Return the declared primary root containing ``path``, if any."""
+def _primary_worktree_root(*, path: str) -> Result[str | None, Exception]:
+    """The declared primary root containing ``path``, if any.
+
+    ⛔ `Success(None)` and `Failure` MUST stay distinct here, and used not to be.
+    `None` is a definitive NEGATIVE — this is not a repo, or it is a repo that
+    declares no primary, or it declares a different one. A probe error is not
+    that; it is "I could not find out". Both used to return `None`, and the two
+    callers below need OPPOSITE things from an unknown, so a single `None` could
+    not serve them: `is_allowed_primary_runtime_state` must DENY its exception on
+    uncertainty (keeping a refusal in force), while `_is_primary_checkout_result`
+    must not let uncertainty become the cached answer `False` that DISARMS that
+    same refusal.
+    """
     real = os.path.realpath(path)
     probe_path = Path(real)
     while not probe_path.is_dir() and probe_path != probe_path.parent:
@@ -68,7 +79,7 @@ def _primary_worktree_root(*, path: str) -> str | None:
             timeout=5,
         )
         if toplevel.returncode != 0:
-            return None
+            return Success(None)
         worktree_root = os.path.realpath(toplevel.stdout.strip())
         primary = subprocess.run(
             ["git", "-C", probe, "config", "--get", "livespec.primaryPath"],
@@ -77,32 +88,43 @@ def _primary_worktree_root(*, path: str) -> str | None:
             timeout=5,
         )
         if primary.returncode != 0:
-            return None
+            return Success(None)
         declared = os.path.realpath(primary.stdout.strip())
-        return worktree_root if declared and declared == worktree_root else None
-    except (OSError, subprocess.SubprocessError):
-        return None
+        return Success(worktree_root if declared and declared == worktree_root else None)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return Failure(exc)
 
 
 def _is_primary_checkout_result(*, path: str) -> Result[bool, Exception]:
     """True iff `path` resolves into a git repo that is its OWN primary checkout.
 
     A primary checkout is a repo whose `git config --get livespec.primaryPath`
-    equals its own worktree root. Best-effort; fails CLOSED to False (treat as
-    NOT a primary, i.e. fail open / do not block) on any uncertainty — a missing
-    git, a non-repo path, a config without the key, or any subprocess error.
+    equals its own worktree root. A missing git, a non-repo path, a config
+    without the key, or any subprocess error is a probe FAILURE and rides the
+    failure track; deciding what to do about it belongs to the boundary, and
+    `is_primary_checkout` is the boundary that fails OPEN to False so a hook can
+    never wedge the agent.
+
+    ⛔ ONLY DEFINITIVE ANSWERS ARE CACHED. The `except` arm used to write
+    `False` into the cache before returning `Failure`, so the next call for the
+    same path returned `Success(False)` — a transient failure laundered into a
+    definitive negative, and cached, so it was never retried. The consumer is
+    the guard that refuses direct edits at a primary checkout, so one failed git
+    probe disarmed that guard for the life of the process and kept it disarmed
+    after git recovered.
     """
-    real: str | None = None
     try:
         real = os.path.realpath(path)
         if real in _PRIMARY_CHECKOUT_CACHE:
             return Success(_PRIMARY_CHECKOUT_CACHE[real])
-        result = _primary_worktree_root(path=real) is not None
+        probed = _primary_worktree_root(path=real)
+        if isinstance(probed, Failure):
+            # NOT cached: an unknown must be retried, never remembered as False.
+            return probed
+        result = probed.unwrap() is not None
     # os.path.realpath can raise OSError; subprocess.run can raise OSError
     # for git launch failures and SubprocessError for timeouts.
     except (OSError, subprocess.SubprocessError) as exc:
-        if real is not None:
-            _PRIMARY_CHECKOUT_CACHE[real] = False
         return Failure(exc)
     _PRIMARY_CHECKOUT_CACHE[real] = result
     return Success(result)
@@ -124,7 +146,11 @@ def is_allowed_primary_runtime_state(*, path: str) -> bool:
     Any probe uncertainty denies the exception, leaving the caller's primary
     checkout refusal in force.
     """
-    root = _primary_worktree_root(path=path)
+    probed = _primary_worktree_root(path=path)
+    if isinstance(probed, Failure):
+        _ = probed.failure()
+        return False
+    root = probed.unwrap()
     if root is None:
         return False
     target = os.path.realpath(path)
