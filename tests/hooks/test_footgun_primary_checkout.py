@@ -26,6 +26,9 @@ if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
 import _footgun_primary_checkout  # noqa: E402 — path-dependent import after sys.path insert.
+from _result import Failure  # noqa: E402 — same path-dependent import.
+
+_real_run = subprocess.run
 
 __all__: list[str] = []
 
@@ -97,6 +100,26 @@ def _git_init(*, root: Path) -> Path:
     return root
 
 
+def _init_primary_checkout(*, root: Path) -> str:
+    """git-init `root` and mark it as its OWN primary checkout; return its toplevel."""
+    _ = _git_init(root=root)
+    toplevel = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    ).stdout.strip()
+    _ = subprocess.run(
+        ["git", "-C", str(root), "config", "livespec.primaryPath", toplevel],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    return toplevel
+
+
 def test_is_primary_checkout_true_when_primary_path_matches(tmp_path: Path) -> None:
     root = _git_init(root=tmp_path / "primary")
     toplevel = subprocess.run(
@@ -134,9 +157,25 @@ def test_is_primary_checkout_false_for_non_repo(tmp_path: Path) -> None:
         subprocess.SubprocessError("git probe timed out"),
     ],
 )
-def test_is_primary_checkout_fails_open_and_caches_false_for_expected_probe_errors(
+def test_is_primary_checkout_fails_open_without_caching_the_probe_failure(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, probe_error: Exception
 ) -> None:
+    """A failed probe fails OPEN at the boundary and is NOT remembered as an answer.
+
+    ⛔ THE DEFECT THIS PINS. The `except` arm used to write
+    `_PRIMARY_CHECKOUT_CACHE[real] = False` BEFORE returning `Failure`, so the
+    NEXT call for the same path hit the cache and returned `Success(False)` — a
+    transient probe failure laundered into a definitive negative that no consumer
+    could tell from a real one. The consumer is the guard that refuses direct
+    edits at a primary checkout, so one failed probe disarmed it for the rest of
+    the process, permanently, rather than being retried.
+
+    ⚠️ The fail-OPEN itself is contract-sanctioned (a hook must never wedge the
+    agent) and is deliberately preserved: the boundary still answers False. What
+    is removed is collapsing the failure TWO LEVELS BELOW that boundary and then
+    CACHING it, which is precisely what the sanctioned fail-open assumes cannot
+    happen.
+    """
     real = str(tmp_path.resolve())
     _footgun_primary_checkout._PRIMARY_CHECKOUT_CACHE.clear()
 
@@ -146,8 +185,49 @@ def test_is_primary_checkout_fails_open_and_caches_false_for_expected_probe_erro
 
     monkeypatch.setattr(_footgun_primary_checkout.subprocess, "run", fail_probe)
 
+    # The boundary still fails open — a hook must never wedge the agent.
     assert _footgun_primary_checkout.is_primary_checkout(path=str(tmp_path)) is False
-    assert _footgun_primary_checkout._PRIMARY_CHECKOUT_CACHE[real] is False
+    # ...but the failure is NOT recorded as though it were an answer.
+    assert real not in _footgun_primary_checkout._PRIMARY_CHECKOUT_CACHE
+    # ...and the private seam keeps reporting the failure instead of laundering it.
+    assert isinstance(
+        _footgun_primary_checkout._is_primary_checkout_result(path=str(tmp_path)),
+        Failure,
+    )
+
+
+@pytest.mark.parametrize(
+    "probe_error",
+    [
+        OSError("git launch failed"),
+        subprocess.SubprocessError("git probe timed out"),
+    ],
+)
+def test_probe_failure_does_not_poison_a_later_successful_probe(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, probe_error: Exception
+) -> None:
+    """A recovered probe gives the TRUTHFUL answer, not the cached failure.
+
+    ▶️ This is the half that makes the defect consequential rather than untidy.
+    With the failure cached, the first transient error fixed the answer at False
+    for the life of the process — so a repo that IS a primary checkout kept its
+    guard disarmed long after git started working again.
+    """
+    toplevel = _init_primary_checkout(root=tmp_path / "primary")
+    _footgun_primary_checkout._PRIMARY_CHECKOUT_CACHE.clear()
+
+    failing = [True]
+
+    def flaky(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if failing[0]:
+            raise probe_error
+        return _real_run(*args, **kwargs)  # pyright: ignore[reportCallIssue, reportArgumentType]
+
+    monkeypatch.setattr(_footgun_primary_checkout.subprocess, "run", flaky)
+    assert _footgun_primary_checkout.is_primary_checkout(path=toplevel) is False
+
+    failing[0] = False
+    assert _footgun_primary_checkout.is_primary_checkout(path=toplevel) is True
 
 
 def test_is_primary_checkout_propagates_unexpected_probe_bug(
