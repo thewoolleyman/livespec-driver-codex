@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.3...v0.7.4) (2026-08-29)
+
+
+### Bug Fixes
+
+* emit Codex-compatible Stop hook block payload ([aeec5f2](https://github.com/thewoolleyman/livespec-driver-codex/commit/aeec5f20feeca1ba02fa81787cb97ce3dd8d7bef))
+
 ## [0.7.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.2...v0.7.3) (2026-08-23)
 
 
