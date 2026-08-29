@@ -36,11 +36,6 @@ def _block_payload(*, reason: str) -> str:
         {
             "decision": "block",
             "reason": message,
-            "hookSpecificOutput": {
-                "hookEventName": "Stop",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": message,
-            },
         }
     )
 
