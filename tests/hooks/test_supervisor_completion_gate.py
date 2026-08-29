@@ -14,6 +14,9 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from returns.result import Success
+
+from .codex_stop_output_contract import validate_stop_output
 
 __all__: list[str] = []
 
@@ -23,14 +26,6 @@ _HOOK_SCRIPT = _HOOKS_DIR / "supervisor_completion_gate.py"
 _HOOKS_JSON = _HOOKS_DIR / "hooks.json"
 _PLUGIN_SOURCE = _REPO_ROOT / "livespec"
 _PLUGIN_MANIFEST = _PLUGIN_SOURCE / ".codex-plugin" / "plugin.json"
-_CODEX_STOP_ALLOWED_KEYS = {
-    "continue",
-    "decision",
-    "reason",
-    "stopReason",
-    "suppressOutput",
-    "systemMessage",
-}
 
 
 def _hook_module():
@@ -165,11 +160,20 @@ def _run_hook(
 
 
 def _assert_blocks(*, output: str) -> str:
+    """Assert a block payload the Codex Stop runtime accepts, and return its reason.
+
+    The allowed-key set is NOT restated here: `validate_stop_output` is the one
+    versioned transcription of the Codex CLI Stop schema, and a second copy in
+    this module is exactly the drift that let a PreToolUse-shaped block payload
+    ship. Every blocking case in this module — malformed marker, stale marker,
+    unregistered producer, and the fail-closed boundary — lands here, so every
+    non-empty stdout this hook produces is contract-validated.
+    """
     assert output.strip(), "expected Stop hook to block"
-    payload = json.loads(output)
-    assert set(payload) <= _CODEX_STOP_ALLOWED_KEYS
+    validated = validate_stop_output(output=output)
+    assert isinstance(validated, Success), f"non-contract Stop output: {validated}"
+    payload = validated.unwrap()
     assert set(payload) == {"decision", "reason"}
-    assert "hookSpecificOutput" not in payload
     assert payload["decision"] == "block"
     reason = payload["reason"]
     assert isinstance(reason, str)

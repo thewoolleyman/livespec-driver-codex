@@ -46,6 +46,9 @@ from pathlib import Path
 from livespec_dev_tooling.install_no_shadow_ledger import (
     CANONICAL_NO_SHADOW_LEDGER_BODY,
 )
+from returns.result import Success
+
+from .codex_stop_output_contract import validate_stop_output
 
 __all__: list[str] = []
 
@@ -129,10 +132,19 @@ def _run_hook_subprocess(*, stdin: str) -> subprocess.CompletedProcess[str]:
 
 
 def _assert_warns(*, result: HookResult | subprocess.CompletedProcess[str]) -> str:
-    """Assert the hook emitted a systemMessage warning and exited 0; return it."""
+    """Assert the hook emitted a systemMessage warning and exited 0; return it.
+
+    The payload goes through `validate_stop_output` rather than a bare
+    `json.loads`: parseability was exactly what the pre-incident assertions
+    checked, and a payload can parse while carrying a field the Codex Stop
+    runtime rejects. Every WARN case in this module lands here, so every
+    non-empty stdout this hook produces is contract-validated.
+    """
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip(), "expected a systemMessage payload on stdout"
-    payload = json.loads(result.stdout)
+    validated = validate_stop_output(output=result.stdout)
+    assert isinstance(validated, Success), f"non-contract Stop output: {validated}"
+    payload = validated.unwrap()
     message = payload["systemMessage"]
     assert isinstance(message, str), "systemMessage must be a string"
     assert message, "systemMessage must be non-empty"

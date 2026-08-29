@@ -20,6 +20,10 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 
+from returns.result import Success
+
+from .codex_stop_output_contract import validate_stop_output
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -123,9 +127,19 @@ def _assert_pass(*, result: HookResult) -> None:
 
 
 def _assert_warn(*, result: HookResult) -> str:
+    """Assert a warn-only systemMessage payload that the Codex Stop schema accepts.
+
+    Validation runs through the shared contract helper, not a bare `json.loads`:
+    a payload can parse and still carry a field the Stop runtime rejects, which
+    is how a PreToolUse-shaped block payload once reached a release. Every WARN
+    case in this module lands here, so every non-empty stdout this hook produces
+    is contract-validated.
+    """
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip(), "expected warn-only systemMessage"
-    payload = json.loads(result.stdout)
+    validated = validate_stop_output(output=result.stdout)
+    assert isinstance(validated, Success), f"non-contract Stop output: {validated}"
+    payload = validated.unwrap()
     assert "decision" not in payload
     message = payload["systemMessage"]
     assert isinstance(message, str)
