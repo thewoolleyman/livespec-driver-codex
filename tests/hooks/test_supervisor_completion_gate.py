@@ -23,6 +23,14 @@ _HOOK_SCRIPT = _HOOKS_DIR / "supervisor_completion_gate.py"
 _HOOKS_JSON = _HOOKS_DIR / "hooks.json"
 _PLUGIN_SOURCE = _REPO_ROOT / "livespec"
 _PLUGIN_MANIFEST = _PLUGIN_SOURCE / ".codex-plugin" / "plugin.json"
+_CODEX_STOP_ALLOWED_KEYS = {
+    "continue",
+    "decision",
+    "reason",
+    "stopReason",
+    "suppressOutput",
+    "systemMessage",
+}
 
 
 def _hook_module():
@@ -159,9 +167,13 @@ def _run_hook(
 def _assert_blocks(*, output: str) -> str:
     assert output.strip(), "expected Stop hook to block"
     payload = json.loads(output)
+    assert set(payload) <= _CODEX_STOP_ALLOWED_KEYS
+    assert set(payload) == {"decision", "reason"}
+    assert "hookSpecificOutput" not in payload
     assert payload["decision"] == "block"
     reason = payload["reason"]
     assert isinstance(reason, str)
+    assert reason
     assert "supervisor completion gate" in reason
     return reason
 
