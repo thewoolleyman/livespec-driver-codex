@@ -18,6 +18,10 @@ Contract under test:
 
 - Every hook declared in the shipped `hooks/hooks.json` STARTS cleanly under
   the install layout: exit 0, no traceback on stderr, on a benign payload.
+- Every declared `Stop` hook's NON-EMPTY payload, produced from the copied tree,
+  satisfies the versioned Codex Stop-output contract. A clean start proves only
+  that the hook runs; the payload it hands the Stop runtime is a separate
+  contract, and it is the one an incident already broke.
 - The footgun guard returns the SAME verdicts under the install layout as it
   does in-repo, over a corpus of tmux-fleet-kill hazards and lookalikes.
 
@@ -32,9 +36,14 @@ import json
 import shutil
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
+from returns.result import Success
+
+from .codex_stop_output_contract import validate_stop_output
+from .codex_stop_scenarios import STOP_SCENARIO_LABELS, StopScenario, build_stop_scenarios
 
 __all__: list[str] = []
 
@@ -216,13 +225,24 @@ def install_cache_hooks(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return destination / "hooks"
 
 
-def _run_installed_hook(*, hooks_dir: Path, script: str, stdin: str) -> subprocess.CompletedProcess:
+def _run_installed_hook(
+    *,
+    hooks_dir: Path,
+    script: str,
+    stdin: str,
+    cwd: Path | None = None,
+    env_overrides: Mapping[str, str] | None = None,
+) -> subprocess.CompletedProcess:
     """Run one installed hook as Codex does: bare interpreter, no repo on any path.
 
     `-E` makes the interpreter ignore PYTHONPATH (and every other PYTHON* env
     var), and the environment passed in carries no repo path at all, so the
     only importable locations are the interpreter's own stdlib and the script's
     own directory inside the install cache.
+
+    `cwd` and `env_overrides` let a payload scenario point a hook at its own
+    fixture project; the defaults keep the benign-start runs anchored in the
+    install cache with nothing for a hook to find.
     """
     return subprocess.run(
         [sys.executable, "-E", str(hooks_dir / script)],
@@ -230,11 +250,12 @@ def _run_installed_hook(*, hooks_dir: Path, script: str, stdin: str) -> subproce
         capture_output=True,
         text=True,
         timeout=30,
-        cwd=str(hooks_dir.parent),
+        cwd=str(cwd if cwd is not None else hooks_dir.parent),
         env={
             "PATH": "/usr/local/bin:/usr/bin:/bin",
             "HOME": str(hooks_dir.parent),
             "LIVESPEC_CODEX_BACKGROUND_MEMORY_DB": str(hooks_dir.parent / "absent.sqlite"),
+            **(env_overrides or {}),
         },
         check=False,
     )
@@ -263,6 +284,37 @@ def test_every_shipped_hook_starts_cleanly_under_the_install_layout(
         "Traceback" not in result.stderr
     ), f"{script} raised under the install layout:\n{result.stderr}"
     assert result.returncode == 0, f"{script} exited {result.returncode}:\n{result.stderr}"
+
+
+@pytest.fixture(scope="module")
+def stop_scenarios(tmp_path_factory: pytest.TempPathFactory) -> dict[str, StopScenario]:
+    """Fixture projects that drive each declared Stop hook to a non-empty payload."""
+    return build_stop_scenarios(root=tmp_path_factory.mktemp("codex-stop-scenarios"))
+
+
+@pytest.mark.parametrize("label", STOP_SCENARIO_LABELS)
+def test_stop_payloads_from_the_copied_plugin_satisfy_the_codex_contract(
+    install_cache_hooks: Path,
+    stop_scenarios: dict[str, StopScenario],
+    label: str,
+) -> None:
+    """The payload the COPIED hook hands the Stop runtime, not just its exit code."""
+    scenario = stop_scenarios[label]
+
+    result = _run_installed_hook(
+        hooks_dir=install_cache_hooks,
+        script=scenario.script,
+        stdin=scenario.stdin,
+        cwd=scenario.cwd,
+        env_overrides=scenario.env,
+    )
+
+    assert "Traceback" not in result.stderr, f"{label} raised:\n{result.stderr}"
+    assert result.returncode == 0, f"{label} exited {result.returncode}:\n{result.stderr}"
+    assert result.stdout.strip(), f"{label}: expected a non-empty Stop payload"
+    validated = validate_stop_output(output=result.stdout)
+    assert isinstance(validated, Success), f"{label}: {validated}"
+    assert set(validated.unwrap()) == set(scenario.expected_keys)
 
 
 @pytest.mark.parametrize(("label", "command", "expected"), _GUARD_CORPUS)
