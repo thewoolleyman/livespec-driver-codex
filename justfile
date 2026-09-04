@@ -516,3 +516,6 @@ check-required-role-keys-declared:
 
 check-hook-trees-not-io-exempt:
     uv run python -m livespec_dev_tooling.checks.hook_trees_not_io_exempt
+
+check-ci-gate-parity:
+    uv run python -m livespec_dev_tooling.checks.ci_gate_parity
