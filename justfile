@@ -129,9 +129,16 @@ ensure-codex-plugins:
 check:
     bash dev-tooling/check-aggregate.sh
 
-# Factory-branch guard: implementation branches must not carry workflow edits.
-# Maintainer-side workflow diffs are reported out-of-band instead of landing
-# from Fabro slices.
+# Factory-branch workflow-edit guard: delegates to the worktree pack's single
+# canonical body `dev-tooling/check-no-workflow-edits.sh` (the seventh pack
+# member, installed byte-identically from livespec-dev-tooling by
+# `just install-worktree-pack` and byte-verified by the commit-refuse-hook
+# check; livespec-dev-tooling-fy02). This repo carries NO copy of the guard
+# and NO escape: the former tracked body and its `LIVESPEC_FACTORY_BASE_REF`
+# base-ref override were retired with fy02. A `.github/workflows/` change is
+# refused unless a human has authorized it through the ledger-verified
+# declaration path the body itself describes. Repo-local `check` member;
+# never mirrored into CI (CI is not a venue for this guard).
 check-no-workflow-edits:
     bash dev-tooling/check-no-workflow-edits.sh
 
