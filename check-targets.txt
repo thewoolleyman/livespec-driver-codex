@@ -17,6 +17,7 @@ check-fleet-marketplace-relative-sources
 check-global-writes
 check-handoff-dispatch-routing
 check-heading-coverage
+check-heading-coverage-debt-register
 check-hook-trees-not-io-exempt
 check-keyword-only-args
 check-local-memory-drift-audit
@@ -40,6 +41,7 @@ check-pbt-coverage-pure-modules
 check-per-file-coverage
 check-plan-anchor-declared
 check-plan-epic-parity
+check-plan-no-live-handoff-file
 check-plan-no-tombstone
 check-plan-record-conformance
 check-plugin-resolution
