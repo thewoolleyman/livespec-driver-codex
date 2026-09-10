@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.5](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.4...v0.7.5) (2026-09-10)
+
+
+### Bug Fixes
+
+* declare canonical git author policy ([d0f4119](https://github.com/thewoolleyman/livespec-driver-codex/commit/d0f4119436f4b37dc79b5854a01706e564b08ee9))
+
 ## [0.7.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.3...v0.7.4) (2026-08-29)
 
 
