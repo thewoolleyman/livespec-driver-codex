@@ -1,0 +1,33 @@
+# release-lane-watch.yml — this repo's shim onto the shared release-lane watcher.
+#
+# Authority: livespec plan/fleet-delivery-lane-visibility (epic livespec-n33rwg),
+#   carrier livespec-n33rwg.5; local tracking item livespec-driver-codex-5k0.
+#   Delegates to livespec-dev-tooling's reusable-release-lane-watch.yml, which
+#   surveys each named lane and reconciles ONE durable `release-lane-red` issue
+#   for this repo (opening/updating it while a lane is failing or unmeasurable,
+#   closing it on recovery). That issue is READ by needs-attention-internal
+#   Signal 9 Shape C.
+#
+# WATCHED SET — release-please.yml, this repo's release-cutting lane: if it fails
+#   persistently, releases stop and downstream pins go stale, which Signal 9's
+#   point-in-time view cannot see in depth.
+#
+# NO `secrets: inherit`: the watcher runs on github.token with actions:read and
+# issues:write and needs no App secrets.
+
+name: Release lane watch
+
+on:
+  schedule:
+    - cron: '41 8 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  watch:
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    uses: thewoolleyman/livespec-dev-tooling/.github/workflows/reusable-release-lane-watch.yml@v1.80.0
+    with:
+      workflows: "release-please.yml"

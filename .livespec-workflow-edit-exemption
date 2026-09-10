@@ -1,0 +1,2 @@
+work_item=livespec-driver-codex-5k0
+reason=Adds .github/workflows/release-lane-watch.yml, this repo's shim onto livespec-dev-tooling reusable-release-lane-watch.yml (pinned v1.80.0), watching release-please.yml (this repo's release-cutting lane) and granting issues:write so the shared watcher reconciles this repo's durable release-lane-red issue that livespec Signal 9 Shape C reads. Fan-out of plan carrier livespec-n33rwg.5; maintainer authorized this workflow-only shim on 2026-09-09; no product code changes.
