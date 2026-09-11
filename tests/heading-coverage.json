@@ -123,9 +123,9 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Forbidden patterns",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_real_codex_tree_passes_structural_check",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "The forbidden patterns enumerated here (uv run / literal .claude-plugin path / Driver plugin-root placeholder in a fenced wrapper; /livespec: slash form, installed_plugins.json, 'Claude Code Driver', livespec-driver-claude in a binding body; extra/missing skill dir; hooks.json top-level description) are exactly what the structural check convicts. This test asserts the shipped tree carries none of them; the sibling rejection tests in the same module (test_structural_check_rejects_*) each witness that the corresponding forbidden pattern is detected."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -274,17 +274,17 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: footgun guard denies a never-legitimate command",
-    "test": "TODO",
+    "test": "tests.integration.test_footgun_guard_scenarios.test_footgun_guard_denies_a_never_legitimate_command",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier (tests.integration allowlisted): drives the plugin-shipped PreToolUse footgun guard via its hook I/O contract and asserts a never-legitimate command (git commit --no-verify) yields a 'deny' decision naming --no-verify."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: footgun guard fails open on the dangerous string as data",
-    "test": "TODO",
+    "test": "tests.integration.test_footgun_guard_scenarios.test_footgun_guard_fails_open_on_the_dangerous_string_as_data",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier: parametrized over the dangerous string as DATA (echo, git config --get read) plus empty / non-JSON / non-Bash stdin, asserting the guard emits no deny decision and exits 0 (fail-open)."
   },
   {
     "spec_root": "SPECIFICATION",
