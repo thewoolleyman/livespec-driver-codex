@@ -27,9 +27,9 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "spec.md",
     "heading": "## Public surface",
-    "test": "TODO",
+    "test": "tests.e2e-cli.test_cli_e2e.test_coverage_gate_passes_for_in_repo_skills_and_fixtures",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "The Driver's public surface is the eight livespec:* skill bindings; the e2e harness asserts the discovered skill set equals exactly those eight, so this heading is witnessed by the same integration test."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -43,17 +43,17 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Plugin manifest and marketplace",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_marketplace_description_drift",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "The Codex manifest and marketplace catalog must agree (plugin.json is the source of truth); this control-armed test asserts the structural check convicts a drifted marketplace/plugin.json description."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Skill-binding set",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_extra_or_missing_skill_directory",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "The binding set is exactly the eight EXPECTED_SKILLS; this control-armed test asserts the structural check convicts both a missing and an extra skill directory, enforcing the set is neither short nor over."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -67,17 +67,17 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Fenced-invocation discipline",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_skill_md_invoking_uv_run",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Fenced wrapper invocations MUST resolve via $LIVESPEC_CORE_ROOT and MUST NOT use 'uv run'; this control-armed test asserts the structural check convicts a fenced 'uv run' wrapper line."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Hook bundle",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_missing_hook_guard",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "The shipped hook bundle MUST include livespec/hooks/livespec_footgun_guard.py wired into hooks.json; this control-armed test asserts the structural check convicts a bundle missing the guard script."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -99,9 +99,9 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Binding constraints",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_binding_body_carrying_a_claude_marker",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Codex binding bodies MUST NOT carry Claude-Driver markers; this control-armed test asserts the structural check convicts a body carrying the 'Claude Code Driver' phrase."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -115,9 +115,9 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "constraints.md",
     "heading": "## Structural-check constraints",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_real_codex_tree_passes_structural_check",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "Witnesses that the shipped Codex plugin tree satisfies the whole structural gate (codex_profile_violations returns no violations); the sibling rejection tests in the same module witness that each constrained defect is convicted."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -147,9 +147,9 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Task-runner discipline",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_task_runner_discipline_bans_direct_tool_invocation",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. This Driver's spec H2s are mechanically guarded by check-plugin-structure, the footgun-guard hook unit tests (tests/hooks/), and the e2e-cli harness (tests/e2e-cli/) rather than per-heading unit tests; replace TODO with a specific pytest node ID via a governed propose-change/revise resulting_files[] update when one is authored."
+    "reason": "lefthook.yml and CI YAML MUST route dev-tool calls through 'just <target>'; this control-armed test asserts check-no-direct-tool-invocation passes on this repo and convicts a fabricated lefthook hook shelling out to pytest directly."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -195,9 +195,9 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: installed Driver exposes the eight livespec:* commands",
-    "test": "TODO",
+    "test": "tests.e2e-cli.test_cli_e2e.test_coverage_gate_passes_for_in_repo_skills_and_fixtures",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier (tests.e2e-cli allowlisted): the real e2e harness discovers the in-repo Codex skills and asserts the discovered set equals exactly the eight livespec:* skills (seed, propose-change, critique, revise, doctor, prune-history, next, help)."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -234,41 +234,41 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: structural check rejects a SKILL.md invoking uv run",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_skill_md_invoking_uv_run",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier (tests.integration allowlisted): copies the shipped Codex tree, asserts codex_profile_violations is clean, then injects a fenced wrapper line using 'uv run' and asserts the check convicts it. Control-armed."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: structural check rejects the Driver's own plugin-root placeholder for core scripts",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_driver_plugin_root_placeholder",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier: injects a fenced wrapper line using the Driver's own plugin-root placeholder into the shipped tree and asserts the structural check convicts it; the pristine-copy pass is the control arm."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: structural check rejects an extra or missing skill directory",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_extra_or_missing_skill_directory",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier: removes one of the eight skill dirs and adds an unexpected one, asserting both the missing- and unexpected-directory violations fire against the otherwise-clean shipped tree."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: structural check rejects a binding body carrying a Claude marker",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_binding_body_carrying_a_claude_marker",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier: appends the banned 'Claude Code Driver' marker to a SKILL.md body and asserts the structural check convicts the codex binding body; pristine copy passes clean."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: marketplace description drift is rejected",
-    "test": "TODO",
+    "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_marketplace_description_drift",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Seeded when check-heading-coverage was wired into this Codex binding repo. Per the scenarios.md rule the eventual mapped test MUST be integration-tier or above; until one is authored this behavior is exercised by the e2e-cli consumer harness (tests/e2e-cli/, the top-of-pyramid tier) and the structural / hook gates. Replace TODO with the integration-tier test node ID via a governed revise."
+    "reason": "Integration-tier: drifts the plugin.json description from the marketplace catalog and asserts the structural check convicts the mismatch; plugin.json is the source of truth."
   },
   {
     "spec_root": "SPECIFICATION",
