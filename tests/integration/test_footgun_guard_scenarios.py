@@ -79,3 +79,29 @@ def test_footgun_guard_fails_open_on_the_dangerous_string_as_data(stdin: str) ->
     rc, out = _run_guard(stdin=stdin)
     assert rc == 0, out
     assert out.strip() == "", f"expected silent fail-open pass-through; got {out!r}"
+
+
+def test_footgun_guard_denies_a_file_write_at_a_primary_checkout(tmp_path: Path) -> None:
+    """Witness scenarios.md "commit at the primary checkout is refused".
+
+    The guard's fast early-warning arm denies a shell edit that would WRITE
+    FILES at a livespec PRIMARY checkout (a repo whose
+    `git config --get livespec.primaryPath` equals its own worktree root),
+    directing the contributor to a worktree. The control arm is the sibling
+    fail-open suite above: the same shell-edit machinery passes silently when
+    the target is not a primary checkout.
+    """
+    import subprocess
+
+    def _git(*args: str) -> None:
+        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
+
+    _git("init")
+    _git("config", "livespec.primaryPath", str(tmp_path))
+    target = tmp_path / "tracked.txt"
+
+    rc, out = _run_guard(stdin=_bash_input(command=f"echo x > {target}"))
+    assert rc == 0, out
+    decision = json.loads(out)["hookSpecificOutput"]
+    assert decision["permissionDecision"] == "deny"
+    assert "worktree" in decision["permissionDecisionReason"].lower()
