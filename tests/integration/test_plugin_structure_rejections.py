@@ -130,3 +130,42 @@ def test_task_runner_discipline_bans_direct_tool_invocation(monkeypatch, tmp_pat
     )
     monkeypatch.chdir(violation)
     assert no_direct_tool_invocation.main() == 1
+
+
+def test_structural_check_rejects_binding_missing_the_core_resolution_snippet(
+    codex_tree: Path,
+) -> None:
+    """Witness contracts.md "Core-root resolution" + the resolution scenarios.
+
+    Every binding MUST carry the Codex core-resolution invocation
+    `codex plugin list --json -m livespec` — the installed-cache step of the
+    ordered resolution algorithm the three "core-root resolution" scenarios
+    describe. The pristine tree passing (control arm) proves every shipped
+    binding carries it; stripping it from one binding drives the structural
+    check to conviction.
+    """
+    skill_md = codex_tree / "livespec" / "skills" / "next" / "SKILL.md"
+    body = skill_md.read_text(encoding="utf-8")
+    assert "codex plugin list --json -m livespec" in body
+    skill_md.write_text(
+        body.replace("codex plugin list --json -m livespec", "codex plugin list"),
+        encoding="utf-8",
+    )
+    assert any("core-resolution invocation" in v for v in _violations(root=codex_tree))
+
+
+def test_structural_check_rejects_empty_plugin_version(codex_tree: Path) -> None:
+    """Witness contracts.md "Versioning" + non-functional-requirements.md "Build and release".
+
+    `plugin.json.version` is the shipped Driver's single source of truth and
+    MUST be non-empty (release-please auto-manages it). The pristine tree
+    passing is the control arm; blanking the version drives the structural
+    check to conviction.
+    """
+    import json
+
+    manifest = codex_tree / "livespec" / ".codex-plugin" / "plugin.json"
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["version"] = ""
+    manifest.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    assert any("version MUST be non-empty" in v for v in _violations(root=codex_tree))
