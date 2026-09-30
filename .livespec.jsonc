@@ -203,6 +203,24 @@
     // that surface round-trips the file through json.dumps and silently strips
     // every comment here while reporting green — tracked as bd-ib-lmi5.
     "dispatcher": {
+      // Factory-sandbox toolchain premise: the version-manager arm of
+      // `dispatcher.prepare_toolchain`. The Dispatcher resolves this argv ONCE
+      // and renders it into the workflow's `inputs.prepare_toolchain_mise`
+      // step, which runs BEFORE `uv sync --all-groups` in the sandbox prepare
+      // phase. Without it the fresh Fabro clone's `.mise.toml` is untrusted, so
+      // `uv sync` aborts with "mise ERROR ... are not trusted. Trust them with
+      // `mise trust`." and every dispatch dies at setup (evidence run
+      // 01M3RSVHJE0GQQBXTGFSJ1F39W, workflow_error; work-item livespec-driver-codex-tuwox2). Mirrors
+      // livespec-driver-claude PR #715 (yki4pv). GITHUB_TOKEN / GH_TOKEN /
+      // GITHUB_API_TOKEN are scrubbed for THIS command only so mise's aqua
+      // backend fetches release metadata anonymously instead of draining the
+      // factory's shared App-installation rate-limit bucket. Only the
+      // version-manager arm is declared: lefthook is a mise binary here, and the
+      // conformance_hook_install prepare step installs the canonical
+      // commit-refuse hook that subsumes `lefthook install`.
+      "prepare_toolchain": {
+        "mise": ["sh", "-c", "mise trust && env -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_API_TOKEN mise install --quiet"]
+      },
       "auto_approve_ready": true,
       "acceptance_mode": "ai-only",
       "wip_cap": 10,
