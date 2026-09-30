@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.6...v0.8.0) (2026-09-30)
+
+
+### Features
+
+* **hooks:** intercept a raw bd create with a PreToolUse deny ([97e9026](https://github.com/thewoolleyman/livespec-driver-codex/commit/97e9026cb25fa01ead8fba35c96c3ba985768ad3))
+* **hooks:** route the denied bd create to capture-work-item ([16afff4](https://github.com/thewoolleyman/livespec-driver-codex/commit/16afff4bb73cfedc4686d7225b24779884f977c9))
+* **hooks:** tokenize the command so quoted bd create data passes through ([cede7a9](https://github.com/thewoolleyman/livespec-driver-codex/commit/cede7a907299ffe6f3a61718e36c64ff681fa242))
+
 ## [0.7.6](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.5...v0.7.6) (2026-09-30)
 
 
