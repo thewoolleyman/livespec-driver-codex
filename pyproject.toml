@@ -274,6 +274,7 @@ subprocess_spawn_allowlist = [
 # coverage is handled by config here, never by editing the shared body.
 supervisor_entry_files = [
     "livespec/hooks/block_auto_memory.py",
+    "livespec/hooks/block_raw_bd_create.py",
     "livespec/hooks/codex_background_memory_audit.py",
     "livespec/hooks/livespec_footgun_guard.py",
     "livespec/hooks/no_shadow_ledger.py",
@@ -303,6 +304,7 @@ skip_covered = false
 include = [
     "livespec/hooks/_supervisor_producers.py",
     "livespec/hooks/block_auto_memory.py",
+    "livespec/hooks/block_raw_bd_create.py",
     "livespec/hooks/codex_background_memory_audit.py",
     "livespec/hooks/livespec_footgun_guard.py",
     "livespec/hooks/no_shadow_ledger.py",
