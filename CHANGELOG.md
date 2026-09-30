@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.6](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.5...v0.7.6) (2026-09-30)
+
+
+### Bug Fixes
+
+* **dispatcher:** declare prepare_toolchain.mise so sandbox setup trusts .mise.toml (livespec-driver-codex-26mutz) ([d90fc12](https://github.com/thewoolleyman/livespec-driver-codex/commit/d90fc12f813c1bc5bec2df89bb3baa0e1584d66c))
+
 ## [0.7.5](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.4...v0.7.5) (2026-09-10)
 
 
