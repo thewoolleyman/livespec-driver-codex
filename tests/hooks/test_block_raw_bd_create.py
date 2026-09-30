@@ -140,6 +140,29 @@ def test_hook_script_is_shipped() -> None:
     assert _HOOK_SCRIPT.is_file()
 
 
+def test_hooks_json_registers_the_guard_as_a_pretooluse_bash_hook() -> None:
+    """A shipped body Codex never invokes prevents nothing.
+
+    `hooks.json` is the ONLY per-runtime adapter for this otherwise
+    byte-identical neutral body, so the registration — PreToolUse, matcher
+    `Bash`, beside `livespec_footgun_guard.py` and under the same timeout — is
+    what makes the redirect real rather than merely present on disk.
+    """
+    declared = json.loads((_HOOKS_DIR / "hooks.json").read_text(encoding="utf-8"))
+    bash_entries = [
+        entry for entry in declared["hooks"]["PreToolUse"] if entry.get("matcher") == "Bash"
+    ]
+    registered = [inner for entry in bash_entries for inner in entry["hooks"]]
+    by_script = {inner["command"].rsplit("/", 1)[-1].rstrip('"'): inner for inner in registered}
+
+    assert "block_raw_bd_create.py" in by_script, "hooks.json never invokes the redirect"
+    assert by_script["block_raw_bd_create.py"]["type"] == "command"
+    assert (
+        by_script["block_raw_bd_create.py"]["timeout"]
+        == by_script["livespec_footgun_guard.py"]["timeout"]
+    )
+
+
 @pytest.mark.parametrize("command", _DENY_COMMANDS)
 def test_denies_raw_bd_create_in_governed_project(
     monkeypatch, capsys, tmp_path: Path, command: str
