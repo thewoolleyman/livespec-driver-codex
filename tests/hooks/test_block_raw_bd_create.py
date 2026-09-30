@@ -55,6 +55,43 @@ _DENY_COMMANDS = (
     "bd create",
     "bd create -t 'PreToolUse guard on raw bd create'",
     "bd create --type task --priority 1 -t x",
+    "mise exec -- bd create -t x",
+    "env -i bd create -t x",
+    "/usr/local/bin/bd create -t x",
+    "./bd create -t x",
+    "bd -C /data/projects/livespec-driver-codex create -t x",
+    "with-livespec-env.sh -- bd -C /data/projects/x create -t y",
+    "cd /tmp && bd create -t x",
+    "bd create -t 'title; with a semicolon'",
+    "timeout 30 bd create -t x",
+    "cd /tmp\nbd create -t x",
+    # A quoted title spanning line breaks: the per-line split cannot tokenize
+    # either half, so the whole command is judged instead.
+    "bd create -t 'a title spanning\ntwo lines'",
+)
+
+# Invocations that must reach the shell untouched: other `bd` subcommands,
+# `bd create` appearing only as quoted DATA, and ordinary unrelated commands.
+_ALLOW_COMMANDS = (
+    "bd list --status all",
+    "bd -C /data/projects/livespec-driver-codex list --status all",
+    "bd show livespec-driver-codex-tuwox2",
+    "bd update livespec-driver-codex-tuwox2 --status in_progress",
+    "bd close livespec-driver-codex-tuwox2 --reason done",
+    "echo 'bd create -t x'",
+    "grep -rn 'bd create' .",
+    "git commit -m 'route raw bd create to capture-work-item'",
+    "git log --grep='bd create'",
+    "python3 -c \"print('bd create')\"",
+    "bd list && grep -rn create .",
+    "bd close x; echo create",
+    "bd list | grep create",
+    # A LATER LINE of a multi-line command is a separate invocation, not more
+    # arguments to the `bd` on the first one.
+    "bd list --status all\ngrep -rn create .",
+    "bd -C /data/projects/x show tuwox2\n\necho create",
+    "git status --short",
+    "echo 'unterminated",
 )
 
 
@@ -122,6 +159,20 @@ def test_denies_raw_bd_create_in_governed_project(
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert decision["hookSpecificOutput"]["permissionDecisionReason"] == decision["reason"]
     assert "/livespec-orchestrator-beads-fabro:capture-work-item" in decision["reason"]
+
+
+@pytest.mark.parametrize("command", _ALLOW_COMMANDS)
+def test_allows_every_other_bash_invocation(
+    monkeypatch, capsys, tmp_path: Path, command: str
+) -> None:
+    project = _governed_project(root=tmp_path)
+    returncode, stdout = _run(
+        monkeypatch=monkeypatch,
+        capsys=capsys,
+        stdin=_hook_input(command=command),
+        project_dir=project,
+    )
+    _assert_pass_through(returncode=returncode, stdout=stdout)
 
 
 def test_reason_routes_intake_and_cites_the_existing_loud_surfaces(
