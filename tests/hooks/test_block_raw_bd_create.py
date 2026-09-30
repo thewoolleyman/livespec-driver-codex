@@ -121,6 +121,61 @@ def test_denies_raw_bd_create_in_governed_project(
     assert decision["hookSpecificOutput"]["hookEventName"] == "PreToolUse"
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert decision["hookSpecificOutput"]["permissionDecisionReason"] == decision["reason"]
+    assert "/livespec-orchestrator-beads-fabro:capture-work-item" in decision["reason"]
+
+
+def test_reason_routes_intake_and_cites_the_existing_loud_surfaces(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    """The redirect explains the intake failure and points at the two loud surfaces."""
+    project = _governed_project(root=tmp_path)
+    _, stdout = _run(
+        monkeypatch=monkeypatch,
+        capsys=capsys,
+        stdin=_hook_input(command="bd create -t x"),
+        project_dir=project,
+    )
+    decision = json.loads(stdout)
+    reason = decision["reason"]
+    assert "/livespec-orchestrator-beads-fabro:capture-work-item" in reason
+    assert "Definition-of-Ready" in reason
+    assert "work_item_status_vocabulary" in reason
+    assert "untriaged_backlog_items" in reason
+    assert decision["hookSpecificOutput"]["permissionDecisionReason"] == reason
+
+
+def test_reason_names_the_configured_plugin_namespace(monkeypatch, capsys, tmp_path: Path) -> None:
+    project = _governed_project(root=tmp_path, plugin="livespec-impl-plaintext")
+    _, stdout = _run(
+        monkeypatch=monkeypatch,
+        capsys=capsys,
+        stdin=_hook_input(command="bd create -t x"),
+        project_dir=project,
+    )
+    decision = json.loads(stdout)
+    assert "/livespec-impl-plaintext:capture-work-item" in decision["reason"]
+    assert "/livespec-orchestrator-beads-fabro" not in decision["reason"]
+
+
+def test_passes_through_in_ungoverned_project(monkeypatch, capsys, tmp_path: Path) -> None:
+    returncode, stdout = _run(
+        monkeypatch=monkeypatch,
+        capsys=capsys,
+        stdin=_hook_input(command="bd create -t x"),
+        project_dir=tmp_path,
+    )
+    _assert_pass_through(returncode=returncode, stdout=stdout)
+
+
+def test_passes_through_when_project_dir_unset(monkeypatch, capsys, tmp_path: Path) -> None:
+    _governed_project(root=tmp_path)
+    returncode, stdout = _run(
+        monkeypatch=monkeypatch,
+        capsys=capsys,
+        stdin=_hook_input(command="bd create -t x"),
+        project_dir=None,
+    )
+    _assert_pass_through(returncode=returncode, stdout=stdout)
 
 
 def test_passes_through_for_non_bash_tool(monkeypatch, capsys, tmp_path: Path) -> None:
