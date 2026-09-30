@@ -23,7 +23,9 @@ arithmetic anywhere in the shipped tree, and the hooks run under a bare
 The surface is the small subset of dry-python/returns these hooks actually use,
 behavior-identical to the shim it replaces: `Success` / `Failure` carry a value
 and expose `unwrap()` / `failure()`, each raising `RuntimeError` on the wrong
-track. `IOResult` / `IOSuccess` / `IOFailure` are aliases of the same types,
+track, plus `value_or(default=...)` to collapse either track to a plain value
+at a hook boundary that must never propagate. `IOResult` / `IOSuccess` /
+`IOFailure` are aliases of the same types,
 naming the effectful boundary (stdin reads, subprocess probes, SQLite opens)
 without a separate implementation.
 """
@@ -44,6 +46,7 @@ __all__: list[str] = [
 
 _T = TypeVar("_T")
 _E = TypeVar("_E")
+_D = TypeVar("_D")
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,10 @@ class Success(Generic[_T]):
     def failure(self) -> NoReturn:
         raise RuntimeError("Success has no failure value")
 
+    def value_or(self, *, default: object) -> _T:
+        _ = default
+        return self._inner_value
+
 
 @dataclass(frozen=True)
 class Failure(Generic[_E]):
@@ -70,6 +77,9 @@ class Failure(Generic[_E]):
 
     def failure(self) -> _E:
         return self._inner_value
+
+    def value_or(self, *, default: _D) -> _D:
+        return default
 
 
 Result: TypeAlias = Success[_T] | Failure[_E]
