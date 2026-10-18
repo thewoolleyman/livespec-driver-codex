@@ -13,9 +13,15 @@ Contract under test:
   is livespec-governed (carries `.livespec.jsonc` with `implementation.plugin`).
   The deny reason MUST route the would-be write BY INTENT — naming all four
   destinations — and MUST NOT silently drop durable guidance.
+- DENY, same reason: a Write / Edit / apply_patch into the Claude Code
+  auto-memory layout (`~/.claude/projects/<slug>/memory/*.md`), and a Bash
+  command that writes into either memory directory by redirection, a
+  here-document, `tee`, `sed -i`, `cp`, `mv`, or an inline `python3 -c` write
+  (work item livespec-driver-codex-qi5gkw; livespec core contracts.md v225).
 - PASS (empty stdout, exit 0): non-memories target path; non-governed project;
-  Bash or other tool; no file_path in input; apply_patch with no memories path
-  in patch content; empty or non-JSON stdin.
+  a Bash command that only reads a memory directory or removes a note with
+  `rm`; no file_path in input; apply_patch with no memories path in patch
+  content; empty or non-JSON stdin.
 - FAIL-OPEN (empty stdout, exit 0): any exception, malformed stdin,
   unreadable/absent .livespec.jsonc.
 
@@ -37,6 +43,8 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -48,6 +56,7 @@ if str(_HOOKS_DIR) not in sys.path:
 import block_auto_memory  # noqa: E402 — path-dependent hook import.
 
 _MEMORIES_PATH = Path.home() / ".codex" / "memories"
+_CLAUDE_MEMORY_PATH = Path.home() / ".claude" / "projects" / "-data-projects-demo" / "memory"
 
 _LIVESPEC_JSONC_TEMPLATE = """{
   "template": "livespec",
@@ -226,8 +235,8 @@ def test_pass_write_to_memories_when_not_governed(tmp_path: Path) -> None:
     _assert_pass(result=result)
 
 
-def test_pass_bash_tool_even_to_memories_path(tmp_path: Path) -> None:
-    """Bash tool call (not a file-write tool) → pass even if command touches memories."""
+def test_pass_bash_read_of_memories_path(tmp_path: Path) -> None:
+    """A Bash command that only reads a memory file → pass."""
     project = _governed_project(tmp_path=tmp_path)
     stdin = _write_input(
         tool_name="Bash",
@@ -434,3 +443,139 @@ def test_main_fails_open_when_decision_raises(monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
+
+
+# (label, command) — DATA ONLY, fed to the guard's stdin, never executed.
+_CODEX_SHELL_WRITES = [
+    ("redirect", f"echo note > {_MEMORIES_PATH}/a.md"),
+    ("append-tilde", "echo note >> ~/.codex/memories/a.md"),
+    ("redirect-home-var", 'printf x > "$HOME/.codex/memories/a.md"'),
+    ("tee", f"echo note | tee -a {_MEMORIES_PATH}/a.md"),
+    ("sed-in-place", f"sed -i 's/a/b/' {_MEMORIES_PATH}/a.md"),
+    ("cp", f"cp /tmp/n.md {_MEMORIES_PATH}/n.md"),
+    ("mv", f"mv /tmp/n.md {_MEMORIES_PATH}/"),
+    ("heredoc", f"cat > {_MEMORIES_PATH}/h.md <<'EOF'\nlearned a thing\nEOF"),
+    (
+        "python3-c",
+        f"python3 -c \"open('{_MEMORIES_PATH}/p.md', 'w').write('x')\"",
+    ),
+    ("later-segment", f"cd /tmp && echo ok; echo note > {_MEMORIES_PATH}/a.md"),
+    ("sh-c-payload", f"bash -c 'echo note > {_MEMORIES_PATH}/a.md'"),
+    ("env-prefix", f"env A=1 tee {_MEMORIES_PATH}/a.md"),
+]
+
+_CLAUDE_SHELL_WRITES = [
+    ("redirect", f"echo note > {_CLAUDE_MEMORY_PATH}/feedback.md"),
+    ("cp-into-dir", f"cp /tmp/n.md {_CLAUDE_MEMORY_PATH}/"),
+    ("tee", f"tee {_CLAUDE_MEMORY_PATH}/MEMORY.md < /tmp/index"),
+]
+
+_SHELL_READS_AND_REMOVALS = [
+    ("cat", f"cat {_MEMORIES_PATH}/a.md"),
+    ("grep", f"grep -rn rule {_CLAUDE_MEMORY_PATH}"),
+    ("ls", "ls ~/.codex/memories/"),
+    ("head", f"head -5 {_CLAUDE_MEMORY_PATH}/MEMORY.md"),
+    ("find", f"find {_MEMORIES_PATH} -name '*.md'"),
+    ("rm", f"rm {_CLAUDE_MEMORY_PATH}/stale.md {_MEMORIES_PATH}/old.md"),
+    ("copy-out", f"cp {_MEMORIES_PATH}/a.md /tmp/a.md"),
+    ("redirect-elsewhere", f"cat {_MEMORIES_PATH}/a.md > /tmp/a.md"),
+]
+
+
+def _bash_input(*, command: str) -> str:
+    return _write_input(tool_name="Bash", tool_input={"command": command})
+
+
+def _reason_for(*, stdin: str, project: Path) -> str:
+    payload = _assert_deny(result=_run_guard(stdin=stdin, project_dir=str(project)))
+    reason = payload["hookSpecificOutput"]["permissionDecisionReason"]
+    assert isinstance(reason, str)
+    return reason
+
+
+@pytest.mark.parametrize(("label", "command"), _CODEX_SHELL_WRITES)
+def test_deny_bash_write_into_codex_memories_with_the_file_tool_reason(
+    tmp_path: Path, label: str, command: str
+) -> None:
+    """A shell write into ~/.codex/memories/ is refused with the intent-routing reason."""
+    project = _governed_project(tmp_path=tmp_path)
+    file_tool_reason = _reason_for(
+        stdin=_write_input(
+            tool_name="Write", tool_input={"file_path": str(_MEMORIES_PATH / "a.md")}
+        ),
+        project=project,
+    )
+    reason = _reason_for(stdin=_bash_input(command=command), project=project)
+    assert reason == file_tool_reason, label
+    assert "capture-work-item" in reason
+    assert "/livespec:propose-change" in reason
+    assert ".ai/<topic>.md" in reason
+
+
+@pytest.mark.parametrize(("label", "command"), _CLAUDE_SHELL_WRITES)
+def test_deny_bash_write_into_claude_memory_dir_with_the_same_reason(
+    tmp_path: Path, label: str, command: str
+) -> None:
+    """A shell write into a Claude Code memory directory is refused, same reason."""
+    project = _governed_project(tmp_path=tmp_path)
+    codex_reason = _reason_for(
+        stdin=_bash_input(command=f"echo x > {_MEMORIES_PATH}/a.md"), project=project
+    )
+    assert _reason_for(stdin=_bash_input(command=command), project=project) == codex_reason, label
+
+
+@pytest.mark.parametrize("tool_name", ["Write", "Edit"])
+def test_deny_file_tool_write_into_claude_memory_layout(tmp_path: Path, tool_name: str) -> None:
+    project = _governed_project(tmp_path=tmp_path)
+    stdin = _write_input(
+        tool_name=tool_name, tool_input={"file_path": str(_CLAUDE_MEMORY_PATH / "user_role.md")}
+    )
+    _assert_deny(result=_run_guard(stdin=stdin, project_dir=str(project)))
+
+
+def test_deny_apply_patch_into_claude_memory_layout(tmp_path: Path) -> None:
+    project = _governed_project(tmp_path=tmp_path)
+    patch = f"*** Begin Patch\n*** Add File: {_CLAUDE_MEMORY_PATH}/n.md\n+x\n*** End Patch\n"
+    stdin = _write_input(tool_name="apply_patch", tool_input={"input": patch})
+    _assert_deny(result=_run_guard(stdin=stdin, project_dir=str(project)))
+
+
+@pytest.mark.parametrize(("label", "command"), _SHELL_READS_AND_REMOVALS)
+def test_pass_bash_read_or_rm_of_a_memory_directory(
+    tmp_path: Path, label: str, command: str
+) -> None:
+    """Reading a memory directory or removing a note with rm is never refused."""
+    project = _governed_project(tmp_path=tmp_path)
+    result = _run_guard(stdin=_bash_input(command=command), project_dir=str(project))
+    assert result.returncode == 0, label
+    assert result.stdout.strip() == "", f"{label}: expected pass-through, got {result.stdout!r}"
+
+
+def test_pass_bash_memory_write_when_not_governed(tmp_path: Path) -> None:
+    command = f"echo note > {_MEMORIES_PATH}/a.md"
+    _assert_pass(result=_run_guard(stdin=_bash_input(command=command), project_dir=str(tmp_path)))
+
+
+def test_subprocess_smoke_denies_bash_write_into_memories_when_governed(tmp_path: Path) -> None:
+    """The shipped script judges a Bash payload over the real stdin/stdout protocol."""
+    project = _governed_project(tmp_path=tmp_path)
+    stdin = _bash_input(command=f"echo note | tee {_MEMORIES_PATH}/smoke.md")
+    _assert_deny(result=_run_guard_subprocess(stdin=stdin, project_dir=str(project)))
+
+
+def test_hooks_json_registers_the_guard_on_bash() -> None:
+    """A body Codex never invokes for shell commands refuses nothing."""
+    declared = json.loads((_HOOKS_DIR / "hooks.json").read_text(encoding="utf-8"))
+    registered = {
+        entry["matcher"]: [h["command"].rsplit("/", 1)[-1].rstrip('"') for h in entry["hooks"]]
+        for entry in declared["hooks"]["PreToolUse"]
+    }
+    for matcher in ("Bash", "Write", "Edit", "apply_patch"):
+        assert "block_auto_memory.py" in registered[matcher], matcher
+
+
+@pytest.mark.parametrize("tool_input", [None, {}, {"command": ""}, {"command": ["echo"]}])
+def test_pass_bash_payload_without_a_command_string(tmp_path: Path, tool_input: object) -> None:
+    project = _governed_project(tmp_path=tmp_path)
+    stdin = json.dumps({"tool_name": "Bash", "tool_input": tool_input})
+    _assert_pass(result=_run_guard(stdin=stdin, project_dir=str(project)))

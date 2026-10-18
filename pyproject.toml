@@ -302,6 +302,7 @@ fail_under = 100
 show_missing = true
 skip_covered = false
 include = [
+    "livespec/hooks/_memory_shell_writes.py",
     "livespec/hooks/_supervisor_producers.py",
     "livespec/hooks/block_auto_memory.py",
     "livespec/hooks/block_raw_bd_create.py",

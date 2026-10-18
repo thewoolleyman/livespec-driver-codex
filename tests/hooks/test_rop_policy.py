@@ -17,6 +17,7 @@ _HOOK_FILES = [
     _REPO_ROOT / "livespec" / "hooks" / "_footgun_primary_checkout.py",
     _REPO_ROOT / "livespec" / "hooks" / "_footgun_shell.py",
     _REPO_ROOT / "livespec" / "hooks" / "_footgun_tmux.py",
+    _REPO_ROOT / "livespec" / "hooks" / "_memory_shell_writes.py",
 ]
 
 

@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """
-livespec auto-memory-write guard — Codex PreToolUse hook (Write/Edit).
+livespec auto-memory-write guard — Codex PreToolUse hook (Write/Edit/apply_patch/Bash).
 
 Shipped by livespec-driver-codex. Mirrors the Claude Driver's
 block-auto-memory guard for the Codex runtime: in a livespec-governed
-project it intercepts a tool call that would write a file into the Codex
-local-memory store (~/.codex/memories/) — a manual Write or Edit whose
-target file_path resolves under that store — and emits
-permissionDecision: deny with an intent-routing reason.
+project it intercepts a tool call that would write a file into an agent
+memory directory — the Codex local-memory store (~/.codex/memories/) or the
+Claude Code auto-memory layout (~/.claude/projects/<slug>/memory/*.md) —
+and emits permissionDecision: deny with an intent-routing reason. Two routes
+reach it, and both get the SAME reason:
+
+  - a manual Write, Edit or apply_patch whose target path is in such a
+    directory;
+  - a Bash command that `_memory_shell_writes` POSITIVELY identifies as
+    writing into one (redirection, tee, sed -i, cp, mv, an inline
+    `python3 -c` write, ...). Reads and `rm` pass; a destination computed
+    at runtime is a stated limit, not a defect.
 
 KNOWN LIMITATION: Codex's PRIMARY memories are background-generated and
 OUTSIDE the pre_tool_use hook lifecycle; this guard covers only the
-manual-write path through the Write and Edit tools.
+manual-write and shell-write paths.
 
 Governance gate: CLAUDE_PROJECT_DIR env var (set by Claude Code and
 compatible runtimes) is tried first; if absent the hook walks up from
@@ -33,14 +41,16 @@ import re
 import sys
 from pathlib import Path
 
+from _memory_shell_writes import command_writes_memory, is_memory_path
 from _result import Failure, IOFailure, IOResult, IOSuccess, Result, Success
 
 __all__: list[str] = []
 
-_CODEX_MEMORIES = Path.home() / ".codex" / "memories"
-
 # File-write tools whose `tool_input.file_path` names the target file.
 _FILE_WRITE_TOOLS = frozenset({"Write", "Edit"})
+
+# Codex's shell tool, as its PreToolUse hooks name it (`tool_input.command`).
+_SHELL_TOOLS = frozenset({"Bash"})
 
 # Codex's primary file-edit tool. Its target paths live in the V4A patch body
 # as `*** Add/Update/Delete File: <path>` (and `*** Move to: <path>`) markers;
@@ -175,24 +185,40 @@ def _target_file_paths(*, payload: dict[str, object]) -> list[str]:
     return []
 
 
-def _is_under_memories(*, path_str: str) -> bool:
-    """True iff the resolved path is under ~/.codex/memories/."""
-    target = Path(path_str).expanduser().resolve()
-    return target == _CODEX_MEMORIES or _CODEX_MEMORIES in target.parents
+def _shell_command(*, payload: dict[str, object]) -> str | None:
+    """The command string of a Bash tool call, else None."""
+    if payload.get("tool_name", "") not in _SHELL_TOOLS:
+        return None
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    command = tool_input.get("command")
+    if not isinstance(command, str) or not command:
+        return None
+    return command
+
+
+def _writes_memory(*, payload: dict[str, object]) -> bool:
+    """True iff the tool call POSITIVELY writes into an agent memory directory."""
+    command = _shell_command(payload=payload)
+    if command is not None:
+        return command_writes_memory(command=command)
+    return any(is_memory_path(path_str=p) for p in _target_file_paths(payload=payload))
 
 
 def _deny_payload(*, namespace: str) -> str:
     reason = (
-        "This project is livespec-governed. Codex local-memory files "
-        "(~/.codex/memories/) are NOT used here — ephemeral, per-user, and "
-        "invisible to other agents/runtimes. Do NOT silently drop what you were about "
-        "to write; route it by what it IS:\n"
+        "This project is livespec-governed. Agent local-memory files (the Codex "
+        "store ~/.codex/memories/ and the Claude Code layout "
+        "~/.claude/projects/<slug>/memory/) are NOT used here — ephemeral, per-user, "
+        "and invisible to other agents/runtimes. Do NOT silently drop what you were "
+        "about to write; route it by what it IS:\n"
         f"  - Trackable work (task/bug/refactor/follow-up) -> file in the beads ledger "
         f"via /{namespace}:capture-work-item.\n"
         "  - A spec-level rule or behavior -> /livespec:propose-change.\n"
-        "  - Durable agent guidance / a learned preference / a convention -> capture in "
-        "AGENTS.md, or (to avoid bloating AGENTS.md) in a focused instruction file "
-        "that AGENTS.md references and that is loaded progressively/conditionally.\n"
+        "  - Durable agent guidance / a learned preference / a convention -> a short, "
+        "discoverable entry in AGENTS.md pointing at a .ai/<topic>.md file that holds "
+        "the content (or AGENTS.md alone when the guidance is itself short).\n"
         "  - ONLY genuinely session-only, throwaway notes that matter nowhere outside "
         "this session may be dropped."
     )
@@ -229,12 +255,9 @@ def _decision() -> IOResult[str | None, Exception]:
     payload = payload_result.unwrap()
     if payload is None:
         return IOSuccess(None)
-    paths = _target_file_paths(payload=payload)
-    if not paths:
+    if not _writes_memory(payload=payload):
         return IOSuccess(None)
-    if not any(_is_under_memories(path_str=p) for p in paths):
-        return IOSuccess(None)
-    # Positively identified a write into the Codex memory store.
+    # Positively identified a write into an agent memory directory.
     # Gate on governance before denying.
     project_dir = _find_project_dir()
     if project_dir is None:
