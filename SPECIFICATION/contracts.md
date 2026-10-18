@@ -162,27 +162,40 @@ hazard that cannot parse safely is DENIED fail-closed, because Codex
 agents share the host tmux socket namespace and an unscoped default
 socket kill can terminate unrelated agents.
 
-A **PreToolUse** guard on `Write` and `Edit` (`block_auto_memory.py`) that
-intercepts writes to the Codex local-memory store (`~/.codex/memories/`)
-in a livespec-governed project (one whose `.livespec.jsonc` carries a
-non-empty `implementation.plugin`). The deny reason routes the would-be
-write BY INTENT — NOT silently dropping it — naming four durable
-destinations: trackable work to the active impl-plugin's
-`/<plugin>:capture-work-item` skill (namespace resolved dynamically from
-`implementation.plugin`, NEVER hardcoded); a spec-level rule or behavior
-to `/livespec:propose-change`; durable agent guidance / a learned
-preference / a convention to `AGENTS.md` or a focused instruction file
-`AGENTS.md` references (loaded progressively/conditionally); and only
+A **PreToolUse** guard (`block_auto_memory.py`), registered on `Write`,
+`Edit`, `apply_patch` and the shell tool (`Bash`), that refuses every
+write into an agent memory directory — the Codex local-memory store
+(`~/.codex/memories/`) or the Claude Code auto-memory layout
+(`~/.claude/projects/<slug>/memory/*.md`) — in a livespec-governed
+project (one whose `.livespec.jsonc` carries a non-empty
+`implementation.plugin`). For a file tool it acts on a target path under
+either directory; for a shell command it acts only when it POSITIVELY
+identifies a write into one, judging each `;`, `&&`, `||` and pipeline
+segment and the payload of a `sh -c` / `bash -c` / `env` wrapper, and
+recognising at least the write forms livespec core's §"Driver-shipped
+hooks" lists (redirection including a here-document, `tee`, `sed -i`,
+`perl -i`, `cp`, `mv`, `install`, `ln`, `touch`, `truncate`, `dd of=`, an
+inline interpreter write). A command that only reads such a directory,
+or removes a note with `rm`, passes. The deny reason is identical on
+every route and routes the would-be write BY INTENT — NOT silently
+dropping it — naming four durable destinations: trackable work to the
+active impl-plugin's `/<plugin>:capture-work-item` skill (namespace
+resolved dynamically from `implementation.plugin`, NEVER hardcoded); a
+spec-level rule or behavior to `/livespec:propose-change`; durable agent
+guidance / a learned preference / a convention to a short discoverable
+`AGENTS.md` entry pointing at a `.ai/<topic>.md` file holding the
+content, or to `AGENTS.md` alone when the guidance is short; and only
 genuinely session-only, throwaway notes may be dropped. This is the
 Codex-runtime sibling of the Claude Driver's `block-auto-memory` guard;
-it covers the manual-write path only — KNOWN LIMITATION: Codex's
-background-generated primary memories are outside the pre_tool_use hook
-lifecycle, so this guard cannot intercept them. Governance detection:
-`CLAUDE_PROJECT_DIR` env var is tried first, then cwd-walk looking for
-`.livespec.jsonc`. Fail-open: any exception, non-match, or missing
-governance is a silent pass-through, exit 0; the hook denies ONLY when
-it POSITIVELY identifies a governed project and a write into the memory
-store.
+it covers the manual-write and shell-write paths only — KNOWN
+LIMITATION: Codex's background-generated primary memories are outside
+the pre_tool_use hook lifecycle, so this guard cannot intercept them; a
+write whose destination path is computed at runtime is likewise a stated
+limit. Governance detection: `CLAUDE_PROJECT_DIR` env var is tried
+first, then cwd-walk looking for `.livespec.jsonc`. Fail-open: any
+exception, non-match, or missing governance is a silent pass-through,
+exit 0; the hook denies ONLY when it POSITIVELY identifies a governed
+project and a write into an agent memory directory.
 
 A **Stop** hook (`no_shadow_ledger.py`) that WARNS — never blocks — when
 the last assistant turn persisted a PLANNING ARTIFACT (a `*handoff*.md`,
