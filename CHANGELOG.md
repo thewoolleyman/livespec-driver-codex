@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.0...v0.8.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **hooks:** refuse shell writes into an agent memory directory (livespec-driver-codex-qi5gkw) ([dbdc0fc](https://github.com/thewoolleyman/livespec-driver-codex/commit/dbdc0fc06c1c4219b3c93ce604c07e90bb638cab))
+
 ## [0.8.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.7.6...v0.8.0) (2026-09-30)
 
 
