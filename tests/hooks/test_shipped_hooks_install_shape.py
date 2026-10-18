@@ -24,6 +24,9 @@ Contract under test:
   contract, and it is the one an incident already broke.
 - The footgun guard returns the SAME verdicts under the install layout as it
   does in-repo, over a corpus of tmux-fleet-kill hazards and lookalikes.
+- The auto-memory guard's Bash route — which imports the sibling
+  `_memory_shell_writes` classifier — refuses shell writes into a memory
+  directory and passes reads and `rm` under the install layout.
 
 Every command string in the corpus is inert DATA fed to the guard's stdin. The
 guard is a classifier: it reads a payload and prints a verdict. Nothing in this
@@ -330,6 +333,44 @@ def test_footgun_guard_verdicts_under_the_install_layout(
         hooks_dir=install_cache_hooks,
         script="livespec_footgun_guard.py",
         stdin=stdin,
+    )
+
+    assert _verdict(result=result) == expected, f"{label}: wrong verdict under the install layout"
+
+
+# (label, command template, expected verdict). `{home}` is the install-shaped
+# HOME the hook runs under. DATA ONLY — never executed.
+_MEMORY_GUARD_CORPUS = [
+    ("redirect-codex", "echo x > {home}/.codex/memories/a.md", "deny"),
+    ("tee-claude", "tee {home}/.claude/projects/s/memory/a.md", "deny"),
+    ("python3-c", "python3 -c \"open('{home}/.codex/memories/a.md', 'w')\"", "deny"),
+    ("read", "cat {home}/.codex/memories/a.md", "allow"),
+    ("rm", "rm {home}/.claude/projects/s/memory/a.md", "allow"),
+]
+
+
+@pytest.mark.parametrize(("label", "template", "expected"), _MEMORY_GUARD_CORPUS)
+def test_auto_memory_guard_bash_verdicts_under_the_install_layout(
+    install_cache_hooks: Path,
+    tmp_path: Path,
+    label: str,
+    template: str,
+    expected: str,
+) -> None:
+    project = tmp_path / "governed"
+    project.mkdir()
+    (project / ".livespec.jsonc").write_text(
+        json.dumps({"implementation": {"plugin": "livespec-orchestrator-beads-fabro"}}),
+        encoding="utf-8",
+    )
+    command = template.format(home=install_cache_hooks.parent)
+    stdin = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+
+    result = _run_installed_hook(
+        hooks_dir=install_cache_hooks,
+        script="block_auto_memory.py",
+        stdin=stdin,
+        env_overrides={"CLAUDE_PROJECT_DIR": str(project)},
     )
 
     assert _verdict(result=result) == expected, f"{label}: wrong verdict under the install layout"
