@@ -117,6 +117,16 @@ And the deny reason names the correct alternative
 And it exits 0
 ```
 
+## Scenario: auto-memory guard refuses every write route into an agent memory directory
+
+```gherkin
+Given a governed project whose .livespec.jsonc declares an implementation.plugin
+When a Codex agent writes into ~/.codex/memories/ or a Claude Code memory directory through Write, Edit, apply_patch, or a shell command such as a redirect, tee, sed -i, cp or an inline interpreter write
+Then the PreToolUse auto-memory guard emits a hookSpecificOutput.permissionDecision of "deny"
+And the deny reason is identical on every route and routes durable guidance to a short AGENTS.md entry pointing at a .ai/<topic>.md file
+And a shell command that only reads a memory directory, or removes a note with rm, is not denied
+```
+
 ## Scenario: footgun guard fails open on the dangerous string as data
 
 ```gherkin

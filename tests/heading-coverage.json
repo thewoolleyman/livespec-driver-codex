@@ -281,6 +281,14 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: auto-memory guard refuses every write route into an agent memory directory",
+    "test": "tests.integration.test_auto_memory_guard_scenarios.test_auto_memory_guard_refuses_every_write_route",
+    "work_item": "livespec-driver-codex-qi5gkw",
+    "reason": "Integration-tier (tests.integration allowlisted): drives the plugin-shipped auto-memory guard via its hook I/O contract and asserts every write route (Write, Edit, apply_patch, shell redirect/tee/sed -i/cp/inline python) into either memory directory yields one identical 'deny' reason naming AGENTS.md and .ai/<topic>.md; a sibling test asserts reads and rm pass."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: footgun guard fails open on the dangerous string as data",
     "test": "tests.integration.test_footgun_guard_scenarios.test_footgun_guard_fails_open_on_the_dangerous_string_as_data",
     "work_item": "livespec-driver-codex-cea",
