@@ -3,22 +3,40 @@
 Each test asserts a concrete, control-armed fact about THIS repo that a
 spec heading commits to: the three shipped Codex mechanics exist, the
 declared repo layout is present, the enforcement-suite gates are wired,
-the test surfaces exist, the version source-of-truth holds, and the
-heading-coverage check-runner (the mechanical teeth behind spec evolution)
-runs clean here and reddens on an uncovered heading.
+the test surfaces exist, the version source-of-truth holds, the committed
+factory table is registry-backed, and the heading-coverage check-runner (the
+mechanical teeth behind spec evolution) runs clean here and reddens on an
+uncovered heading.
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 from livespec_dev_tooling.checks import heading_coverage
 
+# `.livespec.jsonc` is JSONC — JSON plus `//` and `/* … */` comments, which the
+# committed config really does use — so reading it needs the fleet's vendored
+# comment-stripping shim rather than stdlib `json`. Same vendor-path-aware
+# import the dev-tooling checks themselves use (e.g. `checks/plugin_resolution`).
+_VENDOR_DIR = Path(heading_coverage.__file__).resolve().parent.parent / "_vendor"
+if str(_VENDOR_DIR) not in sys.path:
+    sys.path.insert(0, str(_VENDOR_DIR))
+
+import jsoncomment  # noqa: E402  — vendor-path-aware import after sys.path insert.
+
 __all__: list[str] = []
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _committed_dispatcher() -> dict[str, object]:
+    """The `dispatcher` block of this repo's own committed `.livespec.jsonc`."""
+    config = jsoncomment.loads((_REPO_ROOT / ".livespec.jsonc").read_text(encoding="utf-8"))
+    return config["livespec-orchestrator-beads-fabro"]["dispatcher"]
 
 
 def test_purpose_ships_the_three_codex_mechanics() -> None:
@@ -110,6 +128,26 @@ def test_versioning_plugin_json_is_the_sole_version_source() -> None:
         (_REPO_ROOT / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8")
     )
     assert "version" not in marketplace
+
+
+def test_factory_routing_committed_factories_are_registry_backed() -> None:
+    """constraints.md "Factory routing": no committed factory entry names a machine.
+
+    `dispatcher.factories` carries exactly one entry — `legacy` — which declares
+    `"registry": true` and carries no `server` and no `docker_host` value, so
+    which Fabro server answers to the name is bound only in the fleet gitops
+    inventory's factory registry that each dispatching host renders as
+    `/etc/livespec/fabro-factories.json`. Control-armed: a second entry, a
+    differently-named entry, a missing `registry` flag, or a hostname-bearing
+    `server`/`docker_host` value all fail here.
+    """
+    factories = _committed_dispatcher()["factories"]
+    assert isinstance(factories, dict), factories
+    assert list(factories) == ["legacy"], list(factories)
+    legacy = factories["legacy"]
+    assert legacy.get("registry") is True, legacy
+    assert not legacy.get("server"), legacy
+    assert not legacy.get("docker_host"), legacy
 
 
 def test_spec_evolution_heading_coverage_runs_clean_and_catches_an_uncovered_heading(
