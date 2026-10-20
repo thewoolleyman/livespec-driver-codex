@@ -63,6 +63,14 @@
   "template": "livespec",
   "spec_root": "SPECIFICATION",
   "implementation": { "plugin": "livespec-orchestrator-beads-fabro" },
+  // Cross-repository citation allowlist for doctor-no-cross-spec-reference:
+  // constraints.md §"Factory routing" cites the fleet factory registry
+  // heading owned by livespec-dev-tooling.
+  "external_references": {
+    "livespec-dev-tooling": [
+      "SPECIFICATION/non-functional-requirements.md §\"Fabro factory registry\""
+    ]
+  },
   // Planning/work-item-resolution registry. These targets are the repo slugs
   // accepted by cross-tenant DependsOnEntry refs (`sibling_work_item`,
   // `pull_request`, and `branch`).

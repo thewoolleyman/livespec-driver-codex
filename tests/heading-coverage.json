@@ -129,6 +129,14 @@
   },
   {
     "spec_root": "SPECIFICATION",
+    "spec_file": "constraints.md",
+    "heading": "## Factory routing",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-cea",
+    "reason": "RESIDUAL (configuration constraint): requires the committed .livespec.jsonc dispatcher.factories to be registry-backed and dispatcher.default_factory to name legacy. The registry-switch work-item filed in this tenant after this heading is ratified carries the proof (a host-captured dispatch resolving legacy through the control node's /etc/livespec/fabro-factories.json); no test exercises this heading yet. Owned by livespec-driver-codex-cea until that work-item or a conformance test replaces it."
+  },
+  {
+    "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Boundary",
     "test": "TODO",
