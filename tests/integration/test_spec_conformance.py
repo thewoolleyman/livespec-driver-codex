@@ -150,6 +150,19 @@ def test_factory_routing_committed_factories_are_registry_backed() -> None:
     assert not legacy.get("docker_host"), legacy
 
 
+def test_factory_routing_default_factory_names_legacy() -> None:
+    """constraints.md "Factory routing": `dispatcher.default_factory` names `legacy`.
+
+    A dispatch of an item of this repo with no explicit factory — and a recorded
+    item pin naming a retired factory, which falls back here under the ratified
+    recorded-pin fallback — resolves `legacy` through the dispatching host's
+    rendered registry. Control-armed: any other default fails here, including a
+    name the registry-backed table above no longer declares.
+    """
+    dispatcher = _committed_dispatcher()
+    assert dispatcher["default_factory"] == "legacy", dispatcher["default_factory"]
+
+
 def test_spec_evolution_heading_coverage_runs_clean_and_catches_an_uncovered_heading(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
