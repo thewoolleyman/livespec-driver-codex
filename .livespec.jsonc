@@ -248,9 +248,23 @@
       "auto_approve_ready": true,
       "acceptance_mode": "ai-only",
       "wip_cap": 10,
+      // REGISTRY-BACKED factory table (SPECIFICATION/constraints.md
+      // §"Factory routing", spec version v009): every entry committed here
+      // declares `"registry": true` and carries NO `server` and NO
+      // `docker_host`, so no committed factory entry names a machine. Which
+      // Fabro server answers to `legacy` is bound ONLY in the fleet gitops
+      // inventory's factory registry (livespec-dev-tooling
+      // non-functional-requirements.md §"Fabro factory registry"), which each
+      // dispatching host renders as `/etc/livespec/fabro-factories.json`; a
+      // dispatch resolves this entry from that file by name. Routing is
+      // UNCHANGED by the switch: the registry maps `legacy` to the same
+      // instance the retired `hp` entry named literally, and the retired `vps`
+      // entry is dropped. A recorded item pin naming `hp` or `vps` falls back
+      // to `default_factory` (the ratified recorded-pin fallback). `petri` is
+      // deliberately NOT onboarded here — it needs this repo's own bin and
+      // secret-channel settings and is a separate decision.
       "factories": {
-        "hp": { "server": "https://hp-xubuntu.perch-rudd.ts.net:32276" },
-        "vps": { "server": "https://vps.perch-rudd.ts.net:32276" }
+        "legacy": { "registry": true }
       },
       "default_factory": "hp"
     }
