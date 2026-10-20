@@ -65,10 +65,19 @@
   "implementation": { "plugin": "livespec-orchestrator-beads-fabro" },
   // Cross-repository citation allowlist for doctor-no-cross-spec-reference:
   // constraints.md §"Factory routing" cites the fleet factory registry
-  // heading owned by livespec-dev-tooling.
+  // heading owned by livespec-dev-tooling (its
+  // SPECIFICATION/non-functional-requirements.md). The entry is deliberately
+  // the BARE heading form: a file-qualified entry is validated against
+  // cross_repo_targets.livespec-dev-tooling.local_clone, which is the
+  // host-absolute /data/projects/livespec-dev-tooling and does not exist on
+  // the CI runner, so the pinned core maps it to an empty heading set and
+  // DROPS the entry, failing the citation as "not allowlisted". Exposing a
+  // real sibling clone in CI (LIVESPEC_SIBLING_CLONES_ROOT, as
+  // livespec-driver-claude's ci.yml does) needs a workflow edit, which
+  // check-no-workflow-edits reserves to a human-authorized exemption.
   "external_references": {
     "livespec-dev-tooling": [
-      "SPECIFICATION/non-functional-requirements.md §\"Fabro factory registry\""
+      "§\"Fabro factory registry\""
     ]
   },
   // Planning/work-item-resolution registry. These targets are the repo slugs
