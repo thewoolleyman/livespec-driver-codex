@@ -266,7 +266,7 @@
       "factories": {
         "legacy": { "registry": true }
       },
-      "default_factory": "hp"
+      "default_factory": "legacy"
     }
   }
 }
