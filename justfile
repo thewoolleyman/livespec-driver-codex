@@ -535,3 +535,12 @@ check-plan-record-conformance:
 
 check-work-item-status-vocabulary:
     uv run python -m livespec_dev_tooling.checks.work_item_status_vocabulary
+
+check-heading-coverage-debt-register:
+    uv run python -m livespec_dev_tooling.checks.heading_coverage_debt_register
+
+check-marketplace-ref-release-only:
+    uv run python -m livespec_dev_tooling.checks.marketplace_ref_release_only
+
+check-plan-no-live-handoff-file:
+    uv run python -m livespec_dev_tooling.checks.plan_no_live_handoff_file
