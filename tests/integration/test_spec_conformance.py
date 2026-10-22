@@ -133,34 +133,35 @@ def test_versioning_plugin_json_is_the_sole_version_source() -> None:
 def test_factory_routing_committed_factories_are_registry_backed() -> None:
     """constraints.md "Factory routing": no committed factory entry names a machine.
 
-    `dispatcher.factories` carries exactly one entry — `legacy` — which declares
-    `"registry": true` and carries no `server` and no `docker_host` value, so
-    which Fabro server answers to the name is bound only in the fleet gitops
-    inventory's factory registry that each dispatching host renders as
-    `/etc/livespec/fabro-factories.json`. Control-armed: a second entry, a
+    `dispatcher.factories` carries exactly two entries — `petri` and `legacy` —
+    each of which declares `"registry": true` and carries no `server` and no
+    `docker_host` value, so which Fabro server answers to a name is bound only
+    in the fleet gitops inventory's factory registry that each dispatching host
+    renders as
+    `/etc/livespec/fabro-factories.json`. Control-armed: a third entry, a
     differently-named entry, a missing `registry` flag, or a hostname-bearing
     `server`/`docker_host` value all fail here.
     """
     factories = _committed_dispatcher()["factories"]
     assert isinstance(factories, dict), factories
-    assert list(factories) == ["legacy"], list(factories)
-    legacy = factories["legacy"]
-    assert legacy.get("registry") is True, legacy
-    assert not legacy.get("server"), legacy
-    assert not legacy.get("docker_host"), legacy
+    assert list(factories) == ["petri", "legacy"], list(factories)
+    for entry in factories.values():
+        assert entry.get("registry") is True, entry
+        assert not entry.get("server"), entry
+        assert not entry.get("docker_host"), entry
 
 
-def test_factory_routing_default_factory_names_legacy() -> None:
-    """constraints.md "Factory routing": `dispatcher.default_factory` names `legacy`.
+def test_factory_routing_default_factory_names_petri() -> None:
+    """constraints.md "Factory routing": `dispatcher.default_factory` names `petri`.
 
     A dispatch of an item of this repo with no explicit factory — and a recorded
     item pin naming a retired factory, which falls back here under the ratified
-    recorded-pin fallback — resolves `legacy` through the dispatching host's
+    recorded-pin fallback — resolves `petri` through the dispatching host's
     rendered registry. Control-armed: any other default fails here, including a
     name the registry-backed table above no longer declares.
     """
     dispatcher = _committed_dispatcher()
-    assert dispatcher["default_factory"] == "legacy", dispatcher["default_factory"]
+    assert dispatcher["default_factory"] == "petri", dispatcher["default_factory"]
 
 
 def test_spec_evolution_heading_coverage_runs_clean_and_catches_an_uncovered_heading(
