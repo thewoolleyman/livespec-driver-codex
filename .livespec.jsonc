@@ -264,9 +264,17 @@
       // deliberately NOT onboarded here — it needs this repo's own bin and
       // secret-channel settings and is a separate decision.
       "factories": {
+        // The current Fabro server, selected by default since the R668 cutover
+        // (plan petri-factory-on-gmktec); resolved through the factory registry.
+        "petri": {
+          "registry": true,
+          "bin": "/home/ubuntu/.local/state/fabro-currency/carrier-petri-v0.382-adeefec4c/fabro",
+          "secret_channel": "native_secrets",
+          "environment": "livespec-ci"
+        },
         "legacy": { "registry": true }
       },
-      "default_factory": "legacy"
+      "default_factory": "petri"
     }
   }
 }
