@@ -15,18 +15,20 @@ Two questions live here, both POSITIVE-identification only:
     payload of a `sh -c` / `bash -c` wrapper is judged one level down (an `env`,
     `sudo`, `timeout`, ... prefix is stripped first). The recognised write forms
     are the ratified non-exhaustive minimum: output redirection (`>`, `>>`,
-    `&>`, including a here-document redirected into such a path), `tee`,
-    an in-place editor (`sed -i`, `perl -i`), a `cp` / `mv` / `install` / `ln` /
-    `touch` / `truncate` destination, `dd of=`, and an inline interpreter
-    program (`python3 -c`, `perl -e`, `node -e`) whose text names such a path
-    together with a write-mode open.
+    `>|`, `>>|`, `&>`, including a here-document redirected into such a path),
+    `tee`, an in-place editor (`sed -i`, `perl -i`), a `cp` / `mv` / `install` /
+    `ln` / `touch` / `truncate` destination, `dd of=`, and an interpreter
+    program whose text names such a path together with a write-mode open —
+    whether it arrives inline (`python3 -c`, `perl -e`, `node -e`) or on stdin
+    as a here-document (`python3 - <<EOF`, `node <<EOF`).
 
 Reads (`cat`, `grep`, `ls`, `head`, `find`) and removal (`rm`, the way a
 migrated note is discharged) are never a write. A destination the guard cannot
 read from the command text — a path computed at runtime, or assembled inside a
-script file — is a STATED LIMIT: the guard does not guess, so it passes.
-A segment that cannot be lexed is likewise not identified, keeping the
-fail-open contract.
+script file — is a STATED LIMIT: the guard does not guess, so it passes. So is
+a SHELL fed a script on stdin (`bash <<EOF`), which is judged only through its
+`-c` payload. A segment that cannot be lexed is likewise not identified,
+keeping the fail-open contract.
 
 Self-contained by contract: the plugin installer ships this file under bare
 system `python3` with no virtualenv and no third-party packages, so every
@@ -40,7 +42,7 @@ import re
 import shlex
 from pathlib import Path
 
-from _footgun_shell import segments, strip_leading_noise
+from _footgun_shell import segments_and_heredocs, strip_leading_noise
 from _result import Failure, Result, Success
 
 __all__: list[str] = ["command_writes_memory", "is_memory_path"]
@@ -187,14 +189,33 @@ def _program_text(*, arguments: list[str]) -> str | None:
     return None
 
 
-def _interpreter_writes(*, head: str, arguments: list[str]) -> bool:
+def _reads_program_from_stdin(*, arguments: list[str]) -> bool:
+    """True when an interpreter names no script file, so its program comes from stdin.
+
+    `python3 - <<EOF` spells the dash explicitly and `python3 <<EOF` leaves it
+    out; both read the program from stdin, and both reach here with no operand
+    other than a bare `-` (the `<<` and its terminator are already stripped as a
+    redirection). An interpreter that DOES name a script runs that file, so its
+    here-document is ordinary data and must not be read as the program.
+    """
+    return all(o == "-" for o in _operands(arguments=arguments, skip_after=frozenset()))
+
+
+def _program_writes_memory(*, program: str) -> bool:
+    """Interpreter program text naming a memory path together with a write-mode open."""
+    return bool(_MEMORY_TEXT.search(program)) and bool(_WRITE_OPEN.search(program))
+
+
+def _interpreter_writes(*, head: str, arguments: list[str], stdin: list[str]) -> bool:
     in_place = head == "perl" and any(_PERL_IN_PLACE.match(a) for a in arguments)
     if in_place and any(is_memory_path(path_str=a) for a in arguments if not a.startswith("-")):
         return True
-    program = _program_text(arguments=arguments)
-    if program is None:
+    inline = _program_text(arguments=arguments)
+    if inline is not None:
+        return _program_writes_memory(program=inline)
+    if not _reads_program_from_stdin(arguments=arguments):
         return False
-    return bool(_MEMORY_TEXT.search(program)) and bool(_WRITE_OPEN.search(program))
+    return any(_program_writes_memory(program=program) for program in stdin)
 
 
 def _shell_payload(*, arguments: list[str]) -> str | None:
@@ -217,12 +238,39 @@ def _written_paths(*, head: str, arguments: list[str]) -> list[str]:
     return []
 
 
-def _segment_writes(*, seg: str, depth: int) -> bool:
-    lexed = _tokens(seg=seg)
-    if isinstance(lexed, Failure):
-        _ = lexed.failure()
-        return False
-    words, redirect_targets = _split_redirections(tokens=lexed.unwrap())
+def _own_bodies(
+    *, tokens: list[str], bodies: list[tuple[str, str]]
+) -> tuple[list[str], list[tuple[str, str]]]:
+    """(the here-doc bodies this segment is fed, the bodies still unclaimed).
+
+    Matched on the TERMINATOR each `<<` names, and consumed in order, so both
+    ways a body can be mis-attributed are closed at once. A body captured from
+    text no segment consumes (`echo "<<EOF"`) names a terminator nobody spells,
+    so it is never claimed; two segments sharing one terminator take their own
+    body each, in the order a shell feeds them, because a claimed body leaves
+    the pool. Mis-attribution here would be a FALSE REFUSAL — a `cat > /tmp/f
+    <<EOF` body that happens to contain python would convict a harmless
+    interpreter beside it — which the guard's positive-identification contract
+    forbids.
+    """
+    taken: list[str] = []
+    unclaimed = list(bodies)
+    for index, token in enumerate(tokens):
+        if token != "<<" or index + 1 >= len(tokens):
+            continue
+        # `<<-EOF` lexes its terminator as `-EOF`; the leading dash is the
+        # indent-stripping flag, not part of the name.
+        terminator = tokens[index + 1].lstrip("-")
+        for position, (name, body) in enumerate(unclaimed):
+            if name == terminator:
+                taken.append(body)
+                del unclaimed[position]
+                break
+    return taken, unclaimed
+
+
+def _segment_writes(*, tokens: list[str], stdin: list[str], depth: int) -> bool:
+    words, redirect_targets = _split_redirections(tokens=tokens)
     if any(is_memory_path(path_str=t) for t in redirect_targets):
         return True
     invocation, _lefthook_off = strip_leading_noise(tokens=words)
@@ -234,14 +282,24 @@ def _segment_writes(*, seg: str, depth: int) -> bool:
         payload = _shell_payload(arguments=arguments)
         return payload is not None and _command_writes(command=payload, depth=depth + 1)
     if _INTERPRETER.match(head):
-        return _interpreter_writes(head=head, arguments=arguments)
+        return _interpreter_writes(head=head, arguments=arguments, stdin=stdin)
     return any(is_memory_path(path_str=p) for p in _written_paths(head=head, arguments=arguments))
 
 
 def _command_writes(*, command: str, depth: int) -> bool:
     if depth > _MAX_DEPTH:
         return False
-    return any(_segment_writes(seg=seg, depth=depth) for seg in segments(command=command))
+    parts, bodies = segments_and_heredocs(command=command)
+    for seg in parts:
+        lexed = _tokens(seg=seg)
+        if isinstance(lexed, Failure):
+            _ = lexed.failure()
+            continue
+        tokens = lexed.unwrap()
+        stdin, bodies = _own_bodies(tokens=tokens, bodies=bodies)
+        if _segment_writes(tokens=tokens, stdin=stdin, depth=depth):
+            return True
+    return False
 
 
 def command_writes_memory(*, command: str) -> bool:

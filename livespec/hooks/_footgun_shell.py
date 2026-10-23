@@ -4,23 +4,36 @@ Shell-command tokenization primitives for the livespec footgun guard.
 
 Extracted from `livespec_footgun_guard.py` (livespec epic livespec-i5ebqd,
 file_lloc decomposition) as the cohesive shell-parsing sub-responsibility:
-splitting a raw Bash command into inspectable segments (dropping here-doc
-BODIES, which are file data), stripping leading env-assignment / `mise exec`
-/ `sudo` / `env` noise, and recognizing a git invocation within a segment's
-leading command.
+splitting a raw Bash command into inspectable segments (separating out here-doc
+BODIES, which are file data rather than executed shell), stripping leading
+env-assignment / `mise exec` / `sudo` / `env` noise, and recognizing a git
+invocation within a segment's leading command.
+
+The bodies are SEPARATED rather than discarded, and `segments_and_heredocs`
+hands both halves back. A body is not shell, but it IS the stdin of the segment
+that introduced it, and a consumer can legitimately need to read it as such —
+an interpreter takes its whole program from a here-document. `segments` remains
+the segments-only reading every other consumer wants.
 
 BOTH the main guard (`livespec_footgun_guard.py`) and the primary-checkout-edit
 detector (`_footgun_primary_checkout.py`) import from here; this module imports
 from NEITHER (it is the leaf of the guard's three-module import DAG), so there
-is no import cycle. Behavior is IDENTICAL to the pre-extraction inline helpers —
-a pure cohesion move, not a logic change.
+is no import cycle. The original extraction was behavior-preserving — a pure
+cohesion move — but this module is not frozen: `_split_on_operators` now reads
+`>|` as the one redirection operator bash makes of it, which every consumer
+wants (work-item livespec-driver-codex-ydzrwk).
 """
 
 import re
 
 from _result import Failure, Result, Success
 
-__all__: list[str] = ["git_subcommand", "segments", "strip_leading_noise"]
+__all__: list[str] = [
+    "git_subcommand",
+    "segments",
+    "segments_and_heredocs",
+    "strip_leading_noise",
+]
 
 _ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _GIT_GLOBAL_OPTS_WITH_ARG = ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path")
@@ -48,15 +61,29 @@ _WRAPPER_FLAGS_WITH_ARG: dict[str, tuple[str, ...]] = {
 }
 
 
-def _strip_heredoc_bodies(*, command: str) -> str:
-    """Remove here-doc BODIES (they are file data, not executed commands).
+def _split_heredoc_bodies(*, command: str) -> tuple[str, list[tuple[str, str]]]:
+    """Separate here-doc BODIES (they are file data, not executed commands).
 
     `cat > f <<'EOF'\n...body...\nEOF` — the body lines are data; analyzing them
     as command segments causes false positives. Keep the introducing line, drop
     everything from the next line through the terminator line.
+
+    The dropped bodies are RETURNED, in the order a shell feeds them, rather
+    than discarded: a body is not executed shell, but it IS the stdin of the
+    segment that introduced it, and one consumer needs to read it as such — an
+    interpreter takes its whole PROGRAM from a here-document (`python3 - <<EOF`).
+    Discarding the bodies made that program the one text no judge ever saw.
+
+    Each body is returned WITH the terminator that introduced it, because its
+    position alone does not identify its owner. This scan recognises `<<EOF`
+    inside quotes too (`echo "<<EOF"`), so it can capture a body no segment is
+    actually fed; a consumer matching bodies to segments positionally would then
+    hand that body to the next segment that does consume one. The terminator is
+    the name the owning segment itself spells, so pairing on it cannot drift.
     """
     lines = command.split("\n")
     out: list[str] = []
+    bodies: list[tuple[str, str]] = []
     i = 0
     n = len(lines)
     while i < n:
@@ -68,14 +95,16 @@ def _strip_heredoc_bodies(*, command: str) -> str:
             i += 1
             # Skip body until a line that is exactly the terminator (optionally
             # indented for <<-).
+            start = i
             while i < n and lines[i].strip() != term:
                 i += 1
+            bodies.append((term, "\n".join(lines[start:i])))
             # `i` now points at the terminator line (or EOF); skip it too.
             if i < n:
                 i += 1
             continue
         i += 1
-    return "\n".join(out)
+    return "\n".join(out), bodies
 
 
 def _join_line_continuations(*, command: str) -> str:
@@ -146,17 +175,30 @@ def _split_on_operators(*, command: str) -> list[str]:
     return [segment.strip() for segment in found if segment.strip()]
 
 
-def _segments_result(*, command: str) -> Result[list[str], Exception]:
-    cleaned = _join_line_continuations(command=_strip_heredoc_bodies(command=command))
-    return Success(_split_on_operators(command=cleaned))
+def _segments_result(*, command: str) -> Result[tuple[list[str], list[tuple[str, str]]], Exception]:
+    stripped, bodies = _split_heredoc_bodies(command=command)
+    cleaned = _join_line_continuations(command=stripped)
+    return Success((_split_on_operators(command=cleaned), bodies))
 
 
-def segments(*, command: str) -> list[str]:
+def segments_and_heredocs(*, command: str) -> tuple[list[str], list[tuple[str, str]]]:
+    """(inspectable segments, (terminator, body) per here-doc in feed order).
+
+    ONE pass, because the strip and the split are not independent: segmenting an
+    already-stripped command would send `_split_heredoc_bodies` hunting for a
+    terminator line that is no longer there, and it would swallow everything to
+    the end of the command. A consumer that needs the bodies therefore takes
+    both halves from here rather than stripping a second time.
+    """
     result = _segments_result(command=command)
     if isinstance(result, Failure):
         _ = result.failure()
-        return []
+        return [], []
     return result.unwrap()
+
+
+def segments(*, command: str) -> list[str]:
+    return segments_and_heredocs(command=command)[0]
 
 
 def _skip_wrapper_arguments(*, tokens: list[str], start: int, base: str) -> int:

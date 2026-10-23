@@ -464,6 +464,29 @@ _CODEX_SHELL_WRITES = [
         "python3-c",
         f"python3 -c \"open('{_MEMORIES_PATH}/p.md', 'w').write('x')\"",
     ),
+    # An interpreter reading its PROGRAM from a here-document. The body is
+    # stripped before segmentation (it is stdin data, not shell), so it used to
+    # reach no judge at all (work-item livespec-driver-codex-ydzrwk).
+    (
+        "heredoc-fed-python",
+        f'python3 - <<EOF\nopen("{_MEMORIES_PATH}/h.md", "w").write("x")\nEOF',
+    ),
+    (
+        "heredoc-fed-python-no-dash",
+        f"python3 <<'PY'\nopen('{_MEMORIES_PATH}/h.md', 'a').write('x')\nPY",
+    ),
+    (
+        "heredoc-fed-node",
+        f'node <<EOF\nrequire("fs").writeFileSync("{_MEMORIES_PATH}/h.md", "x")\nEOF',
+    ),
+    (
+        "heredoc-fed-perl",
+        f'perl <<EOF\nopen(my $f, ">", "{_MEMORIES_PATH}/h.md")\nEOF',
+    ),
+    (
+        "heredoc-fed-python-indent-stripped",
+        f'python3 - <<-PY\n\topen("{_MEMORIES_PATH}/h.md", "w").write("x")\nPY',
+    ),
     ("later-segment", f"cd /tmp && echo ok; echo note > {_MEMORIES_PATH}/a.md"),
     ("sh-c-payload", f"bash -c 'echo note > {_MEMORIES_PATH}/a.md'"),
     ("env-prefix", f"env A=1 tee {_MEMORIES_PATH}/a.md"),
@@ -559,6 +582,68 @@ def test_pass_bash_read_or_rm_of_a_memory_directory(
 def test_pass_bash_memory_write_when_not_governed(tmp_path: Path) -> None:
     command = f"echo note > {_MEMORIES_PATH}/a.md"
     _assert_pass(result=_run_guard(stdin=_bash_input(command=command), project_dir=str(tmp_path)))
+
+
+# Each here-document body must be judged against the segment that is FED it, not
+# against any interpreter elsewhere in the command. Every case here carries a
+# body that WOULD convict if bodies were pooled across segments, and none of
+# them writes a memory file: the body naming a memory path is plain text `cat`
+# writes to /tmp, and the body the interpreter actually runs is harmless.
+#
+# The last two are the shapes that make positional pooling wrong rather than
+# merely sloppy. `same-terminator` gives both here-documents the name `EOF`, so
+# matching on the terminator alone would hand BOTH bodies to the interpreter;
+# only consuming a claimed body keeps each segment to its own. `quoted-body-
+# introducer` hides `<<EOF` inside an `echo` argument, which the body scan still
+# reads as an introducer — so a body is captured that no segment is fed, and the
+# interpreter that follows would inherit it by position.
+_HEREDOC_MISATTRIBUTION_PASSES = [
+    (
+        "text-body-first",
+        f'cat > /tmp/draft.md <<\'EOF\'\nopen("{_MEMORIES_PATH}/x.md", "w").write("hi")\nEOF\n'
+        'python3 - <<"PY"\nprint("hello")\nPY',
+    ),
+    (
+        "text-body-second",
+        'python3 - <<"PY"\nprint("hello")\nPY\n'
+        f'cat > /tmp/draft.md <<\'EOF\'\nopen("{_MEMORIES_PATH}/x.md", "w").write("hi")\nEOF',
+    ),
+    (
+        "same-terminator",
+        f'cat > /tmp/draft.md <<\'EOF\'\nopen("{_MEMORIES_PATH}/x.md", "w").write("hi")\nEOF\n'
+        'python3 - <<EOF\nprint("hello")\nEOF',
+    ),
+    (
+        "quoted-body-introducer",
+        f'echo "<<EOF"\nopen("{_MEMORIES_PATH}/x.md", "w").write("hi")\nEOF\n'
+        'python3 - <<PY\nprint("hello")\nPY',
+    ),
+]
+
+
+@pytest.mark.parametrize(("label", "command"), _HEREDOC_MISATTRIBUTION_PASSES)
+def test_pass_heredoc_body_is_judged_against_the_segment_fed_it(
+    tmp_path: Path, label: str, command: str
+) -> None:
+    """A body `cat` writes to /tmp never convicts an interpreter in another segment."""
+    project = _governed_project(tmp_path=tmp_path)
+    result = _run_guard(stdin=_bash_input(command=command), project_dir=str(project))
+    assert result.returncode == 0, label
+    assert result.stdout.strip() == "", f"{label}: expected pass-through, got {result.stdout!r}"
+
+
+def test_pass_heredoc_whose_terminator_the_body_scan_cannot_read(tmp_path: Path) -> None:
+    """A `<<$VAR` terminator is not a name this guard resolves, so no body is claimed."""
+    project = _governed_project(tmp_path=tmp_path)
+    command = f'python3 - <<$VAR\nopen("{_MEMORIES_PATH}/x.md", "w").write("hi")\n$VAR'
+    _assert_pass(result=_run_guard(stdin=_bash_input(command=command), project_dir=str(project)))
+
+
+def test_pass_interpreter_running_a_script_file_ignores_its_stdin(tmp_path: Path) -> None:
+    """A here-document is DATA, not the program, when the interpreter names a script."""
+    project = _governed_project(tmp_path=tmp_path)
+    command = f'python3 render.py <<EOF\nopen("{_MEMORIES_PATH}/x.md", "w").write("hi")\nEOF'
+    _assert_pass(result=_run_guard(stdin=_bash_input(command=command), project_dir=str(project)))
 
 
 def test_subprocess_smoke_denies_bash_write_into_memories_when_governed(tmp_path: Path) -> None:
