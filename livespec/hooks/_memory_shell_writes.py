@@ -48,7 +48,11 @@ __all__: list[str] = ["command_writes_memory", "is_memory_path"]
 _SHELLS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
 _SHELL_COMMAND_FLAG = re.compile(r"^-[a-zA-Z]*c$")
 _MAX_DEPTH = 3
-_REDIRECT_OPERATORS = frozenset({">", ">>", "&>", "&>>"})
+# `>|` and `>>|` are bash's CLOBBER spellings of `>` and `>>`: the same write,
+# with `noclobber` overridden. `shlex` with `punctuation_chars=True` lexes each
+# as ONE token, so they belong here beside the plain forms rather than needing
+# any separate handling.
+_REDIRECT_OPERATORS = frozenset({">", ">>", ">|", ">>|", "&>", "&>>"})
 _COPY_HEADS = frozenset({"cp", "mv", "install", "ln"})
 _TARGET_DIRECTORY_FLAGS = ("-t", "--target-directory")
 # Flags whose following word is NOT a written file (a size, a date, a ref file).
