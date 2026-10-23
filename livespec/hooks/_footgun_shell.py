@@ -94,6 +94,13 @@ def _split_on_operators(*, command: str) -> list[str]:
     `echo 'first; tmux kill-server'` used to arrive as a segment beginning
     `tmux kill-server` — a false positive on text that is pure DATA. Quote state
     is tracked here so a separator inside quotes is never a separator.
+
+    The `|` of a `>|` CLOBBER redirect is likewise not a separator. Bash reads
+    `>|` (and `>>|`) as one redirection operator that overrides `noclobber`, so
+    splitting at its `|` hands the analyzer a segment ending in a bare `>` and a
+    following segment that is just the redirect TARGET — a path no consumer then
+    reads as a written file. Consuming `>|` whole keeps the operator and its
+    target in the segment that performs the write.
     """
     found: list[str] = []
     current: list[str] = []
@@ -116,6 +123,11 @@ def _split_on_operators(*, command: str) -> list[str]:
         if char == "\\" and index + 1 < total:
             current.append(char)
             current.append(command[index + 1])
+            index += 2
+            continue
+        if command[index : index + 2] == ">|":
+            current.append(">")
+            current.append("|")
             index += 2
             continue
         if command[index : index + 2] in ("&&", "||"):

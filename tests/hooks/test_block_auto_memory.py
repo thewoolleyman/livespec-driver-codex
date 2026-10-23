@@ -455,6 +455,11 @@ _CODEX_SHELL_WRITES = [
     ("cp", f"cp /tmp/n.md {_MEMORIES_PATH}/n.md"),
     ("mv", f"mv /tmp/n.md {_MEMORIES_PATH}/"),
     ("heredoc", f"cat > {_MEMORIES_PATH}/h.md <<'EOF'\nlearned a thing\nEOF"),
+    # `>|` is bash's CLOBBER redirect, not a pipe. The segment splitter used to
+    # cut at its `|`, so the memory path landed in a segment of its own and no
+    # redirect target was ever read (work-item livespec-driver-codex-ydzrwk).
+    ("clobber-redirect", f"echo note >| {_MEMORIES_PATH}/a.md"),
+    ("clobber-append", f"echo note >>| {_MEMORIES_PATH}/a.md"),
     (
         "python3-c",
         f"python3 -c \"open('{_MEMORIES_PATH}/p.md', 'w').write('x')\"",
