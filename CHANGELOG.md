@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.1...v0.8.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* **hooks:** auto-memory guard refuses a &gt;| clobber redirect ([c5a9935](https://github.com/thewoolleyman/livespec-driver-codex/commit/c5a9935697f88e742c66460dff01223c4fc55c35))
+* **hooks:** auto-memory guard refuses a here-document-fed interpreter write ([e25bd03](https://github.com/thewoolleyman/livespec-driver-codex/commit/e25bd03ef3012ba6be348d0e67afc163e6a631f1))
+
 ## [0.8.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.0...v0.8.1) (2026-10-18)
 
 
