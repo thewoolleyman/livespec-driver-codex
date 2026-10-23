@@ -15,9 +15,15 @@ Contract under test:
   destinations — and MUST NOT silently drop durable guidance.
 - DENY, same reason: a Write / Edit / apply_patch into the Claude Code
   auto-memory layout (`~/.claude/projects/<slug>/memory/*.md`), and a Bash
-  command that writes into either memory directory by redirection, a
-  here-document, `tee`, `sed -i`, `cp`, `mv`, or an inline `python3 -c` write
-  (work item livespec-driver-codex-qi5gkw; livespec core contracts.md v225).
+  command that writes into either memory directory by any of the write forms
+  livespec core contracts.md v225 lists as its non-exhaustive minimum —
+  redirection (plain, appending, or the `>|` / `>>|` clobber spellings), a
+  here-document, `tee`, `sed -i`, `perl -i`, `cp`, `mv`, `install`, `ln`,
+  `touch`, `truncate`, `dd of=`, or an interpreter program that arrives either
+  inline (`python3 -c`, `perl -e`, `node -e`) or on stdin as a here-document
+  (`python3 - <<EOF`). Work items livespec-driver-codex-qi5gkw (the shell
+  routes) and livespec-driver-codex-ydzrwk (the two bypasses that survived it,
+  plus mechanical cases for the rest of the listed minimum).
 - PASS (empty stdout, exit 0): non-memories target path; non-governed project;
   a Bash command that only reads a memory directory or removes a note with
   `rm`; no file_path in input; apply_patch with no memories path in patch
@@ -455,6 +461,24 @@ _CODEX_SHELL_WRITES = [
     ("cp", f"cp /tmp/n.md {_MEMORIES_PATH}/n.md"),
     ("mv", f"mv /tmp/n.md {_MEMORIES_PATH}/"),
     ("heredoc", f"cat > {_MEMORIES_PATH}/h.md <<'EOF'\nlearned a thing\nEOF"),
+    # The rest of the write forms livespec core contracts.md v225 lists as the
+    # non-exhaustive minimum. The classifier already recognised every one of
+    # them, but no case here exercised them, so the listed minimum was asserted
+    # by reading the code rather than mechanically (work-item
+    # livespec-driver-codex-ydzrwk, ratification-review rider).
+    ("install", f"install -m 644 /tmp/n.md {_MEMORIES_PATH}/n.md"),
+    ("ln-symlink", f"ln -s /tmp/n.md {_MEMORIES_PATH}/n.md"),
+    ("ln-target-dir", f"ln -s /tmp/n.md -t {_MEMORIES_PATH}"),
+    ("touch", f"touch {_MEMORIES_PATH}/n.md"),
+    ("truncate", f"truncate -s 0 {_MEMORIES_PATH}/n.md"),
+    ("dd-of", f"dd if=/tmp/n.md of={_MEMORIES_PATH}/n.md"),
+    ("perl-in-place", f"perl -i -pe 's/a/b/' {_MEMORIES_PATH}/a.md"),
+    ("perl-e", f'perl -e \'open(my $f, ">", "{_MEMORIES_PATH}/a.md")\''),
+    (
+        "node-e",
+        f'node -e \'require("fs").writeFileSync("{_MEMORIES_PATH}/a.md", "x")\'',
+    ),
+    ("or-segment", f"test -f /tmp/n.md || echo note > {_MEMORIES_PATH}/a.md"),
     # `>|` is bash's CLOBBER redirect, not a pipe. The segment splitter used to
     # cut at its `|`, so the memory path landed in a segment of its own and no
     # redirect target was ever read (work-item livespec-driver-codex-ydzrwk).
