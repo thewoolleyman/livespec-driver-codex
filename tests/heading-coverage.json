@@ -133,7 +133,7 @@
     "heading": "## Factory routing",
     "test": "tests.integration.test_spec_conformance.test_factory_routing_committed_factories_are_registry_backed",
     "work_item": "livespec-driver-codex-extptf",
-    "reason": "Witnesses the committed-config half of this heading directly: dispatcher.factories carries exactly two entries, petri and legacy, each declaring \"registry\": true with no server and no docker_host value, so no committed factory entry names a machine. The sibling test_factory_routing_default_factory_names_petri in the same module witnesses the dispatcher.default_factory requirement. The resolution half — that a dispatch resolves petri by name from the dispatching host's rendered /etc/livespec/fabro-factories.json — is host-captured by livespec-driver-codex-extptf, since no factory sandbox can read the control node's registry; this entry retires the RESIDUAL TODO that livespec-driver-codex-cea owned until a conformance test replaced it."
+    "reason": "Witnesses the committed-config half of this heading directly: dispatcher.factories carries exactly one entry, petri, declaring \"registry\": true with no server and no docker_host value, so no committed factory entry names a machine. The sibling test_factory_routing_default_factory_names_petri in the same module witnesses the dispatcher.default_factory requirement. The resolution half — that a dispatch resolves petri by name from the dispatching host's rendered /etc/livespec/fabro-factories.json — is host-captured by livespec-driver-codex-extptf, since no factory sandbox can read the control node's registry; this entry retires the RESIDUAL TODO that livespec-driver-codex-cea owned until a conformance test replaced it."
   },
   {
     "spec_root": "SPECIFICATION",

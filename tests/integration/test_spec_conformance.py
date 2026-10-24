@@ -133,8 +133,8 @@ def test_versioning_plugin_json_is_the_sole_version_source() -> None:
 def test_factory_routing_committed_factories_are_registry_backed() -> None:
     """constraints.md "Factory routing": no committed factory entry names a machine.
 
-    `dispatcher.factories` carries exactly two entries — `petri` and `legacy` —
-    each of which declares `"registry": true` and carries no `server` and no
+    `dispatcher.factories` carries exactly one entry — `petri` — which
+    declares `"registry": true` and carries no `server` and no
     `docker_host` value, so which Fabro server answers to a name is bound only
     in the fleet gitops inventory's factory registry that each dispatching host
     renders as
@@ -144,7 +144,7 @@ def test_factory_routing_committed_factories_are_registry_backed() -> None:
     """
     factories = _committed_dispatcher()["factories"]
     assert isinstance(factories, dict), factories
-    assert list(factories) == ["petri", "legacy"], list(factories)
+    assert list(factories) == ["petri"], list(factories)
     for entry in factories.values():
         assert entry.get("registry") is True, entry
         assert not entry.get("server"), entry
