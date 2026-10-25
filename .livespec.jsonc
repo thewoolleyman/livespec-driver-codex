@@ -237,6 +237,18 @@
         "pr": { "agent": "codex-acp", "model": "gpt-5.6-luna", "effort": "low", "fallbacks": [{ "agent": "claude-acp", "model": "claude-sonnet-5-5", "effort": "medium" }] },
         "disposition": { "agent": "codex-acp", "model": "gpt-5.6-luna", "effort": "low", "fallbacks": [{ "agent": "claude-acp", "model": "claude-sonnet-5-5", "effort": "medium" }] }
       },
+      "model_catalog": {
+        "anthropic/claude-sonnet-5-5": {
+          "display_name": "Claude Sonnet 5.5",
+          "pricing": {
+            "model": "claude-sonnet-5-5",
+            "input_usd_per_million": 2.0,
+            "output_usd_per_million": 10.0,
+            "cache_write_usd_per_million": 2.5,
+            "cache_read_usd_per_million": 0.2
+          }
+        }
+      },
       // Committed mirror of the sandbox image's published capability set, read by
       // the Definition-of-Done gate and by the host-side judgements when
       // /etc/livespec/sandbox-capabilities is not reachable. MEASURED 2026-10-20 by
