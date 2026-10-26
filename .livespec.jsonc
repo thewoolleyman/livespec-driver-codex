@@ -77,8 +77,10 @@
   // check-no-workflow-edits reserves to a human-authorized exemption.
   "external_references": {
     "livespec-dev-tooling": [
-      "§\"Fabro factory registry\""
-    ]
+      "§\"Fabro factory registry\"",
+      "§\"Delegated pre-push gate\""
+    ],
+    "livespec": ["§\"Enforcement-suite invocation\""]
   },
   // Planning/work-item-resolution registry. These targets are the repo slugs
   // accepted by cross-tenant DependsOnEntry refs (`sibling_work_item`,

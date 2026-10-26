@@ -87,6 +87,43 @@ Every gate is wired into both pre-commit/pre-push (via lefthook) and CI
 (via the per-target matrix in `.github/workflows/ci.yml`), so the same
 suite runs in every context.
 
+Where the repository has delegated its pre-push gate per the next
+paragraph, a pre-push from a delegating host obtains the same `just
+check` aggregate's verdict from the remote executor against the pushed
+tree instead of running it on the pushing host, save the checks the
+delegation contract places on the pushing host, and except where an
+explicit local run has already authorized the tree. This changes WHERE
+the aggregate runs and MUST NOT change WHAT it verifies.
+
+The repository MAY delegate its pre-push gate to the remote executor of
+the fleet enforcement suite's delegation client (livespec-dev-tooling
+§"Delegated pre-push gate"). When it does, it MUST conform to the
+delegation contract livespec ratifies in
+§"Enforcement-suite invocation", clause **Delegated gate execution**.
+For this repository that means:
+
+- Delegation MUST be opted in by the repository's version-controlled
+  configuration. It MUST be withdrawn only by a change to that
+  configuration, never per push or per host. The gate MUST remain
+  runnable on the pushing host by an explicit act whether or not
+  delegation is opted in.
+- A push MUST delegate only from a host that holds the credential
+  authorizing it to submit to the executor. A host that holds none, such
+  as a factory sandbox, MUST run the repository's gate recipe on that
+  host without delegation, and MUST report that it gated locally.
+- The pre-push path for a delegating host MUST run the delegation client
+  in place of the aggregate, and MUST have no branch from the client's
+  result to a local run of the gate. An absent verdict MUST refuse the
+  push.
+- A check that reads an authorization held outside the tree MUST run on
+  the pushing host with that host's own credentials, not in the
+  executor, and its result MUST join the delegated verdict, so an
+  authorization the executor cannot read is never treated as granted.
+- The check recipe MUST read the fleet's recognised skip variable,
+  `SKIP_TARGETS`, so the members the delegation contract places on the
+  pushing host are left out of the executor's run. A run that skipped
+  any member MUST NOT write the green token.
+
 ## Build and release
 
 The Driver ships as a Codex plugin. `plugin.json.version` is the single
