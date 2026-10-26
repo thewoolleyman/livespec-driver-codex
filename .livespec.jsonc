@@ -119,8 +119,8 @@
   // fleet. `ratification_reviewer_model` is required for
   // `ratification_review: "auto-spawn"` to take effect at all (an unset
   // reviewer model makes auto-spawn resolve to requiring human input
-  // regardless, per effective_ratification_review); "fable" matches livespec
-  // core's own convention. `drift_acceptance_mode` and
+  // regardless, per effective_ratification_review); its current value and
+  // history are documented beside the key below. `drift_acceptance_mode` and
   // `dispatcher.merge_on_review_cap` are deliberately left at their safe
   // defaults (consensus tier is inert pending Increment 3; a
   // non-converging review must reach a human). `doctor_dispositions`
