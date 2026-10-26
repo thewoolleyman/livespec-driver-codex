@@ -316,5 +316,13 @@
     "heading": "## Scenario: long-running hooks survive a Driver cache update",
     "test": "tests.dev-tooling.test_codex_hook_cache_transition_real.test_a_real_payload_transition_keeps_captured_hook_paths_resolving",
     "reason": "Integration-tier host-aware acceptance driven over the REAL installed Driver payload: it copies the host's actual current cache payload to a scratch CODEX_HOME, runs the real observer while that payload is replaced the way Codex replaces one (successor written incrementally, old version directory removed), and asserts latest does not move while the successor is half-written, then that the hook paths captured under the retired version still resolve, in one hop through latest, to scripts of the validated current payload. Deliberately narrowed — it does not publish a Driver release to make the marketplace advance, because that would couple the suite to the release pipeline; every step downstream of the release is exercised."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict",
+    "test": "TODO",
+    "reason": "A real test at the integration tier or above is owed for this heading: a delegating host's pre-push runs the delegation client in place of just check and refuses on no verdict. livespec-driver-codex-jov3zs, this repository's delegation opt-in carrier, owns it.",
+    "work_item": "livespec-driver-codex-jov3zs"
   }
 ]
