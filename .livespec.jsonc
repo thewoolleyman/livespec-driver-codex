@@ -131,7 +131,11 @@
     "in_flight_alignment": "default-align",
     "revise_decision_mode": "delegated",
     "ratification_review": "auto-spawn",
-    "ratification_reviewer_model": "fable",
+    // ratification_reviewer_model: Opus is the default ratification reviewer. The
+    // model is interchangeable like any other model selection here; fallback
+    // models are permitted once livespec core accepts a list for this key (routed
+    // separately). "auto-spawn" above is inert when this key is null.
+    "ratification_reviewer_model": "opus",
     "spec_pr_merge": "auto-on-green"
   },
   // Optional — spec_governance: policy levers for livespec's spec-side
