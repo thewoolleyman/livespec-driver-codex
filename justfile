@@ -126,8 +126,19 @@ ensure-codex-plugins:
 # Enforcement aggregate.
 # ---------------------------------------------------------------
 
+# errexit is deliberately off: the body is one read and one call, and check-aggregate.sh owns the aggregate's continue-on-failure exit code.
 check:
-    bash dev-tooling/check-aggregate.sh
+    #!/usr/bin/env bash
+    set -uo pipefail
+    # `SKIP_TARGETS` is the fleet's recognised skip contract, the one livespec's
+    # `check` recipe reads too. The delegated gate client exports the members
+    # that read authority held outside the tree into it, so the gate Job leaves
+    # them to the pushing host; since livespec-dev-tooling v1.134.2 the client
+    # refuses to submit a Job for a recipe that reads no recognised skip
+    # variable (livespec-dev-tooling-ebtm6t). Unset, the full aggregate runs, and
+    # `check-aggregate.sh` writes no green token for a run that skipped anything.
+    read -ra skip_targets <<< "${SKIP_TARGETS:-}"
+    bash dev-tooling/check-aggregate.sh "${skip_targets[@]}"
 
 # Factory-branch workflow-edit guard: delegates to the worktree pack's single
 # canonical body `dev-tooling/check-no-workflow-edits.sh` (the seventh pack
