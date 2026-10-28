@@ -206,6 +206,9 @@ markers = [
 # directly under the header, above the other keys, per the fleet placement
 # convention.
 file_lloc_hard_gate = true
+repo_local_ci_skips = [
+    { slug = "check-no-workflow-edits", reason = "Local and janitor authorship control; the canonical guard explicitly exits without evaluation under GITHUB_ACTIONS because CI has no local author to control." },
+]
 plan_lifecycle_anchor = true
 # `tests.dev-tooling` is an integration tier here, not a unit one: the suite it
 # names builds a whole Codex plugin cache (payloads, manifests, hook
