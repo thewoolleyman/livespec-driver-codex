@@ -210,6 +210,11 @@ repo_local_ci_skips = [
     { slug = "check-no-workflow-edits", reason = "Local and janitor authorship control; the canonical guard explicitly exits without evaluation under GITHUB_ACTIONS because CI has no local author to control." },
 ]
 plan_lifecycle_anchor = true
+# Opts this repository in to delegating its pre-push gate to the remote executor
+# (SPECIFICATION/non-functional-requirements.md §"Enforcement suite"). The switch
+# is ANDed with host eligibility by the client, so a host with no gates
+# credential, such as a Fabro sandbox, still gates locally.
+delegated_gate = true
 # `tests.dev-tooling` is an integration tier here, not a unit one: the suite it
 # names builds a whole Codex plugin cache (payloads, manifests, hook
 # registrations, alias topology) and drives the real reconciler and observer
