@@ -281,6 +281,18 @@
       "prepare_toolchain": {
         "mise": ["sh", "-c", "mise trust && env -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_API_TOKEN mise install --quiet"]
       },
+      // The conformance_hook_install prepare step named above runs only when
+      // it is declared here: an absent `conformance` block resolves it to the
+      // ratified no-op, so a factory sandbox never got the commit-refuse hook
+      // and the janitor's check-primary-checkout-commit-refuse-hook-installed
+      // failed on every run (livespec-driver-pi-hpytnq run
+      // 01M6296W8V31HA5SC68099492Q, 2026-10-28). `internal_livespec_dev_tooling`
+      // renders `uv run python -m livespec_dev_tooling.install_commit_refuse_hooks`,
+      // which the dev group's pinned livespec-dev-tooling provides. Only the
+      // install arm is declared; the two verify arms keep their no-op default.
+      "conformance": {
+        "hook_install": { "mode": "internal_livespec_dev_tooling" }
+      },
       "auto_approve_ready": true,
       "acceptance_mode": "ai-only",
       "wip_cap": 10,
