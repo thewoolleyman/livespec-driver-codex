@@ -1,2 +1,2 @@
-work_item=livespec-driver-codex-d2tp5d
-reason=Add a top-level concurrency group to release-please.yml so concurrent master pushes queue instead of racing on a stale release base (2026-10-25 PRs 3619/3620).
+work_item=livespec-driver-codex-wrk6cn
+reason=Add the aggregate slugs no CI job runs (check-spec-governance-default-block) to the ci.yml metadata batch and declare check-no-workflow-edits skip-only, for the livespec-dev-tooling v1.136.2 pin bump; maintainer-delegated authority 2026-10-27 23:07Z.
