@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.3...v0.8.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* **release:** release the delegated-revise wording fix as v0.8.4 ([bccfba7](https://github.com/thewoolleyman/livespec-driver-codex/commit/bccfba790f94db7fdbcd337ca1d7276e4c7dce56))
+
 ## [0.8.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.2...v0.8.3) (2026-10-25)
 
 
