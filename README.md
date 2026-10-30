@@ -56,7 +56,7 @@ established `/livespec:*` surface is preserved):
 - `seed` — author the initial natural-language spec
 - `propose-change` — file a proposed change against the spec
 - `critique` — surface issues in the spec
-- `revise` — accept or reject pending proposed changes
+- `revise` — accept, modify, or reject pending proposed changes, confirming each with the user or deciding under the project's configured delegated decision mode with independent review
 - `doctor` — run static + LLM-driven validation
 - `prune-history` — collapse old `history/vNNN/` entries
 - `next` — rank the next spec-side action
