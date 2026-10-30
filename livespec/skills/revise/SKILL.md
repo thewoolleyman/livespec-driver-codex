@@ -1,6 +1,6 @@
 ---
 name: revise
-description: Walk the user through accepting or rejecting pending proposed changes in <spec-root>/proposed_changes/, then snapshot the result as a new <spec-root>/history/vNNN/ revision. Covers every pending proposal by default, or ONE named proposal via --only-topic <topic> — leaving the rest in place — when the user asks to revise a single proposal or their authority covers only their own. Invoked by livespec:revise, "revise the livespec", "process pending proposed changes", or "revise only the <topic> proposal".
+description: Accept, modify, or reject pending proposed changes in <spec-root>/proposed_changes/ — confirming each with the user, or deciding under the project's configured delegated decision mode with independent review — then snapshot the result as a new <spec-root>/history/vNNN/ revision. Covers every pending proposal by default, or ONE named proposal via --only-topic <topic> — leaving the rest in place — when the user asks to revise a single proposal or their authority covers only their own. Invoked by livespec:revise, "revise the livespec", "process pending proposed changes", or "revise only the <topic> proposal".
 ---
 
 # revise — Codex Driver binding
@@ -107,8 +107,12 @@ python3 "$LIVESPEC_CORE_ROOT/scripts/bin/revise.py" --revise-json <path> --post-
 - **"run `python -m livespec_dev_tooling.workflow_checks.no_stale_revise_branches`"**
   (prose Step 3.5) — via the shell tool against the project root.
 - **"ask the user" / "confirm with the user" / "surface" /
-  "narrate" / the per-proposal confirmation dialogue** —
-  conversational narration in this session.
+  "narrate"** — conversational narration in this session.
+- **the per-proposal confirmation dialogue** — conversational dialogue
+  in this session, run when core's revise prose requires maintainer
+  input for a proposal, so a manually owned proposal still reaches the
+  user. A proposal whose effective decision mode is delegated follows
+  core's prose for independent review and decision instead.
 - **"read `<file>`" / "list `<dir>`"** — reading the file directly
   (or shell `ls`). **"write `<file>`"** — writing the file directly.
 - **"the propose-change / critique operation"** — the
