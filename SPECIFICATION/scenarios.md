@@ -147,6 +147,43 @@ Then the commit-refuse hook exits 1
 And it directs the contributor to use a worktree
 ```
 
+## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards
+
+```gherkin
+Given the Codex Driver plugin is installed and its hooks are trusted
+When the agent makes one Bash tool call
+Then the Driver's hooks.json starts exactly one Python process for its Bash-matched PreToolUse guards
+And every Bash-matched guard the bundle carries is evaluated against that call's payload
+```
+
+## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call
+
+```gherkin
+Given one fail-open Bash-matched PreToolUse guard of the Driver raises an exception on a payload
+When the agent makes a Bash tool call with that payload
+Then every other Bash-matched guard is still evaluated against the call
+And a deny from any other guard still denies the call with that guard's own payload
+And when no other guard denies, the call is allowed with empty stdout and exit 0
+```
+
+## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards
+
+```gherkin
+Given the PreToolUse dispatcher fails before it has evaluated every Bash-matched guard
+When the agent makes a Bash tool call
+Then each not-yet-evaluated Bash-matched guard runs as its own standalone process against that call's payload
+And the call is denied exactly when one of the standalone guards denies it, with that guard's own payload
+```
+
+## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still denies the call
+
+```gherkin
+Given a Bash-matched PreToolUse guard that the upstream contract declares fail-closed raises an exception on a payload
+When the agent makes a Bash tool call with that payload
+Then the dispatcher denies the call with that guard's own fail-closed deny
+And every other Bash-matched guard is still evaluated against the call
+```
+
 ## Scenario: long-running hooks survive a Driver cache update
 
 ```gherkin

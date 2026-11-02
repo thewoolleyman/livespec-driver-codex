@@ -323,5 +323,33 @@
     "heading": "## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict",
     "test": "tests.integration.test_delegated_pre_push.test_delegating_host_refuses_on_no_verdict_without_a_local_run",
     "reason": "Integration-tier witness over the REAL dev-tooling/check-pre-push.sh with stubbed uv and just on PATH: the repository config opts in; a delegating host runs the delegation client and never `just check`, and a client that reaches no verdict refuses the push with no local run; a host holding no gates credential gates locally and says so."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards",
+    "test": "TODO",
+    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call",
+    "test": "TODO",
+    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still denies the call",
+    "test": "TODO",
+    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards",
+    "test": "TODO",
+    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
   }
 ]
