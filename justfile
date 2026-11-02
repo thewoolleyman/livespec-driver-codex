@@ -372,9 +372,18 @@ check-commit-pairs-source-and-test:
 lint-autofix-staged:
     bash dev-tooling/lint-autofix-staged.sh
 
-# Fast pre-commit subset (no test run; pre-push runs the full
-# aggregate).
-check-pre-commit: check-plugin-structure check-lint check-format
+# The delegate returns 75 only when this host must retain the local gate; a
+# delegated pass returns 0 and a delegated failure refuses the commit. The
+# staged-tree Job enters through check-pre-commit-gated-tree, which restores the
+# staged index and sets LIVESPEC_GATE_CONTEXT to prevent recursive delegation.
+check-pre-commit:
+    bash dev-tooling/check-pre-commit.sh
+
+# Fast pre-commit subset (no test run; pre-push runs the full aggregate).
+check-pre-commit-local: check-plugin-structure check-lint check-format
+
+check-pre-commit-gated-tree:
+    bash dev-tooling/check-pre-commit-gated-tree.sh
 
 check-pre-push:
     bash dev-tooling/check-pre-push.sh

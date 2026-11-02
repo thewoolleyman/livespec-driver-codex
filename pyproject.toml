@@ -218,6 +218,12 @@ delegated_gate = true
 # The dev host delegates this commit-time aggregate when it can submit a gates
 # Job; sandbox and credentialless hosts retain the local pre-commit gate.
 delegated_pre_commit = true
+# The remote Job restores the staged index then runs this repository's existing
+# pre-commit aggregate under `check-pre-commit-gated-tree`.
+gate_check_suite = [
+    "install-worktree-pack",
+    "check-pre-commit",
+]
 # `tests.dev-tooling` is an integration tier here, not a unit one: the suite it
 # names builds a whole Codex plugin cache (payloads, manifests, hook
 # registrations, alias topology) and drives the real reconciler and observer
