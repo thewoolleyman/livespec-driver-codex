@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.4...v0.9.0) (2026-11-02)
+
+
+### Features
+
+* delegate the pre-commit aggregate ([4d5f5b7](https://github.com/thewoolleyman/livespec-driver-codex/commit/4d5f5b784b2a9effc7b09ada8cb5bdebe6c8461d))
+* enable delegated pre-commit ([ec3ef02](https://github.com/thewoolleyman/livespec-driver-codex/commit/ec3ef0289556770bdd9bf0939276d7101a832619))
+
 ## [0.8.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.3...v0.8.4) (2026-10-30)
 
 
