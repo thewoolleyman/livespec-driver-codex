@@ -194,6 +194,17 @@ Then every declared retained hook path resolves through latest to the validated 
 And the session's Stop hooks execute successfully
 ```
 
+## Scenario: long-running hooks survive a cache update of any covered plugin
+
+```gherkin
+Given an active Codex session captured hook commands under an older version of a covered plugin that is not the Driver
+And that plugin declares its hooks only in its default hooks/hooks.json, behind a shell conditional
+And the marketplace advances that plugin to a newer version, deleting the older version directory
+When the persistent observer completes reconciliation
+Then every retained hook path of that plugin resolves through latest to its validated current payload
+And the session's next turn ends with no hook failure
+```
+
 ## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict
 
 Given this repository's version-controlled configuration opts it in to delegating its pre-push gate

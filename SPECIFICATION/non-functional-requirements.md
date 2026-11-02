@@ -43,7 +43,7 @@ locally, in pre-push, and in CI.
 |---|---|
 | `.agents/plugins/marketplace.json` | The marketplace catalog (`livespec-driver-codex`), listing the single `livespec` plugin sourced from `./livespec` |
 | `livespec/` | The Driver plugin: `.codex-plugin/plugin.json`, the eight `skills/<name>/SKILL.md` bindings, and the `hooks/` bundle (`hooks.json` + `livespec_footgun_guard.py`) |
-| `dev-tooling/` | `check_plugin_structure.py` (the structural gate), the family-standard git-hook scaffold, and the Codex hook-cache compatibility reconciler + observer executables |
+| `dev-tooling/` | `check_plugin_structure.py` (the structural gate), the family-standard git-hook scaffold, the Codex hook-cache compatibility reconciler + observer executables, and the observer's shipped service-supervisor definition (a systemd user unit on Linux) |
 | `tests/dev-tooling/` | Tests for the hook-cache compatibility reconciler and observer: a deterministic mock-cache integration test plus a host-aware real release-tracking transition test |
 | `tests/e2e-cli/` | The CLI end-to-end harness consumer (mock-tier skill discovery + fail-closed fixture coverage gate + static binding assertions) |
 | `tests/hooks/` | Unit tests for the plugin-shipped footgun guard |
@@ -72,9 +72,10 @@ locally, in pre-push, and in CI.
   deterministic mock-cache integration test for the hook-cache
   reconciler/observer (discovery, validation, one-hop retargeting,
   idempotent rerun), plus a host-aware real release-tracking
-  transition test that starts a session against an old Driver hook
-  path, advances the marketplace/plugin cache, and verifies each
-  retained hook path resolves to the validated current payload.
+  transition test that starts a session against an old hook path of
+  each covered plugin, advances the marketplace/plugin cache, and
+  verifies each retained hook path resolves to the validated current
+  payload.
   GitHub-hosted CI skips the real-transition leg unless an
   authenticated runner opts in with
   `LIVESPEC_REQUIRE_CODEX_CACHE_TRANSITION=1`, mirroring
@@ -146,11 +147,17 @@ unit-tests the footgun guard via subprocess invocation with a JSON stdin
 payload, asserting on the emitted `hookSpecificOutput.permissionDecision`.
 `tests/dev-tooling/` proves the Codex hook-cache compatibility reconciler
 and observer: a deterministic mock-cache integration test covers
-discovery, validation, one-hop retargeting, and idempotent rerun; a
-host-aware real release-tracking transition test — gated the same way as
-the live TUI picker acceptance above — starts a session against an old
-Driver hook path, advances the marketplace/plugin cache, and verifies
-each retained hook path resolves to the validated current payload.
+discovery, validation, one-hop retargeting, and idempotent rerun, and
+also covers a covered plugin whose hooks are declared only by the
+default `hooks/hooks.json`, a covered plugin whose entrypoints are
+`bash`-invoked or sit behind a shell conditional, two covered plugins
+reconciled together with isolated state and status, and a covered
+plugin with a missing entrypoint failing loudly while a sibling plugin
+still reconciles; a host-aware real release-tracking transition test —
+gated the same way as the live TUI picker acceptance above — starts a
+session against an old hook path of each covered plugin installed on
+the host, advances the marketplace/plugin cache, and verifies each
+retained hook path resolves to the validated current payload.
 
 ## Spec evolution
 

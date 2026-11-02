@@ -153,8 +153,7 @@ other hook, and each guard script run standalone, is invoked as
 behaviour. Here the Driver's own plugin-root placeholder IS correct, since
 the scripts are Driver-owned and live in the Driver bundle, and the
 substitution works for Codex hooks.
-`hooks.json` MUST NOT carry a top-level `description` key (Codex's hooks
-parser rejects it). The bundle's *existence and wiring* are this repo's
+`hooks.json` MUST NOT carry a top-level `description` key. The bundle's *existence and wiring* are this repo's
 contract; each hook's *behavioral disciplines and postures* (the fail-open
 requirement, deny-vs-warn, the gating predicates) are owned upstream by
 `livespec/SPECIFICATION/contracts.md`, which this
@@ -314,12 +313,30 @@ therefore inherently outside the replaceable
 exception to "The bundle carries FOUR hooks." above.
 
 The Driver MUST provide a cache-independent host reconciler and a
-persistent update observer. The ordinary `ensure-codex-plugins`
-provisioner MUST run the reconciler after its successful marketplace
-upgrade and plugin-install sequence, and MUST verify that the observer
-is enabled and healthy. The observer MUST notice Codex-native startup
-auto-upgrades that bypass the provisioner, wait until the new Driver
-cache payload is complete, then run the same reconciler.
+persistent update observer. The reconciler and observer cover every
+**covered plugin**. A covered plugin is installed in the Codex plugin
+cache under a marketplace that has a `[marketplaces.<name>]` entry in
+the host's Codex configuration, and its current installed payload
+declares at least one hook. A cache directory whose marketplace has no
+such entry is not a covered plugin; this is how caches that Codex
+manages from its own curated sources are excluded. The covered set MUST
+be derived from measured Codex configuration and cache state on every
+reconcile, never from a list fixed in code or configuration, so a
+plugin that first declares a hook in a later release is covered with no
+Driver change. The set includes non-livespec plugins from registered
+marketplaces, for example a third-party plugin that ships
+`bash`-invoked hooks. Only version-named real directories are version
+roots; scratch install directories and non-version-named directories
+are neither version roots nor alias targets.
+
+The ordinary `ensure-codex-plugins` provisioner MUST run the reconciler
+for every covered plugin after its successful marketplace upgrade and
+plugin-install sequence, and MUST verify that the observer is running
+and healthy. The observer MUST notice Codex-native startup
+auto-upgrades of any covered plugin, wait until that plugin's new cache
+payload is complete, then run the same reconciler for that plugin. The
+observer MUST NOT busy-wait; its polling or event mechanism is an
+implementation detail.
 
 For its own hook-cache discovery step only, the reconciler MUST
 discover the actual versioned hook cache from measured cache state and
@@ -328,17 +345,64 @@ declared hook commands, and MUST NOT treat `codex plugin list`
 the reconciler's discovery step alone and does not alter §"Core-root
 resolution" above, which legitimately reads `source.path` for a
 different purpose. Before changing aliases, the reconciler MUST
-validate the current payload's manifest, hooks registration, and every
-declared PreToolUse and Stop Python hook using the bare interpreter
-form Codex executes. That validation covers `pretooluse_dispatch.py` as a
-declared hook and each guard module it imports. It MUST maintain a one-hop topology
+validate the current payload's hook declarations and every hook
+entrypoint they declare, for every hook event, using the bare
+interpreter form Codex executes, under the following discovery and
+entrypoint rules:
+
+- Hook declarations are discovered from the manifest's `hooks` entry
+  and from the payload's default `hooks/hooks.json`. The union of every
+  declaration found is validated.
+- A hook command's entrypoint is the first path in the command rooted
+  at `${CLAUDE_PLUGIN_ROOT}/`, whether the command invokes it through
+  `python3`, `bash`, or inside a shell conditional.
+- Validation requires each entrypoint to exist inside the payload. An
+  entrypoint ending in `.py` MUST additionally compile under the bare
+  interpreter form Codex executes.
+- A command naming no `${CLAUDE_PLUGIN_ROOT}/` path, and not mentioning
+  `CLAUDE_PLUGIN_ROOT` in any form, has no versioned path to preserve.
+  It needs no entrypoint validation.
+- A command that mentions `CLAUDE_PLUGIN_ROOT` but yields no
+  `${CLAUDE_PLUGIN_ROOT}/` entrypoint MUST fail the reconcile for that
+  plugin loudly. So MUST an unreadable or malformed hook declaration.
+- A command whose `${CLAUDE_PLUGIN_ROOT}/` entrypoint does not exist in
+  the payload MUST fail the reconcile for that plugin loudly, naming
+  the plugin and the command. Hook continuity MUST NOT be claimed for
+  that plugin.
+- Structural rules the Driver applies to its OWN `hooks.json`, such as
+  rejecting a top-level `description` key, govern the Driver's own
+  bundle only. They are not covered-plugin validation.
+
+For the Driver's own payload, that validation also covers
+`pretooluse_dispatch.py` as a declared hook and each guard module it
+imports. The Driver's own payload remains a covered plugin. The
+reconciler MUST maintain a one-hop topology
 `old-version -> latest -> current-version`, atomically retarget
 `latest` only after validation, preserve complete real version
 directories, refuse unsafe or malformed existing links loudly, and
-backfill only bounded version names recorded by the Driver's
-release/cache state. It MUST be idempotent and MUST report a failed
+backfill only bounded version names recorded in that plugin's own
+version-state record. It MUST be idempotent and MUST report a failed
 repair as a provisioning/observer failure rather than claiming hook
 continuity.
+
+Each covered plugin's durable version-state record and observer status
+record MUST be keyed by the plugin's marketplace and plugin name. A
+health report for one plugin MUST NOT be satisfied by another
+plugin's, or another observer instance's, status record. A reconcile
+failure for one covered plugin MUST NOT prevent reconciliation of the
+others; it MUST be reported as a provisioning or observer failure
+naming that plugin.
+
+The Driver MUST ship a service-supervisor definition for the observer;
+on Linux this is a systemd user unit. With it, host provisioning can
+keep the observer running across host reboots without any Codex or
+Claude session starting it. `ensure-codex-plugins` MUST report an
+observer whose process is not running under the installed supervisor
+unit; where the platform has no supervisor, it MUST say so rather than
+report the observer as supervised. Installing that definition on a
+host, and enabling user-session lingering so that the unit runs with no
+login session, are the host-provisioning automation's responsibility,
+not the Driver provisioner's.
 
 ## Versioning
 
