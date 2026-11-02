@@ -118,3 +118,53 @@ structural gate, the test suite, the dogfooded `SPECIFICATION/`, and CI)
 are in place; `just check` passes. The per-repo beads tenant connection
 block (and the committed `.beads/config.yaml`) remain deferred to a
 later family-infra phase (see `.livespec.jsonc`).
+
+## macOS hook-cache observer provisioning
+
+Codex can remove a versioned plugin directory while a running session still
+uses its hook paths. The cache-independent observer repairs compatibility
+aliases after an upgrade. An observer started by a terminal alone disappears
+at restart; a Mac also needs user-service supervision.
+
+Host provisioning may explicitly install the observer as a LaunchAgent from a
+released, durable primary checkout of this repository:
+
+```bash
+python3 dev-tooling/install_codex_hook_cache_service.py --print
+python3 dev-tooling/install_codex_hook_cache_service.py --install
+python3 dev-tooling/install_codex_hook_cache_service.py
+python3 dev-tooling/codex_hook_cache_observe.py status
+```
+
+The default invocation checks configuration and launchd process state without
+changing either. `--install` is explicit and idempotent. It writes only
+`~/Library/LaunchAgents/com.livespec.codex-hook-cache.plist` and its log
+directory, and starts that named user agent. Run this as the operator while
+that account has a GUI login session; no sudo, system daemon, credential, or
+Codex hook-trust changes are needed. `RunAtLoad` starts it at login after a
+restart, and `KeepAlive` restarts it on exit. This is login survival, not a
+promise that a user agent runs before anyone logs in.
+
+The default interpreter is the stable `/opt/homebrew/bin/python3` path. Use
+`--python` for another stable Python 3.10+ executable. `--driver-root` and
+`--codex-home` override the source checkout and Codex home. The installer
+refuses a disposable secondary worktree or Codex-managed plugin-cache source.
+It deliberately leaves installation to host provisioning, rather than making
+plugin installation mutate the host's service manager.
+
+Installation refuses a live detached observer instead of guessing which process
+to terminate. For a first migration, verify the recorded PID and its exact
+command, retire only that confirmed detached observer, then apply provisioning.
+The startup check requires launchd's actual PID to publish a fresh successful
+heartbeat and pass the observer's own status check; a loaded but crashing job
+is a failure.
+
+The observer's coverage comes from the Driver version installed in that
+checkout. The historical Driver-only observer protects only the Driver; this
+installer does not generalize its coverage. Ecosystem-wide coverage still
+requires the `codex-hook-cache-all-plugins` implementation and release.
+
+After provisioning, verify both commands above and test with a session already
+open across a normal marketplace upgrade. A plist or healthy heartbeat alone
+does not prove that retained hook commands executed. Do not reboot a user's
+machine just to exercise this check.
