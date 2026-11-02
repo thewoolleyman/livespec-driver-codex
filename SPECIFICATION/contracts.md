@@ -117,10 +117,42 @@ emits a `hookSpecificOutput.permissionDecision: "deny"` payload to
 deny a call (empty stdout + exit 0 lets it through), and the Stop hook
 reads `{"transcript_path": "...", "stop_hook_active": ...}` on stdin and
 emits a `{"systemMessage": "..."}` WARNING (empty stdout passes silently).
-Each script is invoked by the runtime as
-`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<script>.py"` — here the Driver's
-own plugin-root placeholder IS correct, since the scripts are Driver-owned
-and live in the Driver bundle, and the substitution works for Codex hooks.
+A guard is **Bash-matched** when any matcher it is registered on is `Bash`.
+The runtime MUST start every Bash-matched PreToolUse guard, for a `Bash` call,
+through ONE dispatcher entry point,
+`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse_dispatch.py"` registered on
+the `Bash` matcher, so one Bash tool call starts one Python process for the
+Driver's PreToolUse guards rather than one per guard. A Bash-matched guard
+that is also registered on other tools (for example `block_auto_memory.py`
+on `Write`, `Edit` and `apply_patch`) keeps its own entry point on those
+other matchers. The dispatcher imports each Bash-matched guard module and
+evaluates every guard in-process, in its dispatch order, against the same
+payload. Each guard runs inside its OWN failure boundary, which discharges
+that guard's declared failure posture: when a guard raises or returns a
+malformed result, a fail-open guard is treated as an allow for that guard
+alone, and a guard (or guard check) the upstream contract declares
+fail-closed is treated as that guard's own deny, exactly as its standalone
+boundary would emit. Either way the failure MUST NOT suppress, reorder or
+alter any other guard's decision. The dispatcher denies the call iff at
+least one guard denies it, emitting the
+`hookSpecificOutput.permissionDecision: "deny"` payload of the first
+denying guard in dispatch order, byte-identical to that guard's payload
+when run standalone; otherwise it emits empty stdout and exits 0. The
+dispatcher sets no per-guard time budget: a guard that hangs is bounded by
+the runtime's hook timeout for the whole dispatcher process. When the
+dispatcher itself fails before it has evaluated every guard (it cannot read
+the payload, cannot import a guard module, or raises outside any guard's
+boundary), it MUST fall back to running each not-yet-evaluated Bash-matched
+guard as its own standalone process against the same payload and combine
+their decisions by the same deny-iff-any rule, so every guard's declared
+failure posture, including a fail-closed check's deny, holds exactly as in
+the standalone layout; the fallback MUST NOT deny a call that the
+standalone guards would allow. Every
+other hook, and each guard script run standalone, is invoked as
+`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<script>.py"` with unchanged
+behaviour. Here the Driver's own plugin-root placeholder IS correct, since
+the scripts are Driver-owned and live in the Driver bundle, and the
+substitution works for Codex hooks.
 `hooks.json` MUST NOT carry a top-level `description` key (Codex's hooks
 parser rejects it). The bundle's *existence and wiring* are this repo's
 contract; each hook's *behavioral disciplines and postures* (the fail-open
@@ -298,7 +330,8 @@ resolution" above, which legitimately reads `source.path` for a
 different purpose. Before changing aliases, the reconciler MUST
 validate the current payload's manifest, hooks registration, and every
 declared PreToolUse and Stop Python hook using the bare interpreter
-form Codex executes. It MUST maintain a one-hop topology
+form Codex executes. That validation covers `pretooluse_dispatch.py` as a
+declared hook and each guard module it imports. It MUST maintain a one-hop topology
 `old-version -> latest -> current-version`, atomically retarget
 `latest` only after validation, preserve complete real version
 directories, refuse unsafe or malformed existing links loudly, and
