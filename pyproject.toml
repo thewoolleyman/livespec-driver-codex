@@ -215,6 +215,9 @@ plan_lifecycle_anchor = true
 # is ANDed with host eligibility by the client, so a host with no gates
 # credential, such as a Fabro sandbox, still gates locally.
 delegated_gate = true
+# The dev host delegates this commit-time aggregate when it can submit a gates
+# Job; sandbox and credentialless hosts retain the local pre-commit gate.
+delegated_pre_commit = true
 # `tests.dev-tooling` is an integration tier here, not a unit one: the suite it
 # names builds a whole Codex plugin cache (payloads, manifests, hook
 # registrations, alias topology) and drives the real reconciler and observer
