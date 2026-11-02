@@ -40,5 +40,33 @@
     "heading": "## Terminology",
     "work_item": "livespec-driver-codex-cea",
     "first_seen": "2026-06-23"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards",
+    "work_item": "livespec-driver-codex-kroiar",
+    "first_seen": "2026-11-02"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call",
+    "work_item": "livespec-driver-codex-kroiar",
+    "first_seen": "2026-11-02"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still denies the call",
+    "work_item": "livespec-driver-codex-kroiar",
+    "first_seen": "2026-11-02"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards",
+    "work_item": "livespec-driver-codex-kroiar",
+    "first_seen": "2026-11-02"
   }
 ]

@@ -329,27 +329,31 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards",
     "test": "TODO",
-    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
+    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
+    "work_item": "livespec-driver-codex-kroiar"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call",
     "test": "TODO",
-    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
+    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
+    "work_item": "livespec-driver-codex-kroiar"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still denies the call",
     "test": "TODO",
-    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
+    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
+    "work_item": "livespec-driver-codex-kroiar"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards",
     "test": "TODO",
-    "reason": "Realized by the PreToolUse dispatcher implementation item filed after this revise (plan anthropic-burn-mitigation, livespec-orchestrator-beads-fabro epic bd-ib-b2jzxw); the dispatcher's tests under tests/hooks/ replace this TODO."
+    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
+    "work_item": "livespec-driver-codex-kroiar"
   }
 ]
