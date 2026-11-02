@@ -320,6 +320,14 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: long-running hooks survive a cache update of any covered plugin",
+    "test": "TODO",
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-esytmj (scratch-CODEX_HOME mock-cache test over a non-Driver covered plugin declaring hooks only in its default hooks/hooks.json)",
+    "work_item": "livespec-driver-codex-esytmj"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict",
     "test": "tests.integration.test_delegated_pre_push.test_delegating_host_refuses_on_no_verdict_without_a_local_run",
     "reason": "Integration-tier witness over the REAL dev-tooling/check-pre-push.sh with stubbed uv and just on PATH: the repository config opts in; a delegating host runs the delegation client and never `just check`, and a client that reaches no verdict refuses the push with no local run; a host holding no gates credential gates locally and says so."

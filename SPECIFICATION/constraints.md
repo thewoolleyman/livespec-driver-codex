@@ -68,16 +68,20 @@ Every entry this repository commits in `.livespec.jsonc` under `dispatcher.facto
 - An extra skill directory, a missing binding, or a `SKILL.md` whose
   frontmatter `name` disagrees with its directory or whose `description`
   is empty.
-- A top-level `description` key in `hooks.json` (Codex's hooks parser
-  rejects it).
+- A top-level `description` key in the Driver's own `hooks.json`.
 - Renaming the plugin name (`livespec`) or the marketplace name
   (`livespec-driver-codex`) without a propose-change cycle.
 - Committing or pushing at the primary checkout; passing `--no-verify`;
   editing tracked files outside a dedicated worktree (see
   `non-functional-requirements.md` §"Inherited from livespec").
 - Locating the Codex hook-cache compatibility reconciler, observer
-  executable, or its durable version-state record solely inside the
-  Codex-managed plugin cache (`contracts.md` §"Codex hook-cache
-  compatibility").
+  executable, or any covered plugin's durable version-state or observer
+  status record solely inside the Codex-managed plugin cache
+  (`contracts.md` §"Codex hook-cache compatibility").
 - Deleting or replacing a complete real version directory while the
   reconciler is reconciling hook-cache aliases.
+- Creating, retargeting or deleting, while reconciling hook-cache
+  aliases, any path inside the Codex plugin cache outside a covered
+  plugin's own `<cache>/<marketplace>/<plugin>/` directory, or, inside
+  that directory, any entry other than the `latest` link and a bounded
+  version-name alias link.
