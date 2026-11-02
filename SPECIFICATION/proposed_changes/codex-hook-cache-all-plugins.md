@@ -6,7 +6,7 @@ spec_commitments:
   impl_followups:
     - id_hint: codex-hook-cache-all-plugins
       description: |
-        Generalize the Codex hook-cache reconciler and observer from the Driver's own payload to every hook-declaring plugin installed from a Codex-registered marketplace. Discover hooks the way Codex does, isolate per-plugin state and status, ship a supervisor definition for the observer, and prove the behaviour with the mock-cache test and the real old-session transition test.
+        Generalize the Codex hook-cache reconciler and observer from the Driver's own payload to every hook-declaring plugin installed from a Codex-registered marketplace. Discover hooks from the manifest entry and the default hooks/hooks.json, resolve each entrypoint under ${CLAUDE_PLUGIN_ROOT}/ whatever interpreter or shell wrapper invokes it, isolate per-plugin state and status, ship a supervisor definition for the observer, and prove the behaviour with the mock-cache test and the real old-session transition test.
 ---
 
 ## Proposal: Hook-cache compatibility for every hook-declaring Codex plugin
@@ -35,50 +35,70 @@ The ledger record is livespec bug `livespec-gqjkge`, under plan `codex-plugin-ho
 In `contracts.md` §"Codex hook-cache compatibility" (the H3 under §"Hook bundle"; no `## ` heading changes in `contracts.md`):
 
 1. Replace the paragraph beginning "The Driver MUST provide a cache-independent host reconciler and a persistent update observer." with text stating the following.
-   - The reconciler and observer cover every **covered plugin**. A covered plugin is installed in the Codex plugin cache from a marketplace registered in the host's Codex configuration, and its current installed payload declares at least one hook.
-   - The covered set MUST be derived from measured Codex configuration and cache state on every reconcile, never from a list fixed in code or configuration. A plugin that first declares a hook in a later release is therefore covered with no Driver change.
-   - Plugin caches that Codex manages from its own curated sources, rather than from a registered marketplace, are outside the covered set.
-   - The ordinary `ensure-codex-plugins` provisioner MUST run the reconciler for every covered plugin after its successful marketplace upgrade and plugin-install sequence, and MUST verify that the observer is running and healthy.
-   - The observer MUST notice Codex-native startup auto-upgrades of any covered plugin, wait until that plugin's new cache payload is complete, then run the same reconciler for that plugin.
-   - The observer MUST be event-driven or, failing that, poll no more often than every 2 seconds, so that it is not a steady CPU load on the host.
+   - **Covered plugins.** The reconciler and observer cover every **covered plugin**. A covered plugin is installed in the Codex plugin cache under a marketplace that has a `[marketplaces.<name>]` entry in the host's Codex configuration, and its current installed payload declares at least one hook.
+   - **Excluded caches.** A cache directory whose marketplace has no such entry is not a covered plugin. This is how caches that Codex manages from its own curated sources are excluded.
+   - **Derived, not listed.** The covered set MUST be derived from measured Codex configuration and cache state on every reconcile, never from a list fixed in code or configuration. A plugin that first declares a hook in a later release is therefore covered with no Driver change. The set includes non-livespec plugins from registered marketplaces, for example a third-party plugin that ships `bash`-invoked hooks. Only version-named real directories are version roots; scratch install directories and non-version-named directories are neither version roots nor alias targets.
+   - **Provisioner duty.** The ordinary `ensure-codex-plugins` provisioner MUST run the reconciler for every covered plugin after its successful marketplace upgrade and plugin-install sequence. It MUST also verify that the observer is running and healthy.
+   - **Observer duty.** The observer MUST notice Codex-native startup auto-upgrades of any covered plugin, wait until that plugin's new cache payload is complete, and then run the same reconciler for that plugin. The observer MUST NOT busy-wait. Its polling or event mechanism is an implementation detail.
 2. In the following paragraph:
    - Keep the `source.path` prohibition and its §"Core-root resolution" carve-out verbatim.
-   - Replace "the current payload's manifest, hooks registration, and every declared PreToolUse and Stop Python hook" with "the current payload's hook declarations and every hook entrypoint they declare, for every hook event". Hook declarations are discovered by both routes Codex honours: the manifest's `hooks` entry when present, and otherwise the payload's default `hooks/hooks.json`. A payload that declares neither is not a covered plugin. It is not a validation failure.
-   - A declared hook command whose entrypoint the reconciler cannot resolve to a path inside the payload MUST fail the reconcile for that plugin loudly, naming the plugin and the command. Hook continuity MUST NOT be claimed for that plugin.
+   - Replace "the current payload's manifest, hooks registration, and every declared PreToolUse and Stop Python hook" with "the current payload's hook declarations and every hook entrypoint they declare, for every hook event".
+   - Add the discovery and entrypoint rules:
+     - Hook declarations are discovered from the manifest's `hooks` entry and from the payload's default `hooks/hooks.json`. The union of every declaration found is validated.
+     - A hook command's entrypoint is the first path in the command rooted at `${CLAUDE_PLUGIN_ROOT}/`, whether the command invokes it through `python3`, `bash`, or inside a shell conditional.
+     - Validation requires each entrypoint to exist inside the payload. An entrypoint ending in `.py` MUST additionally compile under the bare interpreter form Codex executes.
+     - A command naming no `${CLAUDE_PLUGIN_ROOT}/` path, and not mentioning `CLAUDE_PLUGIN_ROOT` in any form, has no versioned path to preserve. It needs no entrypoint validation.
+     - A command that mentions `CLAUDE_PLUGIN_ROOT` but yields no `${CLAUDE_PLUGIN_ROOT}/` entrypoint MUST fail the reconcile for that plugin loudly. So MUST an unreadable or malformed hook declaration.
+     - A command whose `${CLAUDE_PLUGIN_ROOT}/` entrypoint does not exist in the payload MUST fail the reconcile for that plugin loudly, naming the plugin and the command. Hook continuity MUST NOT be claimed for that plugin.
+     - Structural rules the Driver applies to its OWN `hooks.json`, such as rejecting a top-level `description` key, govern the Driver's own bundle only. They are not covered-plugin validation.
    - Replace "backfill only bounded version names recorded by the Driver's release/cache state" with "backfill only bounded version names recorded in that plugin's own version-state record".
-   - Keep the sentence about `pretooluse_dispatch.py` and its guard modules: the Driver's own payload remains a covered plugin.
+   - Scope the sentence about `pretooluse_dispatch.py` and its guard modules to the Driver: replace "That validation covers `pretooluse_dispatch.py` as a declared hook and each guard module it imports." with "For the Driver's own payload, that validation also covers `pretooluse_dispatch.py` as a declared hook and each guard module it imports." The Driver's own payload remains a covered plugin.
 3. Add a paragraph stating the isolation rules.
    - Each covered plugin's durable version-state record and observer status record MUST be keyed by the plugin's marketplace and plugin name.
    - A health report for one plugin MUST NOT be satisfied by another plugin's, or another observer instance's, status record.
-   - A reconcile failure for one covered plugin MUST NOT prevent reconciliation of the others, and MUST be reported as a provisioning or observer failure naming that plugin.
+   - A reconcile failure for one covered plugin MUST NOT prevent reconciliation of the others. It MUST be reported as a provisioning or observer failure naming that plugin.
 4. Add a paragraph on supervision.
-   - The Driver MUST ship a service-supervisor definition for the observer (a systemd user unit on Linux). With it, host provisioning can keep the observer running across host reboots without any Codex or Claude session starting it.
-   - `ensure-codex-plugins` MUST report, not silently tolerate, an observer that is running unsupervised.
-   - Installing that definition on a host is the host-provisioning automation's responsibility, not the Driver provisioner's.
+   - The Driver MUST ship a service-supervisor definition for the observer. On Linux this is a systemd user unit. With it, host provisioning can keep the observer running across host reboots without any Codex or Claude session starting it.
+   - `ensure-codex-plugins` MUST report an observer whose process is not running under the installed supervisor unit. Where the platform has no supervisor, it MUST say so rather than report the observer as supervised.
+   - Installing that definition on a host is the host-provisioning automation's responsibility, not the Driver provisioner's. So is enabling user-session lingering so that the unit runs with no login session.
 
-In `constraints.md`, amend the bullet "Locating the Codex hook-cache compatibility reconciler, observer executable, or its durable version-state record solely inside the Codex-managed plugin cache" so that it reads "...or any covered plugin's durable version-state or observer status record...". Add a bullet forbidding the reconciler from creating, retargeting or deleting any path inside a plugin cache directory that is not a covered plugin's version root.
+In `constraints.md`:
+- Amend the bullet "Locating the Codex hook-cache compatibility reconciler, observer executable, or its durable version-state record solely inside the Codex-managed plugin cache" so that it reads "Locating the Codex hook-cache compatibility reconciler, observer executable, or any covered plugin's durable version-state or observer status record solely inside the Codex-managed plugin cache".
+- Add a bullet: "Creating, retargeting or deleting, while reconciling hook-cache aliases, any path inside the Codex plugin cache outside a covered plugin's own `<cache>/<marketplace>/<plugin>/` directory, or, inside that directory, any entry other than the `latest` link and a bounded version-name alias link."
+- Keep the existing bullet "Deleting or replacing a complete real version directory while the reconciler is reconciling hook-cache aliases." unchanged.
+- Replace the bullet "A top-level `description` key in `hooks.json` (Codex's hooks parser rejects it)." with "A top-level `description` key in the Driver's own `hooks.json`."
 
-In `non-functional-requirements.md`, make three edits.
-- §"Test discipline": extend the `tests/dev-tooling/` sentence so the deterministic mock-cache integration test also covers:
-  - a covered plugin whose hooks are declared only by the default `hooks/hooks.json`;
-  - two covered plugins reconciled together with isolated state and status;
-  - a covered plugin with an unresolvable hook command failing loudly while a sibling plugin still reconciles.
-  
-  Extend the real release-tracking transition test so it runs over every covered plugin installed on the host, not only the Driver.
-- §"Enforcement suite": update the `check-dev-tooling` bullet's description to match.
+In `contracts.md` §"Hook bundle", in the sentence "`hooks.json` MUST NOT carry a top-level `description` key (Codex's hooks parser rejects it).", delete the parenthetical, leaving the bare rule "`hooks.json` MUST NOT carry a top-level `description` key." The rule is a Driver choice and needs no claim about Codex's behaviour. This is a drift repair: a registered third-party plugin whose `hooks.json` carries a top-level `description` key has its hooks loaded on the livespec dev host.
+
+In `non-functional-requirements.md`:
+- §"Test discipline":
+  - Extend the `tests/dev-tooling/` sentence so the deterministic mock-cache integration test also covers:
+    - a covered plugin whose hooks are declared only by the default `hooks/hooks.json`;
+    - a covered plugin whose entrypoints are `bash`-invoked or sit behind a shell conditional;
+    - two covered plugins reconciled together with isolated state and status;
+    - a covered plugin with a missing entrypoint failing loudly while a sibling plugin still reconciles.
+  - Rewrite the real release-tracking transition sentence: replace "starts a session against an old Driver hook path" with "starts a session against an old hook path of each covered plugin installed on the host".
+- §"Enforcement suite": rewrite the `check-dev-tooling` bullet to match. Replace "an old Driver hook path" with "an old hook path of each covered plugin". Replace every other "Driver" in that bullet that refers to the cache under test with "covered plugin".
 - §"Repo layout": update the `dev-tooling/` row to name the shipped service-supervisor definition.
 
 In `scenarios.md`, add `## Scenario: long-running hooks survive a cache update of any covered plugin`:
 
 ```gherkin
 Given an active Codex session captured hook commands under an older version of a covered plugin that is not the Driver
-And that plugin declares its hooks only in its default hooks/hooks.json
+And that plugin declares its hooks only in its default hooks/hooks.json, behind a shell conditional
 And the marketplace advances that plugin to a newer version, deleting the older version directory
 When the persistent observer completes reconciliation
 Then every retained hook path of that plugin resolves through latest to its validated current payload
 And the session's next turn ends with no hook failure
 ```
 
-The resulting revise MUST add this scenario's `tests/heading-coverage.json` entry, mapped either to an integration-tier test or to a TODO whose reason explicitly names the integration tier. The existing Driver scenario `## Scenario: long-running hooks survive a Driver cache update` is kept unchanged.
+The resulting revise MUST add this scenario's `tests/heading-coverage.json` entry, spelled `../tests/heading-coverage.json` in `resulting_files[]`. It MUST map either to an integration-tier test or to a TODO whose reason explicitly names the integration tier. The existing Driver scenario `## Scenario: long-running hooks survive a Driver cache update` is kept unchanged.
 
-Proposal note, not resulting spec text: live-exercise evidence is the impl_followups item's post-merge acceptance evidence. It consists of a real old Codex session surviving an orchestrator marketplace upgrade with no hook failure, plus the observer running after a host reboot. That obligation belongs on the ledger work item and the livespec plan `codex-plugin-hook-path-regression`. The revise MUST NOT add it to the ratified text.
+Proposal notes, not resulting spec text:
+
+- Live-exercise evidence is the impl_followups item's post-merge acceptance evidence. That evidence is:
+  - a real old Codex session surviving an orchestrator marketplace upgrade, with a guarded `Stop` hook running at turn end with no hook failure;
+  - the observer running after a host reboot.
+  
+  The guarded hook matters because whether Codex spawns hooks with the deleted plugin root as working directory is unmeasured. That obligation belongs on the ledger work item and on the livespec plan `codex-plugin-hook-path-regression`. The revise MUST NOT add it to the ratified text.
+- The plan's release-gating check, which fails a fleet plugin release whose Codex hook the reconciler could not cover, is deliberately not a Driver obligation. Under the rules above, the uncoverable shapes are a `${CLAUDE_PLUGIN_ROOT}/` entrypoint missing from the payload, a command that mentions `CLAUDE_PLUGIN_ROOT` without a recognised entrypoint, and an unreadable declaration. That check belongs in each fleet plugin's own release gate. It is filed as a separate child of the livespec plan in the shared fleet tooling repository, `livespec-dev-tooling`.
