@@ -213,12 +213,32 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
 
 
 def _all_fingerprint(*, root: Path, config_path: Path) -> tuple[object, ...]:
-    """Include the trust-record file so same-version trust loss is observable."""
+    """Include file-level payload marks and the trust-record file.
+
+    A directory's own mtime does not move when an existing file inside it is
+    rewritten, so each file's mtime and size are fingerprinted as well.
+    """
     payload = fingerprint(root=root)
+    files = tuple(
+        mark for name in reconciler.real_versions(root=root) for mark in _tree_marks(root / name)
+    )
     try:
-        return (*payload, ("config.toml", config_path.stat().st_mtime_ns))
+        return (*payload, files, ("config.toml", config_path.stat().st_mtime_ns))
     except OSError:
-        return (*payload, ("config.toml", -1))
+        return (*payload, files, ("config.toml", -1))
+
+
+def _tree_marks(top: Path) -> list[tuple[str, int, int]]:
+    marks: list[tuple[str, int, int]] = []
+    for directory, _, names in os.walk(top, followlinks=False):
+        for name in sorted(names):
+            path = Path(directory) / name
+            try:
+                stat = path.lstat()
+            except OSError:
+                continue
+            marks.append((str(path.relative_to(top.parent)), stat.st_mtime_ns, stat.st_size))
+    return marks
 
 
 def build_parser() -> argparse.ArgumentParser:
