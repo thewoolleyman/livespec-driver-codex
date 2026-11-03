@@ -7,7 +7,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/sh</string>
-    <string>-lc</string>
+    <string>-c</string>
     <string>exec /usr/bin/env python3 "$HOME/.local/share/livespec-driver-codex/dev-tooling/codex_hook_cache_observe.py" "$0" "$@"</string>
     <string>run</string>
     <string>--all</string>

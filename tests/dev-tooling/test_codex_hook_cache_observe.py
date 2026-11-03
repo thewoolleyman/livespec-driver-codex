@@ -203,6 +203,7 @@ def test_macos_launchagent_is_a_generalized_supervisor_with_portable_python() ->
 
     assert definition["Label"] == "com.livespec.codex-hook-cache-observer"
     assert definition["ProgramArguments"][-2:] == ["run", "--all"]
+    assert "-c" in definition["ProgramArguments"]
     assert "--marketplace" not in definition["ProgramArguments"]
     assert "--plugin" not in definition["ProgramArguments"]
     assert definition["RunAtLoad"] is True
