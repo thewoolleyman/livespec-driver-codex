@@ -189,8 +189,10 @@ And every other Bash-matched guard is still evaluated against the call
 ```gherkin
 Given an active session captured hook commands under an older Driver version
 And the marketplace advances to a newer Driver version
+And the Driver's hook definitions and hook entrypoints match its release tag for the new version
 When explicit provisioning or the persistent observer completes reconciliation
 Then every declared retained hook path resolves through latest to the validated current payload
+And Codex trusts the Driver's hooks, and any trust the Driver re-established was established only after that verification
 And the session's Stop hooks execute successfully
 ```
 
@@ -200,9 +202,40 @@ And the session's Stop hooks execute successfully
 Given an active Codex session captured hook commands under an older version of a covered plugin that is not the Driver
 And that plugin declares its hooks only in its default hooks/hooks.json, behind a shell conditional
 And the marketplace advances that plugin to a newer version, deleting the older version directory
+And that plugin's hook definitions and hook entrypoints match its release tag for the new version
 When the persistent observer completes reconciliation
 Then every retained hook path of that plugin resolves through latest to its validated current payload
+And Codex trusts that plugin's hooks, and any trust the Driver re-established was established only after that verification
 And the session's next turn ends with no hook failure
+```
+
+## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not
+
+```gherkin
+Given an already-open Codex session captured hook commands of a covered plugin
+And Codex trusted that plugin's hooks
+And the plugin's installed payload then changes, through a new release or through Codex re-materializing the same version, while every hook definition and hook entrypoint stays byte-identical to the plugin's release tag for the installed version
+And Codex withdraws its trust in that plugin's hooks
+When explicit provisioning or the persistent observer completes reconciliation
+Then each retained hook path of that plugin resolves through latest to the validated current payload
+And Codex trusts that plugin's hooks again, re-established only after the hook definitions and entrypoints were verified against the plugin's release tag
+And the already-open session's next turn runs those hooks with no hook failure and no trust prompt
+And where that plugin ships a PreToolUse safety guard, that guard denies a forbidden command in that session again rather than failing open
+And Codex's hook-trust bypass was not used and no hook was disabled
+```
+
+## Scenario: a covered plugin whose hook trust cannot be safely re-established is reported, not trusted
+
+```gherkin
+Given a covered plugin whose hook trust cannot be verified, because its current payload declares a hook definition or hook entrypoint that differs from the plugin's release tag for the installed version, because no release tag corresponding to the installed version can be identified, or because the host's Codex trust records are in a format the Driver does not recognize
+When explicit provisioning or the persistent observer reconciles that plugin
+Then the Driver establishes no Codex trust for that plugin's hooks and writes no Codex trust state for them
+And the failure is reported as a provisioning or observer failure naming the plugin and each affected hook
+And ensure-codex-plugins does not report that plugin healthy
+And where Codex exposes a setting that refuses tool execution while a configured hook is untrusted, that setting is enabled, so no tool runs with that plugin's guards silently off
+And whenever the host does not fail closed, the plugin is reported unhealthy and the report states that Codex will run tools without that plugin's guards until trust is re-established
+And Codex's hook-trust bypass is neither used nor recommended
+And every other covered plugin is still reconciled
 ```
 
 ## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict
