@@ -111,3 +111,31 @@ def test_reconciler_replaces_a_stale_record_without_duplicate_toml_tables(
     assert report.ok
     assert repaired.count("[hooks.state.") == 2
     assert "sha256:stale" not in repaired
+
+
+def test_reconciler_refuses_fields_under_an_unkeyed_hook_state_table(
+    tmp_path: Path,
+) -> None:
+    """An unkeyed state field is an unknown Codex format and stays untouched."""
+    trust = importlib.import_module("codex_hook_trust")
+    cache = tmp_path / "codex" / "plugins" / "cache" / "market" / "plugin"
+    payload = write_payload(root=cache, version="1.2.3")
+    release = tmp_path / "release"
+    release.mkdir()
+    release_payload = write_payload(root=release, version="1.2.3")
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    original = '[hooks.state]\ntrusted_hash = "sha256:unknown"\n'
+    config.write_text(original, encoding="utf-8")
+
+    report = trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    )
+
+    assert not report.ok
+    assert report.problems == ("plugin: unrecognized Codex trust record format",)
+    assert config.read_text(encoding="utf-8") == original

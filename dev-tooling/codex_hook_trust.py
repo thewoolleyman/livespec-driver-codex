@@ -69,13 +69,25 @@ def _read_recognized_state(*, config_path: Path) -> tuple[dict[str, object], str
         return {}, f"unrecognized Codex trust record format ({err})"
     state: dict[str, object] = {}
     active_key: str | None = None
+    under_unkeyed_state = False
     for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[hooks.state") and (
+            stripped != "[hooks.state]"
+            and re.fullmatch(r'\[hooks\.state\.("(?:[^"\\\\]|\\\\.)*")\]', stripped) is None
+        ):
+            return {}, "unrecognized Codex trust record format"
         active_key, table_problem = _state_table_key(line=line, active_key=active_key, state=state)
         if table_problem:
             return {}, table_problem
-        if line.strip().startswith("["):
+        if stripped.startswith("["):
+            under_unkeyed_state = stripped == "[hooks.state]"
             continue
-        if active_key is None or not line.strip() or line.lstrip().startswith("#"):
+        if not stripped or line.lstrip().startswith("#"):
+            continue
+        if active_key is None:
+            if under_unkeyed_state:
+                return {}, "unrecognized Codex trust record format"
             continue
         field_problem = _add_state_field(line=line, entry=state[active_key])
         if field_problem:
