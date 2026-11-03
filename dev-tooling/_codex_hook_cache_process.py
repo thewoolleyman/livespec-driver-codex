@@ -51,6 +51,11 @@ def write_status(
         if completed_reconcile and reconcile_completed_at_epoch is None
         else reconcile_completed_at_epoch
     )
+    completed_at_wall_clock = (
+        datetime.fromtimestamp(completed_at, timezone.utc).isoformat().replace("+00:00", "Z")
+        if completed_at is not None
+        else None
+    )
     body = json.dumps(
         {
             "pid": pid,
@@ -58,6 +63,7 @@ def write_status(
             "heartbeat_epoch": time.time(),
             "last_error": last_error,
             "completed_reconcile": completed_reconcile,
+            "reconcile_completed_at": completed_at_wall_clock,
             "reconcile_completed_at_epoch": completed_at,
         },
         indent=2,

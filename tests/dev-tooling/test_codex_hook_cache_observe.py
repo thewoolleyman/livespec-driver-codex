@@ -13,6 +13,7 @@ import os
 import plistlib
 import subprocess
 import time
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -150,6 +151,17 @@ def test_health_accepts_a_fresh_successful_record(tmp_path: Path) -> None:
 
     assert healthy
     assert "healthy" in why
+
+
+def test_completed_observer_status_carries_a_wall_clock_reconcile_time(tmp_path: Path) -> None:
+    """Result ordering uses a wall-clock completion time, not the monotonic heartbeat."""
+    record = tmp_path / "observer.json"
+    observer.write_status(path=record, pid=os.getpid(), last_error=None)
+
+    status = json.loads(record.read_text(encoding="utf-8"))
+
+    assert "reconcile_completed_at" in status
+    assert datetime.fromisoformat(status["reconcile_completed_at"].replace("Z", "+00:00"))
 
 
 def test_health_rejects_a_startup_heartbeat_before_first_reconcile(tmp_path: Path) -> None:
