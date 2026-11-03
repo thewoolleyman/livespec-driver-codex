@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.3...v0.11.4) (2026-11-03)
+
+
+### Bug Fixes
+
+* cover unmanaged inline hook aliases ([ea7cf0d](https://github.com/thewoolleyman/livespec-driver-codex/commit/ea7cf0d286446af39127ef5f289e49582178ac57))
+* keep hook cache reconciler under LLOC limit ([7fd2933](https://github.com/thewoolleyman/livespec-driver-codex/commit/7fd2933a93f49d98285a203948b9e94789253068))
+
 ## [0.11.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.2...v0.11.3) (2026-11-03)
 
 
