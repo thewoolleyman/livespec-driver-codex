@@ -18,42 +18,56 @@ codex plugin add livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-f
 
 # The install sequence above may have replaced the versioned hook-cache
 # directory that already-running sessions captured their hook commands
-# against. Reconcile the alias topology, then make sure the observer that
-# catches Codex's own startup auto-upgrades is running — both are hard
-# failures, because a silently-unrepaired cache means hooks that no longer
-# fire while everything still reports installed.
+# against. Reconcile the alias topology, then verify the supervisor that
+# owns the observer. This provisioner deliberately never starts or signals
+# an observer: a silently-unrepaired cache means hooks that no longer fire
+# while everything still reports installed, but lifecycle belongs to the
+# installed service manager.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$here/codex_hook_cache_reconcile.py" --all
+failed=0
+if ! python3 "$here/codex_hook_cache_provision.py"; then
+    failed=1
+fi
 
 unit="livespec-codex-hook-cache-observer.service"
 case "$(uname -s)" in
 Darwin)
     label="com.livespec.codex-hook-cache-observer"
     target="gui/$(id -u)/$label"
-    if ! launchd_status="$(launchctl print "$target" 2>&1)"; then
+    if ! launchd_status="$(launchctl print "$target" 2>&1)" || [[ "$launchd_status" != *"state = running"* ]]; then
         echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
-        exit 1
+        failed=1
+    else
+        launchd_pid="$(printf '%s\n' "$launchd_status" | sed -nE 's/^[[:space:]]*pid = ([0-9]+)$/\1/p' | head -n 1)"
+        if [[ -z "$launchd_pid" ]]; then
+            echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
+            failed=1
+        elif ! python3 "$here/codex_hook_cache_observe.py" status --all --expected-pid "$launchd_pid"; then
+            failed=1
+        fi
     fi
-    if [[ "$launchd_status" != *"state = running"* ]]; then
-        echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
-        exit 1
-    fi
-    launchd_pid="$(printf '%s\n' "$launchd_status" | sed -nE 's/^[[:space:]]*pid = ([0-9]+)$/\1/p' | head -n 1)"
-    if [[ -z "$launchd_pid" ]]; then
-        echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
-        exit 1
-    fi
-    python3 "$here/codex_hook_cache_observe.py" status --all --expected-pid "$launchd_pid"
     ;;
 Linux)
-    if ! command -v systemctl >/dev/null 2>&1 || ! systemctl --user is-active "$unit" >/dev/null; then
-        echo "Codex hook-cache observer is not running under the installed supervisor unit: $unit" >&2
-        exit 1
+    if ! command -v systemctl >/dev/null 2>&1; then
+        echo "Codex hook-cache observer is not running under the installed supervisor unit or an installed unit: $unit" >&2
+        failed=1
+    else
+        load_state="$(systemctl --user show "$unit" --property=LoadState --value 2>/dev/null || true)"
+        if [[ "$load_state" != "loaded" ]]; then
+            echo "Codex hook-cache observer is not running under the installed supervisor unit or an installed unit: $unit" >&2
+            failed=1
+        elif ! systemctl --user is-active "$unit" >/dev/null; then
+            echo "Codex hook-cache observer is not running under the installed supervisor unit: $unit" >&2
+            failed=1
+        elif ! python3 "$here/codex_hook_cache_observe.py" status --all; then
+            failed=1
+        fi
     fi
-    python3 "$here/codex_hook_cache_observe.py" status --all
     ;;
 *)
     echo "Codex hook-cache observer has no supported supervisor on this platform." >&2
-    exit 1
+    failed=1
     ;;
 esac
+
+exit "$failed"
