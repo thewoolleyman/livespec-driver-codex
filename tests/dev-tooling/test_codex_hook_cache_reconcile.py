@@ -201,6 +201,48 @@ def test_reconcile_accepts_wrapped_inline_mcp_tool_hook_declarations(
     assert report.ok
 
 
+def test_reconcile_output_names_wrapped_inline_non_command_hook_declarations(
+    cache: Path, state: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Successful output identifies inline MCP hooks that need no path validation."""
+    payload = write_payload(root=cache, version="0.6.1")
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = {
+        "hooks": {
+            "Stop": [
+                {"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "turn_ended"}]}
+            ],
+            "Interrupt": [
+                {"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "turn_interrupted"}]}
+            ],
+            "SubagentStop": [
+                {"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "subagent_ended"}]}
+            ],
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (payload / "hooks" / "hooks.json").unlink()
+
+    assert reconciler.main(["--codex-home", str(cache.parents[3]), "--state", str(state)]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["hook_declarations"] == [
+        (
+            "Stop: mcp_tool node_repl.turn_ended "
+            "(registered; no entrypoint validation for non-command hook)"
+        ),
+        (
+            "Interrupt: mcp_tool node_repl.turn_interrupted "
+            "(registered; no entrypoint validation for non-command hook)"
+        ),
+        (
+            "SubagentStop: mcp_tool node_repl.subagent_ended "
+            "(registered; no entrypoint validation for non-command hook)"
+        ),
+    ]
+
+
 def test_reconcile_rejects_a_missing_command_entrypoint_from_wrapped_inline_hooks(
     cache: Path, state: Path
 ) -> None:
