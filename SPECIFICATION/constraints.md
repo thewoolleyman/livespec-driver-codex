@@ -85,3 +85,15 @@ Every entry this repository commits in `.livespec.jsonc` under `dispatcher.facto
   plugin's own `<cache>/<marketplace>/<plugin>/` directory, or, inside
   that directory, any entry other than the `latest` link and a bounded
   version-name alias link.
+- Using Codex's hook-trust bypass (`--dangerously-bypass-hook-trust`),
+  or disabling or removing a hook, to restore or report hook continuity
+  for a covered plugin (`contracts.md` §"Codex hook-cache
+  compatibility").
+- Re-establishing Codex hook trust for a covered plugin's hooks without
+  first verifying the installed payload's hook definitions and hook
+  entrypoints against that plugin's release tag.
+- Reading trust status from, or writing, a Codex hook-trust record in a
+  format that the reconciler, the observer, or `ensure-codex-plugins`
+  does not recognize.
+- Leaving disabled a Codex setting that refuses tool execution while a
+  configured hook is untrusted, on a host whose Codex exposes one.

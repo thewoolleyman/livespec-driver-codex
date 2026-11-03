@@ -283,10 +283,15 @@ path, the SQLite table set, the warning-message shape) are Driver
 implementation detail and MAY be tuned without a spec cycle, provided the
 WARN-only, read-only Stop posture holds.
 
-Trust model: Codex prompts once to trust a plugin's hooks in interactive
-sessions; a headless invocation needs `--dangerously-bypass-hook-trust`
-to run the guard without the trust prompt. The trust posture is a Codex
-runtime concern, not a Driver contract.
+Trust model: Codex runs a plugin's hooks only while it trusts them, and
+it records that trust in the host's Codex configuration. For every
+covered plugin, the Driver's own payload included, re-establishing that
+trust whenever Codex does not trust the plugin's installed hooks is part
+of hook continuity and is governed by §"Codex hook-cache compatibility"
+below. The Driver MUST NOT use or recommend Codex's hook-trust bypass
+(`--dangerously-bypass-hook-trust`) in any shipped or provisioning
+surface as a remedy for untrusted hooks, because the bypass disables a
+safety control.
 
 Adding or removing a hook, renaming a hook surface, or changing a hook's
 posture requires a propose-change cycle, routed by ownership: for the
@@ -384,6 +389,91 @@ backfill only bounded version names recorded in that plugin's own
 version-state record. It MUST be idempotent and MUST report a failed
 repair as a provisioning/observer failure rather than claiming hook
 continuity.
+
+Hook continuity for a covered plugin requires both path continuity,
+which the one-hop alias topology above provides, and trust continuity,
+which means Codex trusts that plugin's currently installed hooks.
+Codex's trust follows a plugin's installed bytes, not its release: Codex
+can withdraw its trust in every hook of a plugin when any part of the
+installed payload changes, even when the hook definitions and hook
+entrypoints are byte-identical to the previously trusted release, and
+even with no version change, for example when Codex re-materializes the
+same version and rewrites the plugin's cache metadata. Trust continuity
+is a safety invariant: an untrusted hook does not run, so the tool call
+an untrusted PreToolUse guard would have guarded proceeds unguarded.
+Whenever Codex does not trust a covered plugin's installed hooks, at
+least one of the following MUST hold: (a) Codex trust in those hooks is
+re-established from release-verified bytes, as the next paragraph
+requires; (b) the host fails closed, as the fail-closed fallback
+paragraph below requires; (c) where (b) does not hold, the loud
+unhealthy report that the fail-closed fallback paragraph requires is
+emitted. A host MUST NOT leave Codex sessions running tools with a
+covered plugin's guards silently off until a human notices. The
+reconciler MUST NOT claim hook continuity for a covered plugin while
+either half is missing.
+
+The observer MUST detect, for every covered plugin, both lost Codex
+trust and cache content rewritten at an unchanged version, not only
+version changes and Codex-native auto-upgrades, and MUST run the
+reconciler for that plugin when it detects either. It MUST restore
+trust, or emit the report required below, within a bounded latency that
+the implementation states and its tests verify. Whenever Codex does not
+trust a covered plugin's installed hooks, the reconciler MUST attempt to
+re-establish Codex hook trust for those hooks, and it MUST do so only
+after verifying the installed payload's declared hook definitions, and
+every hook entrypoint they declare, against that plugin's released
+artifact: the release tag, in the plugin's source repository, that
+corresponds to the installed version. Trust MUST NOT be established on
+the strength of the cache contents alone. The verification applies
+whether or not a hook definition changed relative to the previously
+trusted release, and a hook whose definition changed MUST NOT be trusted
+on any other basis. A payload that cannot be verified, because its
+released artifact cannot be identified or obtained or because any
+declared hook definition or entrypoint differs from that artifact, MUST
+NOT be trusted. It MUST be reported as a provisioning or observer
+failure naming the plugin and each unverified hook, exactly as a failed
+path repair is. In particular, a covered plugin for which no release tag
+corresponding to its installed version can be identified, such as a
+third-party plugin whose source repository publishes none, MUST be
+reported in that way and MUST NEVER be trusted by the Driver. The
+reconciler MUST NOT use Codex's hook-trust bypass, and it MUST NOT
+disable or remove a hook to clear a trust failure.
+
+Re-establishing trust depends on Codex's hook-trust record format, which
+is an external surface that any Codex release may change. The invariant
+is trust continuity from release-verified bytes, not any particular
+mechanism: whether the Driver re-establishes trust through an interface
+Codex provides, by writing Codex's trust records, or by provisioning the
+hooks through a Codex mechanism that does not subject them to per-plugin
+content-hash trust is an implementation choice. Whatever the mechanism,
+every hook whose trust the Driver establishes or provisions MUST be
+byte-identical to the release-verified hook definitions and entrypoints.
+The reconciler, the observer, and `ensure-codex-plugins` MUST recognize
+the format of the host's Codex trust records before reading trust status
+from them or writing them. When any of them does not recognize that
+format, it MUST NOT write any trust state, MUST treat that plugin's
+hooks as untrusted, and MUST fail loudly, as a provisioning or observer
+failure naming the plugin. Trust that an operator grants through Codex's
+own review interface is not governed by this contract.
+
+`ensure-codex-plugins` and the observer's health report MUST report a
+covered plugin whose hooks are installed but not trusted by Codex
+loudly, as a failure, naming the plugin and each untrusted hook, and
+MUST NOT report that plugin healthy.
+
+Fail-closed fallback. If Codex exposes a setting that refuses tool
+execution while a configured hook is untrusted, host provisioning MUST
+enable it, and `ensure-codex-plugins` MUST report a host on which it is
+not enabled. Whenever the host does not fail closed, because Codex
+exposes no such setting or because the setting is not enabled, the
+Driver MUST report untrusted covered hooks as unhealthy through
+`ensure-codex-plugins` and the observer health check, naming the plugin
+and each untrusted hook, and each such report MUST state that Codex will
+run tools without that plugin's guards until trust is re-established,
+and the Driver MUST NOT describe those guards as active anywhere. In
+either case, the Driver and host provisioning MUST NOT use or recommend
+Codex's hook-trust bypass (`--dangerously-bypass-hook-trust`, or its
+configuration key `bypass_hook_trust`).
 
 Each covered plugin's durable version-state record and observer status
 record MUST be keyed by the plugin's marketplace and plugin name. A

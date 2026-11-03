@@ -75,7 +75,22 @@ locally, in pre-push, and in CI.
   transition test that starts a session against an old hook path of
   each covered plugin, advances the marketplace/plugin cache, and
   verifies each retained hook path resolves to the validated current
-  payload.
+  payload. The mock-cache integration test MUST also cover trust
+  continuity: detection and repair within the stated latency, trust lost
+  with no content change (a trust record removed or edited) detected and
+  repaired, trust re-established only for a payload whose hook
+  definitions and entrypoints match the plugin's release tag, a payload
+  that differs from or cannot be verified against that tag left
+  untrusted and reported, lost trust detected and repaired at an
+  unchanged version after cache content is rewritten, a covered plugin
+  with no identifiable release tag reported and never trusted, an
+  unrecognized trust-record format failing loudly with no trust state
+  written, a covered plugin with installed but untrusted hooks reported
+  rather than reported healthy, and, where Codex exposes a setting that
+  refuses tool execution while a configured hook is untrusted, a host on
+  which that setting is not enabled reported. The real transition test
+  MUST also verify that Codex treats each retained hook as trusted after
+  reconciliation.
   GitHub-hosted CI skips the real-transition leg unless an
   authenticated runner opts in with
   `LIVESPEC_REQUIRE_CODEX_CACHE_TRANSITION=1`, mirroring
@@ -158,6 +173,21 @@ gated the same way as the live TUI picker acceptance above — starts a
 session against an old hook path of each covered plugin installed on
 the host, advances the marketplace/plugin cache, and verifies each
 retained hook path resolves to the validated current payload.
+The mock-cache integration test MUST also cover trust continuity:
+detection and repair within the stated latency, trust lost with no
+content change (a trust record removed or edited) detected and repaired,
+trust re-established only for a payload whose hook definitions and
+entrypoints match the plugin's release tag, a payload that differs from
+or cannot be verified against that tag left untrusted and reported, lost
+trust detected and repaired at an unchanged version after cache content
+is rewritten, a covered plugin with no identifiable release tag reported
+and never trusted, an unrecognized trust-record format failing loudly
+with no trust state written, a covered plugin with installed but
+untrusted hooks reported rather than reported healthy, and, where Codex
+exposes a setting that refuses tool execution while a configured hook is
+untrusted, a host on which that setting is not enabled reported. The
+real transition test MUST also verify that Codex treats each retained
+hook as trusted after reconciliation.
 
 ## Spec evolution
 

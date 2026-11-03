@@ -315,15 +315,32 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a Driver cache update",
     "test": "tests.dev-tooling.test_codex_hook_cache_transition_real.test_a_real_payload_transition_keeps_captured_hook_paths_resolving",
-    "reason": "Integration-tier host-aware acceptance driven over the REAL installed Driver payload: it copies the host's actual current cache payload to a scratch CODEX_HOME, runs the real observer while that payload is replaced the way Codex replaces one (successor written incrementally, old version directory removed), and asserts latest does not move while the successor is half-written, then that the hook paths captured under the retired version still resolve, in one hop through latest, to scripts of the validated current payload. Deliberately narrowed — it does not publish a Driver release to make the marketplace advance, because that would couple the suite to the release pipeline; every step downstream of the release is exercised."
+    "reason": "Integration-tier host-aware acceptance driven over the REAL installed Driver payload: it copies the host's actual current cache payload to a scratch CODEX_HOME, runs the real observer while that payload is replaced the way Codex replaces one (successor written incrementally, old version directory removed), and asserts latest does not move while the successor is half-written, then that the hook paths captured under the retired version still resolve, in one hop through latest, to scripts of the validated current payload. Deliberately narrowed — it does not publish a Driver release to make the marketplace advance, because that would couple the suite to the release pipeline; every step downstream of the release is exercised. The amended scenario's trust assertion (Codex trusts the Driver's hooks, and any trust the Driver re-established followed verification of its hook definitions and entrypoints against the release tag) is not yet exercised by this test; the integration-tier test for it is owed by livespec-driver-codex-v52m6a.",
+    "work_item": "livespec-driver-codex-v52m6a"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a cache update of any covered plugin",
     "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-esytmj (scratch-CODEX_HOME mock-cache test over a non-Driver covered plugin declaring hooks only in its default hooks/hooks.json)",
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-esytmj (scratch-CODEX_HOME mock-cache test over a non-Driver covered plugin declaring hooks only in its default hooks/hooks.json); the amended scenario's trust assertion (Codex trusts that plugin's hooks, and any trust the Driver re-established followed verification of its hook definitions and entrypoints against the release tag) is owed at the integration tier by livespec-driver-codex-v52m6a",
     "work_item": "livespec-driver-codex-esytmj"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not",
+    "test": "TODO",
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-v52m6a (an already-open session keeps running a covered plugin's hooks, with its PreToolUse guard denying again, after a content-only change and release-tag-verified re-trust)",
+    "work_item": "livespec-driver-codex-v52m6a"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a covered plugin whose hook trust cannot be safely re-established is reported, not trusted",
+    "test": "TODO",
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-v52m6a (an unverifiable payload, an untagged plugin, or an unrecognized trust-record format leaves the plugin untrusted, reported, and never bypassed, while sibling plugins still reconcile)",
+    "work_item": "livespec-driver-codex-v52m6a"
   },
   {
     "spec_root": "SPECIFICATION",
