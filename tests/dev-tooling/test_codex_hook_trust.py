@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib
 import re
+import subprocess
 from pathlib import Path
 
+import pytest
 from test_codex_hook_cache_fixtures import write_payload
 
 
@@ -177,3 +179,28 @@ def test_reconciler_keeps_unrelated_tables_after_a_replaced_trust_table(
     assert report.ok
     assert "sha256:stale" not in repaired
     assert '[projects."/work"]\ntrust_level = "trusted"\n' in repaired
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [subprocess.TimeoutExpired(cmd="git", timeout=90), FileNotFoundError("git")],
+)
+def test_release_checkout_reports_a_slow_or_missing_git_as_unverifiable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception
+) -> None:
+    """A clone that cannot run must yield an error string, not abort the caller."""
+    source = importlib.import_module("_codex_hook_release_source")
+
+    def fail_clone(*_args: object, **_kwargs: object) -> object:
+        raise failure
+
+    monkeypatch.setattr(source.subprocess, "run", fail_clone)
+
+    problem = source.checkout_release(
+        source="https://example.invalid/market.git",
+        version="1.2.3",
+        checkout=tmp_path / "source",
+    )
+
+    assert isinstance(problem, str)
+    assert "release tag cannot be obtained" in problem
