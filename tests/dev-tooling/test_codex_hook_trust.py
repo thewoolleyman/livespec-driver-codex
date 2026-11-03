@@ -107,3 +107,32 @@ def test_reconciler_names_every_untrusted_hook_when_one_entrypoint_changes(
     problems = " ".join(report.problems)
     assert "hooks/hooks.json:PreToolUse" in problems
     assert "hooks/hooks.json:Stop" in problems
+
+
+def test_reconciler_rejects_fields_under_a_non_keyed_state_table_without_writing(
+    tmp_path: Path,
+) -> None:
+    """An unknown trust shape below a bare hooks.state table fails closed."""
+    trust = importlib.import_module("codex_hook_trust")
+    cache = tmp_path / "codex" / "plugins" / "cache" / "market" / "plugin"
+    payload = write_payload(root=cache, version="1.2.3")
+    release = tmp_path / "release"
+    release.mkdir()
+    release_payload = write_payload(root=release, version="1.2.3")
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    original = "[hooks.state]\nfuture_trust_schema = { v = 2 }\n"
+    config.write_text(original, encoding="utf-8")
+
+    report = trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    )
+
+    assert not report.ok
+    assert report.trusted_hooks == ()
+    assert "plugin" in " ".join(report.problems)
+    assert config.read_text(encoding="utf-8") == original
