@@ -74,14 +74,17 @@ def checkout_release(*, source: str, version: str, checkout: Path) -> str | None
     """Clone either conventional release-tag spelling into a disposable root."""
     attempted: list[str] = []
     for tag in (f"v{version}", version):
-        result = subprocess.run(
-            ["git", "clone", "--quiet", "--depth", "1", "--branch", tag, source, str(checkout)],
-            capture_output=True,
-            check=False,
-            text=True,
-            timeout=90,
-        )
-        if result.returncode == 0:
+        try:
+            result = subprocess.run(
+                ["git", "clone", "--quiet", "--depth", "1", "--branch", tag, source, str(checkout)],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=90,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            result = None
+        if result is not None and result.returncode == 0:
             return None
         attempted.append(tag)
         if checkout.exists():
