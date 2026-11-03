@@ -513,3 +513,42 @@ def test_observer_status_is_per_plugin_and_honors_codex_home(tmp_path: Path) -> 
         )
         == 0
     )
+
+
+def test_provisioning_orders_each_plugin_against_its_own_reconcile_completion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An observer error written after plugin A's reconcile survives a later plugin's reconcile."""
+    home = tmp_path / "codex"
+    home.mkdir()
+    (home / "config.toml").write_text("[marketplaces.first]\n\n[marketplaces.second]\n", "utf-8")
+    write_payload(root=home / "plugins" / "cache" / "first" / "alpha", version="1.0.0")
+    write_payload(root=home / "plugins" / "cache" / "second" / "beta", version="1.0.0")
+    for marketplace, plugin in (("first", "alpha"), ("second", "beta")):
+        state_path = observer.reconciler.state_file(
+            marketplace=marketplace, plugin=plugin, codex_home_override=home
+        )
+        observer.write_status(
+            path=observer.status_file(state_path=state_path),
+            pid=os.getpid(),
+            last_error=None,
+            reconcile_completed_at_epoch=1.0,
+        )
+    reconciled: list[Path] = []
+    real_reconcile = observer.reconciler.reconcile
+
+    def reconcile_then_record_late_error(*, root: Path, state_path: Path) -> object:
+        report = real_reconcile(root=root, state_path=state_path)
+        if reconciled:
+            time.sleep(0.01)
+            observer.write_status(
+                path=observer.status_file(state_path=reconciled[0]),
+                pid=os.getpid(),
+                last_error="late observer failure",
+            )
+        reconciled.append(state_path)
+        return report
+
+    monkeypatch.setattr(observer.reconciler, "reconcile", reconcile_then_record_late_error)
+
+    assert observer.provision_all(home=home) == 1
