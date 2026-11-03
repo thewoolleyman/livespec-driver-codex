@@ -109,6 +109,21 @@ def _active_completed_status(
     return status, None
 
 
+def _reconcile_completion_epoch(*, status: dict[str, object]) -> float | None:
+    """Read the durable wall-clock completion time from an observer record."""
+    epoch = status.get("reconcile_completed_at_epoch")
+    if isinstance(epoch, int | float):
+        return float(epoch)
+    wall_clock = status.get("reconcile_completed_at")
+    if not isinstance(wall_clock, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(wall_clock.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.timestamp() if parsed.tzinfo is not None else None
+
+
 def pid_alive(*, pid: int) -> bool:
     """Whether a process with this pid exists."""
     try:
@@ -160,13 +175,13 @@ def health_after_provisioner(
         return False, failure
     assert status is not None
     current_time = time.time() if now is None else now
-    completed_at = status.get("reconcile_completed_at_epoch")
-    if not isinstance(completed_at, int | float) or float(completed_at) > current_time:
+    completed_at = _reconcile_completion_epoch(status=status)
+    if completed_at is None or completed_at > current_time:
         error = status.get("last_error")
         if isinstance(error, str) and error:
             return False, f"last reconcile failed: {error}"
         return False, "observer status record carries no usable reconcile completion time"
-    if float(completed_at) >= provisioner_completed_at_epoch:
+    if completed_at >= provisioner_completed_at_epoch:
         error = status.get("last_error")
         if isinstance(error, str) and error:
             return False, f"last reconcile failed: {error}"

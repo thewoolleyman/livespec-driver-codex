@@ -164,6 +164,28 @@ def test_completed_observer_status_carries_a_wall_clock_reconcile_time(tmp_path:
     assert datetime.fromisoformat(status["reconcile_completed_at"].replace("Z", "+00:00"))
 
 
+def test_an_old_observer_error_with_a_wall_clock_time_is_superseded_by_provisioning(
+    tmp_path: Path,
+) -> None:
+    """The externally-readable timestamp alone orders an older observer result."""
+    record = tmp_path / "observer.json"
+    observer.write_status(path=record, pid=os.getpid(), last_error="earlier failure")
+    status = json.loads(record.read_text(encoding="utf-8"))
+    status.pop("reconcile_completed_at_epoch")
+    status["reconcile_completed_at"] = "2020-01-01T00:00:00Z"
+    record.write_text(json.dumps(status), encoding="utf-8")
+
+    healthy, why = observer.health_after_provisioner(
+        path=record,
+        provisioner_ok=True,
+        provisioner_problem="",
+        provisioner_completed_at_epoch=time.time(),
+    )
+
+    assert healthy
+    assert "provisioner reconcile succeeded" in why
+
+
 def test_health_rejects_a_startup_heartbeat_before_first_reconcile(tmp_path: Path) -> None:
     """A live observer is not healthy for a plugin until it repaired that plugin once."""
     record = tmp_path / "observer.json"
