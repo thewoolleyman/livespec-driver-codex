@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.9.0...v0.10.0) (2026-11-03)
+
+
+### Features
+
+* avoid busy all-plugin observer polling ([08f3729](https://github.com/thewoolleyman/livespec-driver-codex/commit/08f3729be6bcc59ed3fa45584280a3a1bfe64314))
+* cover all registered hook cache plugins ([7411da8](https://github.com/thewoolleyman/livespec-driver-codex/commit/7411da81ae4a26131e99a76d20416ccead5ebfd8))
+* isolate hook cache plugin failures ([49612da](https://github.com/thewoolleyman/livespec-driver-codex/commit/49612da6d58f3fe6fbd7c8c074ab4e4e2a05c8c4))
+* supervise the hook cache observer ([00ba0e4](https://github.com/thewoolleyman/livespec-driver-codex/commit/00ba0e47032ea2416d5989d172ee62e6f2755964))
+
+
+### Bug Fixes
+
+* isolate codex hook cache observer state ([420effb](https://github.com/thewoolleyman/livespec-driver-codex/commit/420effb0d632767e82b1180d04740dc1cb8aee70))
+
 ## [0.9.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.8.4...v0.9.0) (2026-11-02)
 
 
