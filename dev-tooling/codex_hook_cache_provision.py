@@ -21,7 +21,7 @@ from _codex_hook_cache_process import read_status, status_file
 __all__ = ["main", "reconcile_all_for_provisioning"]
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class ObserverResult:
     """The observer result recorded for one plugin, if it is trustworthy."""
 
@@ -48,15 +48,27 @@ def _observer_result(*, state_path: Path, now: datetime) -> ObserverResult:
     """Read the observer record, keeping unusable times conservatively newer."""
     status = read_status(path=status_file(state_path=state_path))
     if status is None:
-        return ObserverResult(None, None, "observer has no status record")
+        return ObserverResult(
+            completed_at=None,
+            last_error=None,
+            problem="observer has no status record",
+        )
     completed_at = _parse_completed_at(status=status)
     last_error = status.get("last_error")
     error = last_error if isinstance(last_error, str) and last_error else None
     if completed_at is None:
-        return ObserverResult(None, error, "observer has no usable reconcile completion time")
+        return ObserverResult(
+            completed_at=None,
+            last_error=error,
+            problem="observer has no usable reconcile completion time",
+        )
     if completed_at > now:
-        return ObserverResult(None, error, "observer reconcile completion time is in the future")
-    return ObserverResult(completed_at, error, None)
+        return ObserverResult(
+            completed_at=None,
+            last_error=error,
+            problem="observer reconcile completion time is in the future",
+        )
+    return ObserverResult(completed_at=completed_at, last_error=error, problem=None)
 
 
 def _report_from_observer(

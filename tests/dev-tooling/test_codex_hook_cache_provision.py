@@ -8,6 +8,7 @@ import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
 from test_codex_hook_cache_fixtures import DEV_TOOLING, observer, reconciler, write_payload
 
 
@@ -88,3 +89,11 @@ def test_a_platform_without_a_supported_supervisor_is_named_as_such() -> None:
     provisioner = (DEV_TOOLING / "ensure-codex-plugins.sh").read_text(encoding="utf-8")
 
     assert "has no supported supervisor on this platform" in provisioner
+
+
+def test_observer_result_is_keyword_only() -> None:
+    """The provisioner's status value object follows the repo dataclass convention."""
+    provision = importlib.import_module("codex_hook_cache_provision")
+
+    with pytest.raises(TypeError):
+        provision.ObserverResult(None, None, None)
