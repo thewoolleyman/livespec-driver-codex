@@ -24,6 +24,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from _codex_hook_cache_coverage import covered_plugin_roots
 from _codex_hook_cache_payload import (
     VERSION_RE,
     declared_hook_scripts,
@@ -48,6 +49,7 @@ __all__ = [
     "main",
     "real_versions",
     "reconcile",
+    "reconcile_all",
     "report_to_stream",
     "state_file",
     "validate_payload",
@@ -86,7 +88,13 @@ def cache_root(
     return home / "plugins" / "cache" / marketplace / plugin
 
 
-def state_file(*, override: str | None = None) -> Path:
+def state_file(
+    *,
+    override: str | None = None,
+    marketplace: str = DEFAULT_MARKETPLACE,
+    plugin: str = DEFAULT_PLUGIN,
+    codex_home_override: Path | None = None,
+) -> Path:
     """Durable record of every version this reconciler has observed.
 
     Deliberately outside the Codex-managed cache: the cache is exactly the
@@ -98,8 +106,18 @@ def state_file(*, override: str | None = None) -> Path:
     env_override = os.environ.get(STATE_ENV)
     if env_override:
         return Path(env_override).expanduser()
-    base = os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state"
-    return Path(base).expanduser() / "livespec-driver-codex" / "hook-cache-state.json"
+    base = (
+        codex_home_override / "hook-cache-state"
+        if codex_home_override is not None
+        else os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state"
+    )
+    return (
+        Path(base).expanduser()
+        / "livespec-driver-codex"
+        / "hook-cache-state"
+        / marketplace
+        / f"{plugin}.json"
+    )
 
 
 def _alias_status(*, path: Path) -> str:
@@ -187,6 +205,21 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
         if _link(path=root / name, target=target)
     )
     return Report(ok=True, current_version=current, actions=actions, problems=())
+
+
+def reconcile_all(*, home: Path) -> tuple[Report, ...]:
+    """Reconcile every configured marketplace plugin whose current payload has hooks."""
+    return tuple(
+        reconcile(
+            root=root,
+            state_path=state_file(
+                marketplace=marketplace,
+                plugin=plugin,
+                codex_home_override=home,
+            ),
+        )
+        for marketplace, plugin, root in covered_plugin_roots(home=home)
+    )
 
 
 def emit(*, event: str, level: str, **fields: object) -> None:
