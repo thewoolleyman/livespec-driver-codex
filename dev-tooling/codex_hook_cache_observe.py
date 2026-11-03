@@ -31,7 +31,7 @@ from _codex_hook_cache_process import (
     write_status,
 )
 
-POLL_SECONDS = 0.2
+POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 5.0
 SETTLE_TIMEOUT_SECONDS = 120.0
 
@@ -137,19 +137,34 @@ def run_loop(
 
 def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
     """Watch every currently covered plugin without spinning when none are present."""
+    seen: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
+    last_beat: dict[tuple[str, str], float] = {}
     while True:
         roots = covered_plugin_roots(home=home)
         for marketplace, plugin, root in roots:
-            run_loop(
-                root=root,
-                state_path=reconciler.state_file(
-                    marketplace=marketplace,
-                    plugin=plugin,
-                    codex_home_override=home,
-                ),
-                iterations=1,
-                poll=poll,
+            key = (marketplace, plugin)
+            state_path = reconciler.state_file(
+                marketplace=marketplace, plugin=plugin, codex_home_override=home
             )
+            current = fingerprint(root=root)
+            if seen.get(key) != current:
+                seen[key] = current
+                problems = await_complete_payload(root=root, poll=poll)
+                report = (
+                    reconciler.reconcile(root=root, state_path=state_path) if not problems else None
+                )
+                error = "; ".join(problems) if problems else "; ".join(report.problems)
+                write_status(
+                    path=status_file(state_path=state_path),
+                    pid=os.getpid(),
+                    last_error=error or None,
+                )
+                last_beat[key] = time.monotonic()
+            elif time.monotonic() - last_beat.get(key, 0.0) >= HEARTBEAT_SECONDS:
+                write_status(
+                    path=status_file(state_path=state_path), pid=os.getpid(), last_error=None
+                )
+                last_beat[key] = time.monotonic()
         time.sleep(poll)
 
 

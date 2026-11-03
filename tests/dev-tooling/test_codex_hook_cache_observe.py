@@ -146,3 +146,8 @@ def test_observer_service_definition_and_provisioning_check_are_shipped() -> Non
     assert "[Service]" in unit.read_text(encoding="utf-8")
     assert "systemctl --user is-active" in provisioner
     assert "not running under the installed supervisor unit" in provisioner
+
+
+def test_all_plugin_observer_uses_a_non_busy_poll_interval() -> None:
+    """The systemd all-plugin loop leaves meaningful time between cache scans."""
+    assert observer.POLL_SECONDS >= 1.0
