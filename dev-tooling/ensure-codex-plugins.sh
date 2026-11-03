@@ -46,7 +46,7 @@ Darwin)
     ;;
 Linux)
     if ! command -v systemctl >/dev/null 2>&1 || ! systemctl --user is-active "$unit" >/dev/null; then
-        echo "Codex hook-cache observer is not running under the installed supervisor unit: $unit" >&2
+        echo "Codex hook-cache observer is not running under the installed supervisor unit; not running under the installed systemd user unit: $unit" >&2
         exit 1
     fi
     python3 "$here/codex_hook_cache_observe.py" status --all >/dev/null 2>&1 || true
