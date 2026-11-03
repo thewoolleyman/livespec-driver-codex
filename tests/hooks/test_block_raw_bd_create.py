@@ -144,9 +144,8 @@ def test_hooks_json_registers_the_guard_as_a_pretooluse_bash_hook() -> None:
     """A shipped body Codex never invokes prevents nothing.
 
     `hooks.json` is the ONLY per-runtime adapter for this otherwise
-    byte-identical neutral body, so the registration — PreToolUse, matcher
-    `Bash`, beside `livespec_footgun_guard.py` and under the same timeout — is
-    what makes the redirect real rather than merely present on disk.
+    byte-identical neutral body, so registering the dispatcher on the Bash
+    matcher is what starts the in-process evaluation path.
     """
     declared = json.loads((_HOOKS_DIR / "hooks.json").read_text(encoding="utf-8"))
     bash_entries = [
@@ -161,6 +160,48 @@ def test_hooks_json_registers_the_guard_as_a_pretooluse_bash_hook() -> None:
         by_script["block_raw_bd_create.py"]["timeout"]
         == by_script["livespec_footgun_guard.py"]["timeout"]
     )
+    assert "pretooluse_dispatch.py" in by_script
+    assert by_script["pretooluse_dispatch.py"]["type"] == "command"
+    assert by_script["pretooluse_dispatch.py"]["timeout"] == 10
+
+
+def test_dispatcher_evaluates_every_bash_guard_and_emits_the_first_deny(
+    monkeypatch, capsys
+) -> None:
+    """The dispatcher has one process boundary but preserves guard order."""
+    dispatcher_path = _HOOKS_DIR / "pretooluse_dispatch.py"
+    assert dispatcher_path.is_file()
+
+    import pretooluse_dispatch
+
+    raw = _hook_input(command="git status --short")
+    calls: list[str] = []
+
+    def allow_one(*, raw: str) -> str | None:
+        assert raw == _hook_input(command="git status --short")
+        calls.append("one")
+        return None
+
+    def deny_two(*, raw: str) -> str | None:
+        assert raw == _hook_input(command="git status --short")
+        calls.append("two")
+        return '{"guard":"two"}'
+
+    def deny_three(*, raw: str) -> str | None:
+        assert raw == _hook_input(command="git status --short")
+        calls.append("three")
+        return '{"guard":"three"}'
+
+    monkeypatch.setattr(pretooluse_dispatch, "_GUARDS", (allow_one, deny_two, deny_three))
+    monkeypatch.setattr(sys, "stdin", StringIO(raw))
+    assert pretooluse_dispatch.main() == 0
+    assert capsys.readouterr().out == '{"guard":"two"}\n'
+    assert calls == ["one", "two", "three"]
+
+    monkeypatch.setattr(pretooluse_dispatch, "_GUARDS", (allow_one,))
+    monkeypatch.setattr(sys, "stdin", StringIO(raw))
+    assert pretooluse_dispatch.main() == 0
+    assert capsys.readouterr().out == ""
 
 
 @pytest.mark.parametrize("command", _DENY_COMMANDS)
