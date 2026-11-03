@@ -57,6 +57,8 @@ def reconcile_trust(
         existing=config,
         hooks=hooks,
         content_hash=content_hash,
+        marketplace=marketplace,
+        plugin=plugin,
     )
     return TrustReport(ok=True, trusted_hooks=tuple(key for key, _ in hooks), problems=())
 
@@ -162,10 +164,16 @@ def _append_trust_records(
     existing: dict[str, object],
     hooks: tuple[tuple[str, str], ...],
     content_hash: str,
+    marketplace: str,
+    plugin: str,
 ) -> None:
     """Replace stale records in place without creating duplicate TOML tables."""
     replacements: list[str] = []
-    replaced_keys: set[str] = set()
+    desired_keys = {key for key, _ in hooks}
+    owned_prefix = f"{plugin}@{marketplace}:"
+    replaced_keys = {
+        key for key in existing if key.startswith(owned_prefix) and key not in desired_keys
+    }
     for key, declaration_hash in hooks:
         state = existing.get(key, {})
         if not isinstance(state, dict):
