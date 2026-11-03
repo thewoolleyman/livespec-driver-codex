@@ -24,7 +24,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from _codex_hook_cache_coverage import covered_plugin_roots
 from _codex_hook_cache_payload import (
     VERSION_RE,
     declared_hook_scripts,
@@ -33,8 +32,6 @@ from _codex_hook_cache_payload import (
     validate_payload,
     version_sort_key,
 )
-from _codex_hook_release_source import release_payload
-from codex_hook_release import untrusted_hook_problems
 from codex_hook_trust import reconcile_trust
 
 # Re-exported so callers (the observer, the test suite) see one module API
@@ -237,57 +234,9 @@ def reconcile(
 
 def reconcile_all(*, home: Path) -> tuple[Report, ...]:
     """Reconcile every configured marketplace plugin whose current payload has hooks."""
-    reports: list[Report] = []
-    for marketplace, plugin, root in covered_plugin_roots(home=home):
-        versions = real_versions(root=root)
-        current = versions[-1] if versions else None
-        if current is None:
-            report = reconcile(
-                root=root,
-                state_path=state_file(
-                    marketplace=marketplace, plugin=plugin, codex_home_override=home
-                ),
-                marketplace=marketplace,
-                plugin=plugin,
-            )
-        else:
-            with release_payload(
-                config_path=home / "config.toml",
-                marketplace=marketplace,
-                plugin=plugin,
-                version=current,
-            ) as released:
-                if released.payload is None:
-                    report = Report(
-                        ok=False,
-                        current_version=current,
-                        actions=(),
-                        problems=untrusted_hook_problems(
-                            plugin=plugin,
-                            payload=root / current,
-                            reason=released.problem or "release tag cannot be verified",
-                        ),
-                    )
-                else:
-                    report = reconcile(
-                        root=root,
-                        state_path=state_file(
-                            marketplace=marketplace, plugin=plugin, codex_home_override=home
-                        ),
-                        config_path=home / "config.toml",
-                        marketplace=marketplace,
-                        plugin=plugin,
-                        release_payload=released.payload,
-                    )
-        reports.append(
-            dataclasses.replace(
-                report,
-                marketplace=marketplace,
-                plugin=plugin,
-                problems=tuple(f"{marketplace}/{plugin}: {problem}" for problem in report.problems),
-            )
-        )
-    return tuple(reports)
+    from codex_hook_cache_all import reconcile_all as reconcile_covered_plugins
+
+    return reconcile_covered_plugins(home=home)
 
 
 def emit(*, event: str, level: str, **fields: object) -> None:
