@@ -573,6 +573,16 @@ def test_local_producer_requires_live_pid_expected_command_and_identity(tmp_path
         text=True,
     )
     try:
+        readiness_module_path = Path(__file__).with_name("process_readiness.py")
+        assert readiness_module_path.is_file()
+        from . import process_readiness
+
+        process_readiness.wait_for_process_command_line(
+            pid=proc.pid,
+            expected_command="time.sleep",
+            identity="wake-identity",
+        )
+
         state = _base_state()
         state["wake_producer"] = {
             "kind": "pane-watcher",
