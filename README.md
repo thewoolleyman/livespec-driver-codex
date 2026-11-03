@@ -81,6 +81,21 @@ governed project's `.livespec.jsonc` `spec_clis` section (argv-form,
 pre-populated with core's reference defaults, individually
 overridable per livespec `contracts.md` §"Spec-side CLI contract").
 
+## Supervisor completion gate
+
+A named supervised Codex session passes its topic to the Driver Stop hook through
+its own process environment: `LIVESPEC_SUPERVISOR_TOPIC=<topic> codex`. Launchers
+must set this for that session only, never in a shared shell profile. Native Stop
+payloads can instead supply `supervisor_topic` (or the compatibility alias
+`topic`); an explicitly blank canonical field disables topic identification and
+takes precedence over both the alias and environment. Ordinary sessions need no
+setting and never inspect repository supervisor markers.
+
+The hook reads only that topic's marker under the configured primary checkout.
+Missing or malformed owned evidence blocks completion. The exact real-user
+command `stop supervising <topic>` permits completion even when evidence is
+broken; unrelated user messages leave supervision in force.
+
 ## Footgun guard
 
 The plugin ships a fail-open Codex PreToolUse hook

@@ -52,7 +52,7 @@ def _project(*, root: Path) -> Path:
     return root
 
 
-def _payload(*, transcript_path: Path | None = None, topic: str | None = None) -> str:
+def _payload(*, transcript_path: Path | None = None, topic: str | None = "topic") -> str:
     payload: dict[str, object] = {"stop_hook_active": False}
     if transcript_path is not None:
         payload["transcript_path"] = str(transcript_path)
@@ -238,10 +238,10 @@ def test_stop_hook_reentry_and_non_object_payload_allow(tmp_path: Path) -> None:
     _assert_allows(output=list_output)
 
 
-def test_no_livespec_project_allows(tmp_path: Path) -> None:
+def test_known_topic_without_governed_root_blocks(tmp_path: Path) -> None:
     _, output = _run_hook(root=tmp_path, stdin=_payload(topic="topic"))
 
-    _assert_allows(output=output)
+    _assert_blocks(output=output)
 
 
 def test_malformed_marker_blocks(tmp_path: Path) -> None:
@@ -329,14 +329,16 @@ def test_malformed_obligations_block(tmp_path: Path) -> None:
 
 def test_malformed_obligations_and_disposition_block(tmp_path: Path) -> None:
     root = _project(root=tmp_path)
-    obligations_state = _base_state()
+    obligations_state = _base_state(topic="obligations")
     obligations_state["open_obligations"] = "not-a-list"
     _write_state(root=root, state=obligations_state, topic="obligations")
     disposition_state = _base_state(topic="disposition")
     disposition_state["completion_disposition"] = "not-a-dict"
     _write_state(root=root, state=disposition_state, topic="disposition")
 
-    _, output = _run_hook(root=root, env={"CLAUDE_PROJECT_DIR": str(root)})
+    _, output = _run_hook(
+        root=root, stdin=_payload(topic="obligations"), env={"CLAUDE_PROJECT_DIR": str(root)}
+    )
 
     reason = _assert_blocks(output=output)
     assert "malformed" in reason
@@ -851,3 +853,142 @@ def test_installed_shape_blocks_active_marker_without_repo_imports(tmp_path: Pat
     assert "Traceback" not in result.stderr
     reason = _assert_blocks(output=result.stdout)
     assert "open obligations" in reason
+
+
+# EXPEDITED_INCIDENT_RESPONSE flag: livespec-driver-codex-waq5mp
+@pytest.mark.parametrize(
+    "payload", [{}, {"supervisor_topic": ""}, {"supervisor_topic": " ", "topic": "foreign"}]
+)
+def test_unidentified_session_never_reads_foreign_markers(
+    tmp_path: Path, monkeypatch, payload
+) -> None:
+    root = _project(root=tmp_path)
+    marker = _state_dir(root=root, topic="foreign") / ".supervisor-state"
+    marker.write_text("legacy active marker", encoding="utf-8")
+    original = Path.read_text
+
+    def guarded_read(path, *args, **kwargs):
+        assert path.name != ".supervisor-state", "unowned marker read"
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", guarded_read)
+    _, output = _run_hook(root=root, stdin=json.dumps(payload))
+    _assert_allows(output=output)
+
+
+@pytest.mark.parametrize(
+    "topic", [None, 17, [], ".", "..", "../foreign", "/foreign", "a/b", "a\\b"]
+)
+def test_invalid_topic_blocks_without_marker_probe(monkeypatch, topic) -> None:
+    hook = _hook_module()
+    monkeypatch.setattr(
+        hook, "_find_project_dir", lambda: pytest.fail("root probed for invalid topic")
+    )
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps({"supervisor_topic": topic})))
+    _assert_blocks(output=hook._decision())
+
+
+@pytest.mark.parametrize(
+    "state_change", [{"topic": "foreign"}, {"supervision_active": None}, {"supervision_active": 0}]
+)
+def test_owned_marker_requires_matching_topic_and_boolean_activation(
+    tmp_path: Path, state_change
+) -> None:
+    root = _project(root=tmp_path)
+    _register_producer(root=root, identity="ledger:topic")
+    _write_state(root=root, state={**_base_state(), **state_change})
+    _, output = _run_hook(root=root)
+    _assert_blocks(output=output)
+
+
+@pytest.mark.parametrize("marker_kind", ["missing", "legacy", "mismatch"])
+def test_exact_stop_override_precedes_owned_marker_validation(tmp_path: Path, marker_kind) -> None:
+    root = _project(root=tmp_path)
+    if marker_kind == "legacy":
+        (_state_dir(root=root) / ".supervisor-state").write_text("legacy", encoding="utf-8")
+    if marker_kind == "mismatch":
+        _write_state(root=root, state=_base_state(topic="foreign"))
+    transcript = _transcript(root=root, user_messages=["stop supervising topic"])
+    _, output = _run_hook(root=root, stdin=_payload(transcript_path=transcript))
+    _assert_allows(output=output)
+
+
+def test_native_stop_uses_session_topic_context(tmp_path: Path) -> None:
+    root = _project(root=tmp_path)
+    _, output = _run_hook(root=root, stdin="{}", env={"LIVESPEC_SUPERVISOR_TOPIC": "topic"})
+    assert "missing marker" in _assert_blocks(output=output)
+    _, output = _run_hook(
+        root=root, stdin='{"supervisor_topic":""}', env={"LIVESPEC_SUPERVISOR_TOPIC": "topic"}
+    )
+    _assert_allows(output=output)
+
+
+def test_owned_topic_does_not_read_foreign_legacy_marker(tmp_path: Path) -> None:
+    root = _project(root=tmp_path)
+    _register_producer(root=root, identity="ledger:topic")
+    _write_state(root=root, state=_base_state())
+    (_state_dir(root=root, topic="foreign") / ".supervisor-state").write_text(
+        "legacy", encoding="utf-8"
+    )
+    _, output = _run_hook(root=root)
+    _assert_allows(output=output)
+
+
+@pytest.mark.parametrize("link_kind", ["topic", "marker"])
+def test_symlink_escape_blocks_without_reading_target(
+    tmp_path: Path, monkeypatch, link_kind
+) -> None:
+    root = _project(root=tmp_path / "project")
+    foreign = _state_dir(root=root, topic="foreign")
+    target = foreign / ".supervisor-state"
+    target.write_text(json.dumps({**_base_state(), "supervision_active": False}), encoding="utf-8")
+    if link_kind == "topic":
+        (foreign.parent / "topic").symlink_to(foreign, target_is_directory=True)
+    else:
+        (_state_dir(root=root) / ".supervisor-state").symlink_to(target)
+    original = Path.read_text
+
+    def guarded_read(path, *args, **kwargs):
+        assert path.name != ".supervisor-state", "escaped marker read"
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", guarded_read)
+    _, output = _run_hook(root=root)
+    assert "unsafe" in _assert_blocks(output=output)
+
+
+def test_primary_checkout_configuration_owns_marker(tmp_path: Path) -> None:
+    primary = _project(root=tmp_path / "primary")
+    worktree = _project(root=tmp_path / "worktree")
+    subprocess.run(["git", "init", str(worktree)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(worktree), "config", "livespec.primaryPath", str(primary)], check=True
+    )
+    _write_state(
+        root=primary, state={**_base_state(), "supervision_active": False, "updated_at": "stale"}
+    )
+    (_state_dir(root=worktree) / ".supervisor-state").write_text("legacy", encoding="utf-8")
+    _, output = _run_hook(root=worktree)
+    _assert_allows(output=output)
+
+
+@pytest.mark.parametrize(
+    "payload", [{"topic": "topic"}, {"supervisor_topic": "topic", "topic": "foreign"}]
+)
+def test_payload_topic_selection_keeps_owned_evidence(tmp_path: Path, payload) -> None:
+    root = _project(root=tmp_path)
+    _write_state(root=root, state={**_base_state(), "supervision_active": False})
+    _, output = _run_hook(root=root, stdin=json.dumps(payload))
+    _assert_allows(output=output)
+
+
+def test_relative_primary_path_and_malformed_disposition(tmp_path: Path) -> None:
+    primary = _project(root=tmp_path / "primary")
+    worktree = _project(root=tmp_path / "worktree")
+    subprocess.run(["git", "init", str(worktree)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(worktree), "config", "livespec.primaryPath", "../primary"], check=True
+    )
+    _write_state(root=primary, state={**_base_state(), "completion_disposition": "malformed"})
+    _, output = _run_hook(root=worktree)
+    assert "malformed completion disposition" in _assert_blocks(output=output)

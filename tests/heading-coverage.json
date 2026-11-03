@@ -5,7 +5,7 @@
     "heading": "## Purpose",
     "test": "tests.integration.test_spec_conformance.test_purpose_ships_the_three_codex_mechanics",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Conformance: asserts THIS repo ships the three Codex-runtime mechanics the Purpose section names — the eight thin SKILL.md bindings, the plugin hook bundle (hooks.json + footgun guard), and the structural gate (now shipped from livespec_dev_tooling.driver_checks.plugin_structure; the spec's literal dev-tooling/check_plugin_structure.py path is stale drift). Control-armed: a missing binding, hooks.json, guard, or gate module fails."
+    "reason": "Conformance: asserts THIS repo ships the three Codex-runtime mechanics the Purpose section names \u2014 the eight thin SKILL.md bindings, the plugin hook bundle (hooks.json + footgun guard), and the structural gate (now shipped from livespec_dev_tooling.driver_checks.plugin_structure; the spec's literal dev-tooling/check_plugin_structure.py path is stale drift). Control-armed: a missing binding, hooks.json, guard, or gate module fails."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -21,7 +21,7 @@
     "heading": "## Terminology",
     "test": "TODO",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "RESIDUAL (glossary): defines Driver / core-root / Binding / Thin-transport binding, deferring the family vocabulary upstream. Pure glossary — no enforcing check, no runtime behavior."
+    "reason": "RESIDUAL (glossary): defines Driver / core-root / Binding / Thin-transport binding, deferring the family vocabulary upstream. Pure glossary \u2014 no enforcing check, no runtime behavior."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -37,7 +37,7 @@
     "heading": "## Lifecycle and evolution",
     "test": "TODO",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "RESIDUAL (core-doctor governance): the SPECIFICATION tree evolves through the livespec loop; the history/vNNN structure is enforced against this repo by core doctor-static (check-doctor-static in the aggregate), whose runner ships in the livespec CORE plugin — not importable in-process here, and subprocess is banned in tests — so it cannot be re-bound to a pytest conformance test. Same blocker as the git-jsonl lifecycle rows; maintainer disposition: heading->check_id mapping, or make core doctor checks importable."
+    "reason": "RESIDUAL (core-doctor governance): the SPECIFICATION tree evolves through the livespec loop; the history/vNNN structure is enforced against this repo by core doctor-static (check-doctor-static in the aggregate), whose runner ships in the livespec CORE plugin \u2014 not importable in-process here, and subprocess is banned in tests \u2014 so it cannot be re-bound to a pytest conformance test. Same blocker as the git-jsonl lifecycle rows; maintainer disposition: heading->check_id mapping, or make core doctor checks importable."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -85,7 +85,7 @@
     "heading": "## Versioning",
     "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_empty_plugin_version",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Conformance: runs the plugin-structure check-runner against THIS repo (pristine tree passes — control arm) and against a fixture whose plugin.json version is blanked (reddens), realizing plugin.json.version as the single non-empty source of truth."
+    "reason": "Conformance: runs the plugin-structure check-runner against THIS repo (pristine tree passes \u2014 control arm) and against a fixture whose plugin.json version is blanked (reddens), realizing plugin.json.version as the single non-empty source of truth."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -109,7 +109,7 @@
     "heading": "## Resolution-substrate constraints",
     "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_driver_plugin_root_placeholder",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Conformance: runs the plugin-structure check-runner against THIS repo (pristine tree passes — control arm) and against a fixture binding that reaches core scripts via the Driver's own plugin-root placeholder (reddens), realizing the resolution-substrate rule that a binding MUST NOT short-circuit to the Driver root, which has no scripts/."
+    "reason": "Conformance: runs the plugin-structure check-runner against THIS repo (pristine tree passes \u2014 control arm) and against a fixture binding that reaches core scripts via the Driver's own plugin-root placeholder (reddens), realizing the resolution-substrate rule that a binding MUST NOT short-circuit to the Driver root, which has no scripts/."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -133,7 +133,7 @@
     "heading": "## Factory routing",
     "test": "tests.integration.test_spec_conformance.test_factory_routing_committed_factories_are_registry_backed",
     "work_item": "livespec-driver-codex-extptf",
-    "reason": "Witnesses the committed-config half of this heading directly: dispatcher.factories carries exactly one entry, petri, declaring \"registry\": true with no server and no docker_host value, so no committed factory entry names a machine. The sibling test_factory_routing_default_factory_names_petri in the same module witnesses the dispatcher.default_factory requirement. The resolution half — that a dispatch resolves petri by name from the dispatching host's rendered /etc/livespec/fabro-factories.json — is host-captured by livespec-driver-codex-extptf, since no factory sandbox can read the control node's registry; this entry retires the RESIDUAL TODO that livespec-driver-codex-cea owned until a conformance test replaced it."
+    "reason": "Witnesses the committed-config half of this heading directly: dispatcher.factories carries exactly one entry, petri, declaring \"registry\": true with no server and no docker_host value, so no committed factory entry names a machine. The sibling test_factory_routing_default_factory_names_petri in the same module witnesses the dispatcher.default_factory requirement. The resolution half \u2014 that a dispatch resolves petri by name from the dispatching host's rendered /etc/livespec/fabro-factories.json \u2014 is host-captured by livespec-driver-codex-extptf, since no factory sandbox can read the control node's registry; this entry retires the RESIDUAL TODO that livespec-driver-codex-cea owned until a conformance test replaced it."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -141,7 +141,7 @@
     "heading": "## Boundary",
     "test": "TODO",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "RESIDUAL (meta): scopes what this NFR file covers vs. contracts.md / constraints.md. Descriptive boundary statement — no enforcing check, no runtime behavior."
+    "reason": "RESIDUAL (meta): scopes what this NFR file covers vs. contracts.md / constraints.md. Descriptive boundary statement \u2014 no enforcing check, no runtime behavior."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -197,7 +197,7 @@
     "heading": "## Spec evolution",
     "test": "tests.integration.test_spec_conformance.test_spec_evolution_heading_coverage_runs_clean_and_catches_an_uncovered_heading",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Conformance: runs the heading-coverage check-runner against THIS repo (clean, exit 0) and against a fixture spec tree with an uncovered heading (reddens, exit 1) — the mechanical teeth the Spec-evolution section names for keeping the H2 set in lockstep with the registry."
+    "reason": "Conformance: runs the heading-coverage check-runner against THIS repo (clean, exit 0) and against a fixture spec tree with an uncovered heading (reddens, exit 1) \u2014 the mechanical teeth the Spec-evolution section names for keeping the H2 set in lockstep with the registry."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -220,7 +220,7 @@
     "heading": "## Scenario: core-root resolution via operator override",
     "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_binding_missing_the_core_resolution_snippet",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Integration-tier: the resolution algorithm this scenario describes is carried by every binding; the plugin-structure check-runner run against THIS repo proves each binding carries the ordered resolution (control arm), and the fixture stripping the resolution invocation reddens. The three resolution scenarios (override / governed-project / installed-cache) share this witness — the binding-carried resolution block is what makes each runtime branch reachable."
+    "reason": "Integration-tier: the resolution algorithm this scenario describes is carried by every binding; the plugin-structure check-runner run against THIS repo proves each binding carries the ordered resolution (control arm), and the fixture stripping the resolution invocation reddens. The three resolution scenarios (override / governed-project / installed-cache) share this witness \u2014 the binding-carried resolution block is what makes each runtime branch reachable."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -228,7 +228,7 @@
     "heading": "## Scenario: core-root resolution falls back to the governed-project checkout",
     "test": "tests.integration.test_plugin_structure_rejections.test_structural_check_rejects_binding_missing_the_core_resolution_snippet",
     "work_item": "livespec-driver-codex-cea",
-    "reason": "Integration-tier: shares the resolution-block witness with the other two core-root resolution scenarios — the plugin-structure check-runner proves every binding carries the ordered resolution (control arm) and reddens when it is stripped."
+    "reason": "Integration-tier: shares the resolution-block witness with the other two core-root resolution scenarios \u2014 the plugin-structure check-runner proves every binding carries the ordered resolution (control arm) and reddens when it is stripped."
   },
   {
     "spec_root": "SPECIFICATION",
@@ -315,7 +315,7 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a Driver cache update",
     "test": "tests.dev-tooling.test_codex_hook_cache_transition_real.test_a_real_payload_transition_keeps_captured_hook_paths_resolving",
-    "reason": "Integration-tier host-aware acceptance driven over the REAL installed Driver payload: it copies the host's actual current cache payload to a scratch CODEX_HOME, runs the real observer while that payload is replaced the way Codex replaces one (successor written incrementally, old version directory removed), and asserts latest does not move while the successor is half-written, then that the hook paths captured under the retired version still resolve, in one hop through latest, to scripts of the validated current payload. Deliberately narrowed — it does not publish a Driver release to make the marketplace advance, because that would couple the suite to the release pipeline; every step downstream of the release is exercised. The amended scenario's trust assertion (Codex trusts the Driver's hooks, and any trust the Driver re-established followed verification of its hook definitions and entrypoints against the release tag) is not yet exercised by this test; the integration-tier test for it is owed by livespec-driver-codex-v52m6a.",
+    "reason": "Integration-tier host-aware acceptance driven over the REAL installed Driver payload: it copies the host's actual current cache payload to a scratch CODEX_HOME, runs the real observer while that payload is replaced the way Codex replaces one (successor written incrementally, old version directory removed), and asserts latest does not move while the successor is half-written, then that the hook paths captured under the retired version still resolve, in one hop through latest, to scripts of the validated current payload. Deliberately narrowed \u2014 it does not publish a Driver release to make the marketplace advance, because that would couple the suite to the release pipeline; every step downstream of the release is exercised. The amended scenario's trust assertion (Codex trusts the Driver's hooks, and any trust the Driver re-established followed verification of its hook definitions and entrypoints against the release tag) is not yet exercised by this test; the integration-tier test for it is owed by livespec-driver-codex-v52m6a.",
     "work_item": "livespec-driver-codex-v52m6a"
   },
   {
@@ -425,88 +425,88 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "contracts.md",
     "heading": "## Supervisor completion gate",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an unidentified session ignores repository supervisor markers",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a supervised session inspects only its owned marker",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: invalid supervision paths never inspect foreign runtime state",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: missing or malformed owned evidence continues supervision",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_owned_marker_validation_over_real_stop_process",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: terminal completion still requires independent wake evidence",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_owned_marker_validation_over_real_stop_process",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: only a real-user scoped stop command overrides supervision",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: Stop reentry does not recursively block completion",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: canonical supervision context takes precedence over the compatibility alias",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an unexpected supervised evaluation failure cannot grant completion",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: assistant and pane text cannot substitute for completion evidence",
-    "test": "TODO",
+    "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
-    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+    "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
   }
 ]

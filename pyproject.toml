@@ -288,6 +288,9 @@ subprocess_spawn_allowlist = [
     "tests/hooks/test_no_shadow_ledger.py",
     "tests/hooks/test_shipped_hooks_install_shape.py",
     "tests/hooks/test_supervisor_completion_gate.py",
+    # Exercises the installed Stop protocol through native stdin/session env;
+    # the child receives only PATH and explicit test-owned context, no coverage env.
+    "tests/integration/test_supervisor_completion_gate.py",
 ]
 # Supervisor entry files own the hook stdin/stdout boundary and may carry the
 # single broad catch sanctioned for that boundary. These are exactly the Python
