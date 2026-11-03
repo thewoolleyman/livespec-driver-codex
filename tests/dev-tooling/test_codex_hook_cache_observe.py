@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import plistlib
 import time
 from pathlib import Path
 
@@ -176,6 +177,24 @@ def test_observer_service_definition_and_provisioning_check_are_shipped() -> Non
     assert "[Service]" in unit.read_text(encoding="utf-8")
     assert "systemctl --user is-active" in provisioner
     assert "not running under the installed supervisor unit" in provisioner
+
+
+def test_macos_launchagent_is_a_generalized_supervisor_with_portable_python() -> None:
+    """The shipped LaunchAgent runs one all-plugin observer on either Mac architecture."""
+    agent = REPO_ROOT / "dev-tooling" / "com.livespec.codex-hook-cache-observer.plist"
+
+    assert agent.is_file()
+    definition = plistlib.loads(agent.read_bytes())
+
+    assert definition["Label"] == "com.livespec.codex-hook-cache-observer"
+    assert definition["ProgramArguments"][-2:] == ["run", "--all"]
+    assert "--marketplace" not in definition["ProgramArguments"]
+    assert "--plugin" not in definition["ProgramArguments"]
+    assert definition["RunAtLoad"] is True
+    assert definition["KeepAlive"] is True
+    assert definition["ThrottleInterval"] > 0
+    assert "/opt/homebrew/bin" in definition["EnvironmentVariables"]["PATH"]
+    assert "/usr/local/bin" in definition["EnvironmentVariables"]["PATH"]
 
 
 def test_all_plugin_observer_uses_a_non_busy_poll_interval() -> None:
