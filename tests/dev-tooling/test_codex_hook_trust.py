@@ -136,3 +136,44 @@ def test_reconciler_rejects_fields_under_a_non_keyed_state_table_without_writing
     assert report.trusted_hooks == ()
     assert "plugin" in " ".join(report.problems)
     assert config.read_text(encoding="utf-8") == original
+
+
+def test_reconciler_keeps_unrelated_tables_after_a_replaced_trust_table(
+    tmp_path: Path,
+) -> None:
+    """Repairing a stale trust record must not delete neighbouring Codex config."""
+    trust = importlib.import_module("codex_hook_trust")
+    cache = tmp_path / "codex" / "plugins" / "cache" / "market" / "plugin"
+    payload = write_payload(root=cache, version="1.2.3")
+    release = tmp_path / "release"
+    release.mkdir()
+    release_payload = write_payload(root=release, version="1.2.3")
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("[hooks.state]\n", encoding="utf-8")
+    assert trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    ).ok
+    stale = re.sub(
+        r'trusted_content_hash = ".*"',
+        'trusted_content_hash = "sha256:stale"',
+        config.read_text(encoding="utf-8"),
+    )
+    config.write_text(stale + '\n[projects."/work"]\ntrust_level = "trusted"\n', encoding="utf-8")
+
+    report = trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    )
+
+    repaired = config.read_text(encoding="utf-8")
+    assert report.ok
+    assert "sha256:stale" not in repaired
+    assert '[projects."/work"]\ntrust_level = "trusted"\n' in repaired
