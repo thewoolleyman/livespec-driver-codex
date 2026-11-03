@@ -39,6 +39,7 @@ import json
 import os
 import re
 import sys
+from io import StringIO
 from pathlib import Path
 
 from _memory_shell_writes import command_writes_memory, is_memory_path
@@ -268,13 +269,22 @@ def _decision() -> IOResult[str | None, Exception]:
     return IOSuccess(_deny_payload(namespace=namespace))
 
 
+def evaluate(*, raw: str) -> str | None:
+    """Return this fail-open guard's decision for the shared dispatcher."""
+    original_stdin = sys.stdin
+    try:
+        sys.stdin = StringIO(raw)
+        decision = _decision()
+        return None if isinstance(decision, IOFailure) else decision.unwrap()
+    except Exception:  # noqa: BLE001 — this guard's declared boundary is fail-open
+        return None
+    finally:
+        sys.stdin = original_stdin
+
+
 def main() -> int:
     try:
-        decision = _decision()
-        if isinstance(decision, IOFailure):
-            _ = decision.failure()
-            return 0
-        payload = decision.unwrap()
+        payload = evaluate(raw=sys.stdin.read())
         if payload is not None:
             _ = sys.stdout.write(payload + "\n")
     except Exception:  # noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0
