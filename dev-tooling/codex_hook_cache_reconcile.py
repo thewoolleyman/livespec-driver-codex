@@ -24,10 +24,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from _codex_hook_cache_aliases import alias_status, link, load_state, save_state
 from _codex_hook_cache_payload import (
-    VERSION_RE,
     declared_hook_scripts,
-    read_json,
     real_versions,
     registered_hook_declarations,
     validate_payload,
@@ -125,53 +124,6 @@ def state_file(
     )
 
 
-def _alias_status(*, path: Path) -> str:
-    """Classify an alias slot as `absent`, `managed`, or `unsafe`.
-
-    `managed` is narrow by design — a symlink whose target is a single
-    relative name inside the cache directory. Anything else (a real file
-    or directory, an absolute target, a traversing target) is never
-    overwritten.
-    """
-    if path.is_symlink():
-        target = Path.readlink(path).as_posix()
-        if target in {"", ".", ".."} or "/" in target:
-            return "unsafe"
-        return "managed"
-    if path.exists():
-        return "unsafe"
-    return "absent"
-
-
-def _link(*, path: Path, target: str) -> bool:
-    """Point `path` at `target`, atomically. True when something changed."""
-    if path.is_symlink() and Path.readlink(path).as_posix() == target:
-        return False
-    staging = path.with_name(f".{path.name}.livespec-reconcile.{os.getpid()}")
-    staging.unlink(missing_ok=True)
-    staging.symlink_to(target)
-    staging.replace(path)
-    return True
-
-
-def _load_state(*, path: Path) -> tuple[str, ...]:
-    parsed, _ = read_json(path=path)
-    if parsed is None:
-        return ()
-    observed = parsed.get("observed_versions")
-    if not isinstance(observed, list):
-        return ()
-    return tuple(name for name in observed if isinstance(name, str) and VERSION_RE.match(name))
-
-
-def _save_state(*, path: Path, observed: tuple[str, ...]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    body = json.dumps({"observed_versions": list(observed)}, indent=2, sort_keys=True) + "\n"
-    staging = path.with_name(f".{path.name}.livespec-reconcile.{os.getpid()}")
-    staging.write_text(body, encoding="utf-8")
-    staging.replace(path)
-
-
 def reconcile(
     *,
     root: Path,
@@ -227,9 +179,7 @@ def reconcile(
                 problems=trust.problems,
             )
 
-    observed = tuple(
-        sorted(set(_load_state(path=state_path)) | set(versions), key=version_sort_key)
-    )
+    observed = tuple(sorted(set(load_state(path=state_path)) | set(versions), key=version_sort_key))
     desired = {LATEST_ALIAS: current}
     for name in observed:
         if name != current and name not in versions:
@@ -238,16 +188,16 @@ def reconcile(
     unsafe = [
         f"{root / name}: refusing to replace an unmanaged or malformed path"
         for name in desired
-        if _alias_status(path=root / name) == "unsafe"
+        if alias_status(path=root / name) == "unsafe"
     ]
     if unsafe:
         return Report(ok=False, current_version=current, actions=(), problems=tuple(unsafe))
 
-    _save_state(path=state_path, observed=observed)
+    save_state(path=state_path, observed=observed)
     actions = tuple(
         f"{name} -> {target}"
         for name, target in desired.items()
-        if _link(path=root / name, target=target)
+        if link(path=root / name, target=target)
     )
     return Report(
         ok=True,
