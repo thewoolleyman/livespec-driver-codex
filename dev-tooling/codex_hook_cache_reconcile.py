@@ -269,14 +269,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--marketplace", default=DEFAULT_MARKETPLACE)
     parser.add_argument("--plugin", default=DEFAULT_PLUGIN)
     parser.add_argument("--state", default=None)
+    parser.add_argument("--all", action="store_true")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """Reconcile once and report; non-zero means hook continuity is not assured."""
     args = build_parser().parse_args(argv)
+    home = codex_home(override=args.codex_home)
+    if args.all:
+        reports = reconcile_all(home=home)
+        for report in reports:
+            root = cache_root(
+                home=home,
+                marketplace=report.marketplace or DEFAULT_MARKETPLACE,
+                plugin=report.plugin or DEFAULT_PLUGIN,
+            )
+            report_to_stream(report=report, root=root)
+        return 0 if all(report.ok for report in reports) else 1
     root = cache_root(
-        home=codex_home(override=args.codex_home),
+        home=home,
         marketplace=args.marketplace,
         plugin=args.plugin,
     )

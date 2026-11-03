@@ -21,6 +21,7 @@ import time
 from pathlib import Path
 
 import codex_hook_cache_reconcile as reconciler
+from _codex_hook_cache_coverage import covered_plugin_roots
 from _codex_hook_cache_process import (
     STALE_AFTER_SECONDS,
     ensure,
@@ -47,6 +48,7 @@ __all__ = [
     "health",
     "log_file",
     "main",
+    "run_all_loop",
     "run_loop",
     "status_file",
     "write_status",
@@ -133,6 +135,24 @@ def run_loop(
     return 1 if last_error else 0
 
 
+def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
+    """Watch every currently covered plugin without spinning when none are present."""
+    while True:
+        roots = covered_plugin_roots(home=home)
+        for marketplace, plugin, root in roots:
+            run_loop(
+                root=root,
+                state_path=reconciler.state_file(
+                    marketplace=marketplace,
+                    plugin=plugin,
+                    codex_home_override=home,
+                ),
+                iterations=1,
+                poll=poll,
+            )
+        time.sleep(poll)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Argument parser for the standalone entry point."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -141,18 +161,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--marketplace", default=reconciler.DEFAULT_MARKETPLACE)
     parser.add_argument("--plugin", default=reconciler.DEFAULT_PLUGIN)
     parser.add_argument("--state", default=None)
+    parser.add_argument("--all", action="store_true")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """Run, start, or report on the observer."""
     args = build_parser().parse_args(argv)
+    home = reconciler.codex_home(override=args.codex_home)
+    if args.mode == "run" and args.all:
+        return run_all_loop(home=home)
     root = reconciler.cache_root(
-        home=reconciler.codex_home(override=args.codex_home),
+        home=home,
         marketplace=args.marketplace,
         plugin=args.plugin,
     )
-    state_path = reconciler.state_file(override=args.state)
+    state_path = reconciler.state_file(
+        override=args.state,
+        marketplace=args.marketplace,
+        plugin=args.plugin,
+    )
     if args.mode == "run":
         return run_loop(root=root, state_path=state_path)
     if args.mode == "ensure":

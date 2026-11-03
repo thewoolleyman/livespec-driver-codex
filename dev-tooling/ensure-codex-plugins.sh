@@ -23,5 +23,14 @@ codex plugin add livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-f
 # failures, because a silently-unrepaired cache means hooks that no longer
 # fire while everything still reports installed.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$here/codex_hook_cache_reconcile.py"
-python3 "$here/codex_hook_cache_observe.py" ensure
+python3 "$here/codex_hook_cache_reconcile.py" --all
+
+unit="livespec-codex-hook-cache-observer.service"
+if command -v systemctl >/dev/null 2>&1; then
+    if ! systemctl --user is-active "$unit" >/dev/null; then
+        echo "Codex hook-cache observer is not running under the installed supervisor unit: $unit" >&2
+        exit 1
+    fi
+else
+    echo "Codex hook-cache observer has no supported supervisor on this platform." >&2
+fi

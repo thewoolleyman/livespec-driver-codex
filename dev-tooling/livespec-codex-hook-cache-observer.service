@@ -1,0 +1,12 @@
+[Unit]
+Description=Keep Codex plugin hook-cache aliases live
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3 %h/.local/share/livespec-driver-codex/dev-tooling/codex_hook_cache_observe.py run --all
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 from test_codex_hook_cache_fixtures import link_target, observer, write_payload
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 @pytest.fixture
 def cache(tmp_path: Path) -> Path:
@@ -131,3 +133,16 @@ def test_status_mode_reports_an_absent_observer_as_a_failure(tmp_path: Path, sta
     )
 
     assert exit_code == 1
+
+
+def test_observer_service_definition_and_provisioning_check_are_shipped() -> None:
+    """Linux hosts get a user unit and provisioning rejects an unsupervised observer."""
+    unit = REPO_ROOT / "dev-tooling" / "livespec-codex-hook-cache-observer.service"
+    provisioner = (REPO_ROOT / "dev-tooling" / "ensure-codex-plugins.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert unit.is_file()
+    assert "[Service]" in unit.read_text(encoding="utf-8")
+    assert "systemctl --user is-active" in provisioner
+    assert "not running under the installed supervisor unit" in provisioner
