@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.1...v0.11.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* compare wall-clock observer records ([923cb9d](https://github.com/thewoolleyman/livespec-driver-codex/commit/923cb9d7be04847efdad8a70f3f47e1b5dbb0653))
+* mark observer exports explicitly ([6328f08](https://github.com/thewoolleyman/livespec-driver-codex/commit/6328f081060996ca316be643d52692ac2bcb0993))
+* prefer a newer provisioner reconcile ([6c2d284](https://github.com/thewoolleyman/livespec-driver-codex/commit/6c2d2840bd29ab58632dc8c9068df11a05517b90))
+* record observer reconcile completion time ([e71a146](https://github.com/thewoolleyman/livespec-driver-codex/commit/e71a146113f7ac09e1259ed311ac0dfbb9989907))
+* reject unusable observer completion times ([58bfaf4](https://github.com/thewoolleyman/livespec-driver-codex/commit/58bfaf42e50e141599b64144a58dde2e26c9801d))
+* report unsupervised Linux observer ([74ea9e1](https://github.com/thewoolleyman/livespec-driver-codex/commit/74ea9e12bbcd7f24393c4e19b516818f1dfb466e))
+* restore explicit observer export list and split health reporting out ([70fd15d](https://github.com/thewoolleyman/livespec-driver-codex/commit/70fd15dc63f4b6e8586159615c7aee8e6f1feadd))
+* retain formatter-compatible observer export list ([2c3564c](https://github.com/thewoolleyman/livespec-driver-codex/commit/2c3564ccde6be3e5436736fa63c4fc1c59d26062))
+* stamp each covered plugin's own reconcile completion time ([f71d4fa](https://github.com/thewoolleyman/livespec-driver-codex/commit/f71d4faca79ba8c9f582733e75099651d0f738d4))
+
 ## [0.11.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.0...v0.11.1) (2026-11-03)
 
 
