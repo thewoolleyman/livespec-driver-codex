@@ -32,14 +32,22 @@ from _codex_hook_cache_process import (
     write_status,
 )
 from _codex_hook_cache_report import provision_all, status_all
+from _codex_hook_release_source import RELEASE_FETCH_BUDGET_SECONDS
 
 POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 5.0
 SETTLE_TIMEOUT_SECONDS = 120.0
-# Bounds detecting lost trust and starting the reconcile (two polls). Obtaining the
-# release adds at most two bounded git clones (see _codex_hook_release_source), after
-# which trust is restored or the plugin is reported; a timeout is reported, not raised.
-TRUST_RECONCILE_LATENCY_SECONDS = 2.0
+
+
+def trust_reconcile_latency_seconds(*, covered_plugins: int) -> float:
+    """Worst-case time from lost trust to trust restored or the plugin reported.
+
+    Detection takes two polls (the change is seen, then confirmed stable). The
+    reconcile then spends at most one release-fetch budget per covered plugin that
+    is reconciled ahead of, or as, the affected one in the same sweep.
+    """
+    return 2 * POLL_SECONDS + covered_plugins * RELEASE_FETCH_BUDGET_SECONDS
+
 
 # Re-exported so callers see one module API even though the liveness/process
 # half lives in the sibling module.
@@ -48,7 +56,6 @@ __all__ = [
     "POLL_SECONDS",
     "SETTLE_TIMEOUT_SECONDS",
     "STALE_AFTER_SECONDS",
-    "TRUST_RECONCILE_LATENCY_SECONDS",
     "await_complete_payload",
     "ensure",
     "fingerprint",
@@ -61,6 +68,7 @@ __all__ = [
     "run_loop",
     "status_all",
     "status_file",
+    "trust_reconcile_latency_seconds",
     "write_status",
 ]
 
@@ -160,7 +168,7 @@ def run_loop(
 
 
 def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
-    """Watch payload and trust state, repairing within two polling intervals."""
+    """Watch payload and trust state; see `trust_reconcile_latency_seconds` for the bound."""
     seen: dict[tuple[str, str], tuple[object, ...]] = {}
     settled: dict[tuple[str, str], tuple[object, ...]] = {}
     last_beat: dict[tuple[str, str], float] = {}
@@ -178,7 +186,7 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 seen[key] = current
                 continue
             if settled.get(key) != current:
-                reports = reconciler.reconcile_all(home=home)
+                reports = reconciler.reconcile_all(home=home, only=key)
                 report = next(
                     (
                         candidate

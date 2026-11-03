@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import tempfile
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +16,10 @@ _TABLE = re.compile(r'^\s*\[marketplaces\.("(?:[^"\\\\]|\\\\.)*"|[^]\s]+)]\s*(?:
 _FIELD = re.compile(r'^\s*(source_type|source)\s*=\s*("(?:[^"\\\\]|\\\\.)*")\s*(?:#.*)?$')
 
 
-_CLONE_TIMEOUT_SECONDS = 90
+# Total wall-clock allowance for obtaining one plugin's release, shared by both tag
+# spellings, so an unreachable remote costs a plugin at most this long before it is
+# reported untrusted.
+RELEASE_FETCH_BUDGET_SECONDS = 30.0
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -76,17 +80,24 @@ def marketplace_source(*, config_path: Path, marketplace: str) -> tuple[str | No
 def checkout_release(*, source: str, version: str, checkout: Path) -> str | None:
     """Clone either conventional release-tag spelling into a disposable root."""
     failures: list[str] = []
+    deadline = time.monotonic() + RELEASE_FETCH_BUDGET_SECONDS
     for tag in (f"v{version}", version):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            failures.append(f"{tag} not attempted, fetch budget spent")
+            continue
         try:
             result = subprocess.run(
                 ["git", "clone", "--quiet", "--depth", "1", "--branch", tag, source, str(checkout)],
                 capture_output=True,
                 check=False,
                 text=True,
-                timeout=_CLONE_TIMEOUT_SECONDS,
+                timeout=remaining,
             )
         except subprocess.TimeoutExpired:
-            failures.append(f"{tag} timed out after {_CLONE_TIMEOUT_SECONDS}s")
+            failures.append(
+                f"{tag} timed out within the {RELEASE_FETCH_BUDGET_SECONDS:g}s fetch budget"
+            )
         except OSError as err:
             failures.append(f"{tag} could not be fetched: {err}")
         else:

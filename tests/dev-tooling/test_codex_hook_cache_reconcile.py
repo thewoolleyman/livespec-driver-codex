@@ -139,6 +139,34 @@ def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(
     assert link_target(path=healthy / "latest") == "1.0.0"
 
 
+def test_reconcile_all_can_be_limited_to_one_covered_plugin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Repairing one plugin neither reconciles nor fetches the release of its siblings."""
+    home = tmp_path / "codex"
+    _write_config(home=home, marketplaces=("first", "second"))
+    fetched: list[str] = []
+
+    @contextlib.contextmanager
+    def recording(
+        *, config_path: Path, marketplace: str, plugin: str, version: str
+    ) -> Iterator[ReleasePayload]:
+        del config_path
+        fetched.append(plugin)
+        yield ReleasePayload(
+            payload=home / "plugins" / "cache" / marketplace / plugin / version, problem=None
+        )
+
+    monkeypatch.setattr(codex_hook_cache_all, "release_payload", recording)
+    write_payload(root=home / "plugins" / "cache" / "first" / "alpha", version="1.0.0")
+    write_payload(root=home / "plugins" / "cache" / "second" / "beta", version="1.0.0")
+
+    reports = reconciler.reconcile_all(home=home, only=("second", "beta"))
+
+    assert [report.plugin for report in reports] == ["beta"]
+    assert fetched == ["beta"]
+
+
 def test_backfill_is_bounded_to_versions_the_reconciler_recorded(cache: Path, state: Path) -> None:
     """Only versions in the durable state record are backfilled."""
     write_payload(root=cache, version="0.6.1")
