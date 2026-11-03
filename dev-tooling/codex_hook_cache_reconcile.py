@@ -21,11 +21,9 @@ import dataclasses
 import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from _codex_hook_cache_coverage import covered_plugin_roots
 from _codex_hook_cache_payload import (
     VERSION_RE,
     declared_hook_scripts,
@@ -261,25 +259,10 @@ def reconcile(
 
 
 def reconcile_all(*, home: Path) -> tuple[Report, ...]:
-    """Reconcile every configured marketplace plugin whose current payload has hooks."""
-    reports: list[Report] = []
-    for marketplace, plugin, root in covered_plugin_roots(home=home):
-        report = reconcile(
-            root=root,
-            state_path=state_file(marketplace=marketplace, plugin=plugin, codex_home_override=home),
-            marketplace=marketplace,
-            plugin=plugin,
-        )
-        reports.append(
-            dataclasses.replace(
-                report,
-                marketplace=marketplace,
-                plugin=plugin,
-                completed_at_epoch=time.time(),
-                problems=tuple(f"{marketplace}/{plugin}: {problem}" for problem in report.problems),
-            )
-        )
-    return tuple(reports)
+    """Reconcile every covered plugin with release-verified hook trust."""
+    from codex_hook_cache_all import reconcile_all as reconcile_covered_plugins
+
+    return reconcile_covered_plugins(home=home)
 
 
 def emit(*, event: str, level: str, **fields: object) -> None:
