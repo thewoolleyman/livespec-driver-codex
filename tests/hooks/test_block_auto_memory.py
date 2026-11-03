@@ -678,13 +678,16 @@ def test_subprocess_smoke_denies_bash_write_into_memories_when_governed(tmp_path
 
 
 def test_hooks_json_registers_the_guard_on_bash() -> None:
-    """A body Codex never invokes for shell commands refuses nothing."""
+    """Bash uses the dispatcher; direct file tools retain this guard's entry."""
     declared = json.loads((_HOOKS_DIR / "hooks.json").read_text(encoding="utf-8"))
     registered = {
         entry["matcher"]: [h["command"].rsplit("/", 1)[-1].rstrip('"') for h in entry["hooks"]]
         for entry in declared["hooks"]["PreToolUse"]
     }
-    for matcher in ("Bash", "Write", "Edit", "apply_patch"):
+    assert registered["Bash"] == [
+        "pretooluse_dispatch.py",
+    ]
+    for matcher in ("Write", "Edit", "apply_patch"):
         assert "block_auto_memory.py" in registered[matcher], matcher
 
 
