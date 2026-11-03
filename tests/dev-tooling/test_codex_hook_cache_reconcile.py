@@ -9,10 +9,11 @@ end-to-end without touching the host's cache.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
-from test_codex_hook_cache_fixtures import link_target, reconciler, write_payload
+from test_codex_hook_cache_fixtures import link_target, observer, reconciler, write_payload
 
 
 @pytest.fixture
@@ -159,6 +160,117 @@ def test_a_malformed_manifest_hooks_entry_is_rejected(cache: Path, state: Path) 
 
     assert not report.ok
     assert any("malformed `hooks` entry" in problem for problem in report.problems)
+
+
+def test_reconcile_accepts_wrapped_inline_mcp_tool_hook_declarations(
+    cache: Path, state: Path
+) -> None:
+    """Bundled plugins may put the complete hooks.json shape inline in their manifest."""
+    import _codex_hook_cache_payload as payloads
+
+    payload = write_payload(root=cache, version="0.6.1")
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    inline_hooks = {
+        "hooks": {
+            "Stop": [
+                {"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "turn_ended"}]}
+            ],
+            "Interrupt": [
+                {"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "turn_interrupted"}]}
+            ],
+            "SubagentStop": [
+                {"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "subagent_ended"}]}
+            ],
+        }
+    }
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = inline_hooks
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (payload / "hooks" / "hooks.json").unlink()
+
+    registrations, problems = payloads.hook_registrations(payload=payload)
+    scripts, entrypoint_problems = reconciler.declared_hook_scripts(payload=payload)
+    report = reconciler.reconcile(root=cache, state_path=state)
+
+    assert not problems
+    assert [(path, sorted(events)) for path, events in registrations] == [
+        (manifest_path, ["Interrupt", "Stop", "SubagentStop"])
+    ]
+    assert scripts == ()
+    assert not entrypoint_problems
+    assert report.ok
+
+
+def test_reconcile_rejects_a_missing_command_entrypoint_from_wrapped_inline_hooks(
+    cache: Path, state: Path
+) -> None:
+    """Inline command declarations validate their plugin-root entrypoints."""
+    payload = write_payload(root=cache, version="0.6.1")
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = {
+        "hooks": {
+            "Stop": [
+                {
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/missing.py"',
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (payload / "hooks" / "hooks.json").unlink()
+
+    report = reconciler.reconcile(root=cache, state_path=state)
+
+    assert not report.ok
+    assert any(
+        "hooks/missing.py" in problem and "is missing" in problem for problem in report.problems
+    )
+
+
+def test_status_all_is_healthy_for_mixed_inline_and_path_declared_plugins(tmp_path: Path) -> None:
+    """An inline bundled plugin never makes a healthy path plugin report unhealthy."""
+    home = tmp_path / "codex"
+    (home / "config.toml").parent.mkdir()
+    (home / "config.toml").write_text(
+        "[marketplaces.openai-bundled]\n\n[marketplaces.market]\n", encoding="utf-8"
+    )
+    inline = write_payload(
+        root=home / "plugins" / "cache" / "openai-bundled" / "browser", version="1.0.0"
+    )
+    path_declared = write_payload(
+        root=home / "plugins" / "cache" / "market" / "path-plugin", version="1.0.0"
+    )
+    manifest_path = inline / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = {
+        "hooks": {
+            "Stop": [{"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "turn_ended"}]}]
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (inline / "hooks" / "hooks.json").unlink()
+
+    reports = reconciler.reconcile_all(home=home)
+    for report in reports:
+        status_path = observer.status_file(
+            state_path=reconciler.state_file(
+                marketplace=report.marketplace or "",
+                plugin=report.plugin or "",
+                codex_home_override=home,
+            )
+        )
+        observer.write_status(path=status_path, pid=os.getpid(), last_error=None)
+
+    assert {report.plugin for report in reports} == {"browser", "path-plugin"}
+    assert all(report.ok for report in reports)
+    assert path_declared.is_dir()
+    assert observer.main(["status", "--all", "--codex-home", str(home)]) == 0
 
 
 def test_rerunning_an_already_reconciled_cache_changes_nothing(cache: Path, state: Path) -> None:
