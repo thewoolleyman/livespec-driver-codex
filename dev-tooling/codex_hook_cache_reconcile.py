@@ -209,11 +209,11 @@ def reconcile(
     )
 
 
-def reconcile_all(*, home: Path) -> tuple[Report, ...]:
-    """Reconcile every covered plugin with release-verified hook trust."""
+def reconcile_all(*, home: Path, only: tuple[str, str] | None = None) -> tuple[Report, ...]:
+    """Reconcile every covered plugin (or just `only`) with release-verified hook trust."""
     from codex_hook_cache_all import reconcile_all as reconcile_covered_plugins
 
-    return reconcile_covered_plugins(home=home)
+    return reconcile_covered_plugins(home=home, only=only)
 
 
 def emit(*, event: str, level: str, **fields: object) -> None:

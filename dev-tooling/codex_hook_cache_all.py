@@ -12,10 +12,12 @@ from codex_hook_cache_reconcile import Report, real_versions, reconcile, state_f
 from codex_hook_release import untrusted_hook_problems
 
 
-def reconcile_all(*, home: Path) -> tuple[Report, ...]:
-    """Reconcile each covered plugin without trusting cache bytes as a release."""
+def reconcile_all(*, home: Path, only: tuple[str, str] | None = None) -> tuple[Report, ...]:
+    """Reconcile each covered plugin (or just `only`) without trusting cache bytes."""
     reports: list[Report] = []
     for marketplace, plugin, root in covered_plugin_roots(home=home):
+        if only is not None and only != (marketplace, plugin):
+            continue
         report = _reconcile_plugin(
             home=home,
             marketplace=marketplace,
