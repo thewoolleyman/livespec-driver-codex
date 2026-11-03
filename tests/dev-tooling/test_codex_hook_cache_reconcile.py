@@ -195,6 +195,34 @@ def test_an_inline_mcp_tool_manifest_reconciles_without_entrypoint_validation(
     )
 
 
+def test_an_inline_command_manifest_validates_its_missing_entrypoint(
+    cache: Path, state: Path
+) -> None:
+    """Inline command declarations get the same missing-entrypoint check as hook files."""
+    payload = write_payload(root=cache, version="0.6.1")
+    (payload / "hooks" / "hooks.json").unlink()
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = {
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": 'python3 "${CLAUDE_PLUGIN_ROOT}/hooks/missing.py"',
+                    }
+                ]
+            }
+        ]
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    report = reconciler.reconcile(root=cache, state_path=state)
+
+    assert not report.ok
+    assert any("hooks/missing.py" in problem for problem in report.problems)
+
+
 def test_rerunning_an_already_reconciled_cache_changes_nothing(cache: Path, state: Path) -> None:
     """Idempotence: a second pass still verifies and reports success, but acts."""
     write_payload(root=cache, version="0.6.1")

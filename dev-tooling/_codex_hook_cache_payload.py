@@ -80,8 +80,6 @@ def declared_hook_entrypoints(
     registrations, problems = hook_registrations(payload=payload)
     entries: list[tuple[Path, str]] = []
     for path, events in registrations:
-        if path.name == "plugin.json":
-            continue
         for command in _walk_registered_commands(events=events):
             entrypoint, problem = _entrypoint_from_command(command=command)
             if problem:
