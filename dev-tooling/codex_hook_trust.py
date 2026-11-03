@@ -17,6 +17,7 @@ from pathlib import Path
 
 from codex_hook_release import verified_hook_keys
 
+_STATE_TABLE = r'\[hooks\.state\.("(?:[^"\\]|\\.)*")\]'
 _STATE_KEYS = {"enabled", "trusted_hash", "trusted_content_hash"}
 
 
@@ -69,7 +70,17 @@ def _read_recognized_state(*, config_path: Path) -> tuple[dict[str, object], str
         return {}, f"unrecognized Codex trust record format ({err})"
     state: dict[str, object] = {}
     active_key: str | None = None
+    in_bare_state = False
     for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("["):
+            in_bare_state = stripped == "[hooks.state]"
+            if stripped.startswith(("[hooks.state.", "[[hooks.state")) and not re.fullmatch(
+                _STATE_TABLE, stripped
+            ):
+                return {}, "unrecognized Codex trust record format"
+        elif in_bare_state and stripped and not stripped.startswith("#"):
+            return {}, "unrecognized Codex trust record format"
         active_key, table_problem = _state_table_key(line=line, active_key=active_key, state=state)
         if table_problem:
             return {}, table_problem
@@ -87,7 +98,7 @@ def _state_table_key(
     *, line: str, active_key: str | None, state: dict[str, object]
 ) -> tuple[str | None, str | None]:
     """Recognize only a quoted Codex hook-state table key."""
-    table = re.fullmatch(r'\[hooks\.state\.("(?:[^"\\]|\\.)*")\]', line.strip())
+    table = re.fullmatch(_STATE_TABLE, line.strip())
     if table is None:
         return (None, None) if line.strip().startswith("[") else (active_key, None)
     try:
@@ -191,7 +202,7 @@ def _without_state_tables(*, text: str, keys: set[str]) -> str:
     retained: list[str] = []
     skipping = False
     for line in text.splitlines(keepends=True):
-        table = re.fullmatch(r'\[hooks\.state\.("(?:[^"\\]|\\.)*")\]', line.strip())
+        table = re.fullmatch(_STATE_TABLE, line.strip())
         if table is not None:
             key = json.loads(table.group(1))
             skipping = key in keys
