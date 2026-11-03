@@ -202,10 +202,12 @@ def _without_state_tables(*, text: str, keys: set[str]) -> str:
     retained: list[str] = []
     skipping = False
     for line in text.splitlines(keepends=True):
-        table = re.fullmatch(_STATE_TABLE, line.strip())
+        stripped = line.strip()
+        table = re.fullmatch(_STATE_TABLE, stripped)
         if table is not None:
-            key = json.loads(table.group(1))
-            skipping = key in keys
+            skipping = json.loads(table.group(1)) in keys
+        elif stripped.startswith("["):
+            skipping = False
         if not skipping:
             retained.append(line)
     return "".join(retained)
