@@ -336,9 +336,9 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards",
-    "test": "TODO",
-    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
-    "work_item": "livespec-driver-codex-kroiar"
+    "test": "tests.integration.test_pretooluse_dispatch_scenarios.test_bash_call_starts_one_dispatcher_process",
+    "reason": "Integration-tier witness reads the shipped hooks.json and asserts the sole Bash PreToolUse command starts pretooluse_dispatch.py, so Codex starts exactly one Python process for all Bash-matched Driver guards.",
+    "work_item": "livespec-driver-codex-uewmka"
   },
   {
     "spec_root": "SPECIFICATION",
