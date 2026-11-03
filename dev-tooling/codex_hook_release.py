@@ -43,7 +43,13 @@ def verified_hook_keys(
     problems.extend(
         _entrypoint_problems(plugin=plugin, payload=payload, release_payload=release_payload)
     )
-    return (tuple(hooks), tuple(problems)) if not problems else ((), tuple(problems))
+    if problems:
+        return (), untrusted_hook_problems(
+            plugin=plugin,
+            payload=payload,
+            reason="release verification failed",
+        )
+    return tuple(hooks), ()
 
 
 def untrusted_hook_problems(*, plugin: str, payload: Path, reason: str) -> tuple[str, ...]:
