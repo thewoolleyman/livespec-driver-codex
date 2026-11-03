@@ -34,6 +34,7 @@ from _codex_hook_cache_process import (
 POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 5.0
 SETTLE_TIMEOUT_SECONDS = 120.0
+TRUST_RECONCILE_LATENCY_SECONDS = 2.0
 
 # Re-exported so callers see one module API even though the liveness/process
 # half lives in the sibling module.
@@ -42,6 +43,7 @@ __all__ = [
     "POLL_SECONDS",
     "SETTLE_TIMEOUT_SECONDS",
     "STALE_AFTER_SECONDS",
+    "TRUST_RECONCILE_LATENCY_SECONDS",
     "await_complete_payload",
     "ensure",
     "fingerprint",
@@ -142,9 +144,9 @@ def run_loop(
 
 
 def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
-    """Watch every currently covered plugin without spinning when none are present."""
-    seen: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
-    settled: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
+    """Watch payload and trust state, reconciling no later than two polls after either changes."""
+    seen: dict[tuple[str, str], tuple[object, ...]] = {}
+    settled: dict[tuple[str, str], tuple[object, ...]] = {}
     last_beat: dict[tuple[str, str], float] = {}
     errors: dict[tuple[str, str], str | None] = {}
     while True:
@@ -154,22 +156,28 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
             state_path = reconciler.state_file(
                 marketplace=marketplace, plugin=plugin, codex_home_override=home
             )
-            current = fingerprint(root=root)
+            current = _all_fingerprint(root=root, config_path=home / "config.toml")
             if seen.get(key) != current:
                 seen[key] = current
                 continue
             if settled.get(key) != current:
-                versions = reconciler.real_versions(root=root)
-                problems = (
-                    reconciler.validate_payload(payload=root / versions[-1])
-                    if versions
-                    else (f"{root}: no version payload directory found",)
+                reports = reconciler.reconcile_all(home=home)
+                report = next(
+                    (
+                        candidate
+                        for candidate in reports
+                        if candidate.marketplace == marketplace and candidate.plugin == plugin
+                    ),
+                    None,
                 )
-                report = (
-                    reconciler.reconcile(root=root, state_path=state_path) if not problems else None
+                errors[key] = (
+                    "reconcile did not report the covered plugin"
+                    if report is None
+                    else "; ".join(report.problems)
                 )
-                errors[key] = "; ".join(problems) if problems else "; ".join(report.problems)
-                settled[key] = current
+                refreshed = _all_fingerprint(root=root, config_path=home / "config.toml")
+                seen[key] = refreshed
+                settled[key] = refreshed
                 write_status(
                     path=status_file(state_path=state_path),
                     pid=os.getpid(),
@@ -184,6 +192,15 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)
+
+
+def _all_fingerprint(*, root: Path, config_path: Path) -> tuple[object, ...]:
+    """Include Codex's trust-record file so trust loss is a cache transition."""
+    payload = fingerprint(root=root)
+    try:
+        return (*payload, ("config.toml", config_path.stat().st_mtime_ns))
+    except OSError:
+        return (*payload, ("config.toml", -1))
 
 
 def status_all(*, home: Path, expected_pid: int | None = None) -> int:

@@ -8,6 +8,7 @@ process.
 
 from __future__ import annotations
 
+import inspect
 import json
 import os
 import plistlib
@@ -45,6 +46,15 @@ def test_a_completed_payload_change_triggers_reconciliation(cache: Path, state: 
 
     assert observer.run_loop(root=cache, state_path=state, iterations=1, poll=0.01) == 0
     assert link_target(path=cache / "latest") == "0.6.1"
+
+
+def test_all_plugin_observer_watches_trust_records_at_an_unchanged_version() -> None:
+    """Removing Codex trust must trigger the shared reconciliation path promptly."""
+    body = inspect.getsource(observer.run_all_loop)
+
+    assert "reconcile_all(home=home)" in body
+    assert "config.toml" in body
+    assert observer.TRUST_RECONCILE_LATENCY_SECONDS <= 2 * observer.POLL_SECONDS
 
 
 def test_an_incomplete_payload_is_not_aliased(cache: Path, state: Path) -> None:
