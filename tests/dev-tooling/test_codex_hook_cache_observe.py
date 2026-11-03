@@ -552,3 +552,21 @@ def test_provisioning_orders_each_plugin_against_its_own_reconcile_completion(
     monkeypatch.setattr(observer.reconciler, "reconcile", reconcile_then_record_late_error)
 
     assert observer.provision_all(home=home) == 1
+
+
+def test_a_same_version_file_rewrite_changes_the_all_plugin_fingerprint(
+    tmp_path: Path, cache: Path
+) -> None:
+    """Rewriting a file in place leaves the directory mtime alone yet must be observed."""
+    payload = write_payload(root=cache, version="0.6.0")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    before = observer._all_fingerprint(root=cache, config_path=config)
+    hooks_dir = payload / "hooks"
+    directory_marks = (hooks_dir.stat().st_atime_ns, hooks_dir.stat().st_mtime_ns)
+
+    (hooks_dir / "guard.py").write_text("import sys\n\nsys.exit(1)\n", encoding="utf-8")
+    os.utime(hooks_dir, ns=directory_marks)
+    os.utime(payload, ns=(payload.stat().st_atime_ns, payload.stat().st_mtime_ns))
+
+    assert observer._all_fingerprint(root=cache, config_path=config) != before
