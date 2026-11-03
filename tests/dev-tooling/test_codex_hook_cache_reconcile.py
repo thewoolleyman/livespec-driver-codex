@@ -8,11 +8,16 @@ end-to-end without touching the host's cache.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
+import codex_hook_cache_all
 import pytest
+from _codex_hook_cache_aliases import alias_status, link, load_state, save_state
+from _codex_hook_release_source import ReleasePayload
 from test_codex_hook_cache_fixtures import link_target, observer, reconciler, write_payload
 
 
@@ -38,6 +43,23 @@ def test_discovery_ignores_aliases_and_picks_the_newest_payload(cache: Path) -> 
     (cache / "latest").symlink_to("0.9.0")
 
     assert reconciler.real_versions(root=cache) == ("0.6.0", "0.9.0", "0.10.0")
+
+
+def test_alias_state_helpers_preserve_only_managed_links_and_version_names(tmp_path: Path) -> None:
+    """Alias-state mechanics reject unsafe slots and retain valid recorded versions."""
+    state_path = tmp_path / "state.json"
+    save_state(path=state_path, observed=("1.0.0", "invalid", "1.1.0"))
+    assert load_state(path=state_path) == ("1.0.0", "1.1.0")
+
+    alias = tmp_path / "latest"
+    assert alias_status(path=alias) == "absent"
+    assert link(path=alias, target="1.1.0")
+    assert alias_status(path=alias) == "managed"
+    assert not link(path=alias, target="1.1.0")
+
+    unsafe = tmp_path / "unsafe"
+    unsafe.symlink_to("../outside")
+    assert alias_status(path=unsafe) == "unsafe"
 
 
 def test_reconcile_points_latest_at_the_current_payload(cache: Path, state: Path) -> None:
@@ -67,11 +89,12 @@ def test_retained_old_version_resolves_through_latest_in_one_hop(cache: Path, st
 
 
 def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Every registered hook plugin gets its own retained-version alias chain."""
     home = tmp_path / "codex"
     _write_config(home=home, marketplaces=("first", "second"))
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     first = home / "plugins" / "cache" / "first" / "default-only"
     second = home / "plugins" / "cache" / "second" / "manifest-only"
     _write_default_only_payload(root=first, version="1.0.0")
@@ -92,10 +115,13 @@ def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks
     assert link_target(path=second / "latest") == "1.1.0"
 
 
-def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(tmp_path: Path) -> None:
+def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """One malformed payload reports its identity without blocking its sibling."""
     home = tmp_path / "codex"
     _write_config(home=home, marketplaces=("first", "second"))
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     broken = home / "plugins" / "cache" / "first" / "broken"
     healthy = home / "plugins" / "cache" / "second" / "healthy"
     broken_payload = write_payload(root=broken, version="1.0.0")
@@ -111,6 +137,34 @@ def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(tmp_pat
     assert "command" in " ".join(broken_report.problems)
     assert healthy_report.ok
     assert link_target(path=healthy / "latest") == "1.0.0"
+
+
+def test_reconcile_all_can_be_limited_to_one_covered_plugin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Repairing one plugin neither reconciles nor fetches the release of its siblings."""
+    home = tmp_path / "codex"
+    _write_config(home=home, marketplaces=("first", "second"))
+    fetched: list[str] = []
+
+    @contextlib.contextmanager
+    def recording(
+        *, config_path: Path, marketplace: str, plugin: str, version: str
+    ) -> Iterator[ReleasePayload]:
+        del config_path
+        fetched.append(plugin)
+        yield ReleasePayload(
+            payload=home / "plugins" / "cache" / marketplace / plugin / version, problem=None
+        )
+
+    monkeypatch.setattr(codex_hook_cache_all, "release_payload", recording)
+    write_payload(root=home / "plugins" / "cache" / "first" / "alpha", version="1.0.0")
+    write_payload(root=home / "plugins" / "cache" / "second" / "beta", version="1.0.0")
+
+    reports = reconciler.reconcile_all(home=home, only=("second", "beta"))
+
+    assert [report.plugin for report in reports] == ["beta"]
+    assert fetched == ["beta"]
 
 
 def test_backfill_is_bounded_to_versions_the_reconciler_recorded(cache: Path, state: Path) -> None:
@@ -243,9 +297,12 @@ def test_reconcile_refuses_an_unmanaged_latest_for_versioned_hook_paths(
     assert latest.readlink() == before
 
 
-def test_status_all_is_healthy_after_reconciling_an_inline_only_plugin(tmp_path: Path) -> None:
+def test_status_all_is_healthy_after_reconciling_an_inline_only_plugin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """An unmanaged inline-only `latest` does not make observer status unhealthy."""
     home = tmp_path / "codex"
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     (home / "config.toml").parent.mkdir()
     (home / "config.toml").write_text("[marketplaces.openai-bundled]\n", encoding="utf-8")
     root = home / "plugins" / "cache" / "openai-bundled" / "chrome"
@@ -353,9 +410,12 @@ def test_reconcile_rejects_a_missing_command_entrypoint_from_wrapped_inline_hook
     )
 
 
-def test_status_all_is_healthy_for_mixed_inline_and_path_declared_plugins(tmp_path: Path) -> None:
+def test_status_all_is_healthy_for_mixed_inline_and_path_declared_plugins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """An inline bundled plugin never makes a healthy path plugin report unhealthy."""
     home = tmp_path / "codex"
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     (home / "config.toml").parent.mkdir()
     (home / "config.toml").write_text(
         "[marketplaces.openai-bundled]\n\n[marketplaces.market]\n", encoding="utf-8"
@@ -492,6 +552,22 @@ def _write_config(*, home: Path, marketplaces: tuple[str, ...]) -> None:
     (home / "config.toml").write_text("\n\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _use_cache_release_payload(*, monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
+    """Provide exact release bytes without making mock-cache tests use a network remote."""
+
+    @contextlib.contextmanager
+    def from_cache(
+        *, config_path: Path, marketplace: str, plugin: str, version: str
+    ) -> Iterator[ReleasePayload]:
+        del config_path
+        yield ReleasePayload(
+            payload=home / "plugins" / "cache" / marketplace / plugin / version,
+            problem=None,
+        )
+
+    monkeypatch.setattr(codex_hook_cache_all, "release_payload", from_cache)
+
+
 def _write_default_only_payload(*, root: Path, version: str) -> None:
     """Make a default-registration-only payload with a shell hook command."""
     payload = write_payload(root=root, version=version)
@@ -514,3 +590,39 @@ def _write_manifest_only_payload(*, root: Path, version: str) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["hooks"] = "./hooks/manifest-hooks.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_a_plugin_without_versioned_entrypoints_still_has_its_hook_trust_restored(
+    tmp_path: Path, cache: Path, state: Path
+) -> None:
+    """A hook that names no plugin-root path is trusted from the release, not skipped."""
+    release_root = tmp_path / "release"
+    for root in (cache, release_root):
+        payload = write_payload(root=root, version="1.2.3")
+        (payload / "hooks" / "hooks.json").write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PreToolUse": [
+                            {"matcher": "Bash", "hooks": [{"type": "command", "command": "true"}]}
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir()
+    config.write_text("[hooks.state]\n", encoding="utf-8")
+
+    report = reconciler.reconcile(
+        root=cache,
+        state_path=state,
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        release_payload=release_root / "1.2.3",
+    )
+
+    assert report.ok
+    assert "plugin@market:hooks/hooks.json:pre_tool_use:0:0" in config.read_text(encoding="utf-8")

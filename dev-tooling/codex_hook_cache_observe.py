@@ -32,10 +32,22 @@ from _codex_hook_cache_process import (
     write_status,
 )
 from _codex_hook_cache_report import provision_all, status_all
+from _codex_hook_release_source import RELEASE_FETCH_BUDGET_SECONDS
 
 POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 5.0
 SETTLE_TIMEOUT_SECONDS = 120.0
+
+
+def trust_reconcile_latency_seconds(*, covered_plugins: int) -> float:
+    """Worst-case time from lost trust to trust restored or the plugin reported.
+
+    Detection takes two polls (the change is seen, then confirmed stable). The
+    reconcile then spends at most one release-fetch budget per covered plugin that
+    is reconciled ahead of, or as, the affected one in the same sweep.
+    """
+    return 2 * POLL_SECONDS + covered_plugins * RELEASE_FETCH_BUDGET_SECONDS
+
 
 # Re-exported so callers see one module API even though the liveness/process
 # half lives in the sibling module.
@@ -56,6 +68,7 @@ __all__ = [
     "run_loop",
     "status_all",
     "status_file",
+    "trust_reconcile_latency_seconds",
     "write_status",
 ]
 
@@ -155,9 +168,9 @@ def run_loop(
 
 
 def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
-    """Watch every currently covered plugin without spinning when none are present."""
-    seen: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
-    settled: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
+    """Watch payload and trust state; see `trust_reconcile_latency_seconds` for the bound."""
+    seen: dict[tuple[str, str], tuple[object, ...]] = {}
+    settled: dict[tuple[str, str], tuple[object, ...]] = {}
     last_beat: dict[tuple[str, str], float] = {}
     errors: dict[tuple[str, str], str | None] = {}
     completed_at: dict[tuple[str, str], float] = {}
@@ -168,22 +181,28 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
             state_path = reconciler.state_file(
                 marketplace=marketplace, plugin=plugin, codex_home_override=home
             )
-            current = fingerprint(root=root)
+            current = _all_fingerprint(root=root, config_path=home / "config.toml")
             if seen.get(key) != current:
                 seen[key] = current
                 continue
             if settled.get(key) != current:
-                versions = reconciler.real_versions(root=root)
-                problems = (
-                    reconciler.validate_payload(payload=root / versions[-1])
-                    if versions
-                    else (f"{root}: no version payload directory found",)
+                reports = reconciler.reconcile_all(home=home, only=key)
+                report = next(
+                    (
+                        candidate
+                        for candidate in reports
+                        if candidate.marketplace == marketplace and candidate.plugin == plugin
+                    ),
+                    None,
                 )
-                report = (
-                    reconciler.reconcile(root=root, state_path=state_path) if not problems else None
+                errors[key] = (
+                    "reconcile did not report the covered plugin"
+                    if report is None
+                    else "; ".join(report.problems)
                 )
-                errors[key] = "; ".join(problems) if problems else "; ".join(report.problems)
-                settled[key] = current
+                refreshed = _all_fingerprint(root=root, config_path=home / "config.toml")
+                seen[key] = refreshed
+                settled[key] = refreshed
                 completed_at[key] = time.time()
                 write_status(
                     path=status_file(state_path=state_path),
@@ -202,6 +221,35 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)
+
+
+def _all_fingerprint(*, root: Path, config_path: Path) -> tuple[object, ...]:
+    """Include file-level payload marks and the trust-record file.
+
+    A directory's own mtime does not move when an existing file inside it is
+    rewritten, so each file's mtime and size are fingerprinted as well.
+    """
+    payload = fingerprint(root=root)
+    files = tuple(
+        mark for name in reconciler.real_versions(root=root) for mark in _tree_marks(root / name)
+    )
+    try:
+        return (*payload, files, ("config.toml", config_path.stat().st_mtime_ns))
+    except OSError:
+        return (*payload, files, ("config.toml", -1))
+
+
+def _tree_marks(top: Path) -> list[tuple[str, int, int]]:
+    marks: list[tuple[str, int, int]] = []
+    for directory, _, names in os.walk(top, followlinks=False):
+        for name in sorted(names):
+            path = Path(directory) / name
+            try:
+                stat = path.lstat()
+            except OSError:
+                continue
+            marks.append((str(path.relative_to(top.parent)), stat.st_mtime_ns, stat.st_size))
+    return marks
 
 
 def build_parser() -> argparse.ArgumentParser:

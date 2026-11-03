@@ -21,20 +21,18 @@ import dataclasses
 import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from _codex_hook_cache_coverage import covered_plugin_roots
+from _codex_hook_cache_aliases import alias_status, link, load_state, save_state
 from _codex_hook_cache_payload import (
-    VERSION_RE,
     declared_hook_scripts,
-    read_json,
     real_versions,
     registered_hook_declarations,
     validate_payload,
     version_sort_key,
 )
+from codex_hook_trust import reconcile_trust
 
 # Re-exported so callers (the observer, the test suite) see one module API
 # even though the discovery/validation half lives in the sibling module.
@@ -126,54 +124,15 @@ def state_file(
     )
 
 
-def _alias_status(*, path: Path) -> str:
-    """Classify an alias slot as `absent`, `managed`, or `unsafe`.
-
-    `managed` is narrow by design — a symlink whose target is a single
-    relative name inside the cache directory. Anything else (a real file
-    or directory, an absolute target, a traversing target) is never
-    overwritten.
-    """
-    if path.is_symlink():
-        target = Path.readlink(path).as_posix()
-        if target in {"", ".", ".."} or "/" in target:
-            return "unsafe"
-        return "managed"
-    if path.exists():
-        return "unsafe"
-    return "absent"
-
-
-def _link(*, path: Path, target: str) -> bool:
-    """Point `path` at `target`, atomically. True when something changed."""
-    if path.is_symlink() and Path.readlink(path).as_posix() == target:
-        return False
-    staging = path.with_name(f".{path.name}.livespec-reconcile.{os.getpid()}")
-    staging.unlink(missing_ok=True)
-    staging.symlink_to(target)
-    staging.replace(path)
-    return True
-
-
-def _load_state(*, path: Path) -> tuple[str, ...]:
-    parsed, _ = read_json(path=path)
-    if parsed is None:
-        return ()
-    observed = parsed.get("observed_versions")
-    if not isinstance(observed, list):
-        return ()
-    return tuple(name for name in observed if isinstance(name, str) and VERSION_RE.match(name))
-
-
-def _save_state(*, path: Path, observed: tuple[str, ...]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    body = json.dumps({"observed_versions": list(observed)}, indent=2, sort_keys=True) + "\n"
-    staging = path.with_name(f".{path.name}.livespec-reconcile.{os.getpid()}")
-    staging.write_text(body, encoding="utf-8")
-    staging.replace(path)
-
-
-def reconcile(*, root: Path, state_path: Path) -> Report:
+def reconcile(
+    *,
+    root: Path,
+    state_path: Path,
+    config_path: Path | None = None,
+    marketplace: str = DEFAULT_MARKETPLACE,
+    plugin: str = DEFAULT_PLUGIN,
+    release_payload: Path | None = None,
+) -> Report:
     """Bring the cache's alias topology in line with the current payload."""
     if not (versions := real_versions(root=root)):
         return Report(
@@ -195,6 +154,22 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
             problems=declaration_problems,
         )
 
+    if config_path is not None and release_payload is not None:
+        trust = reconcile_trust(
+            config_path=config_path,
+            marketplace=marketplace,
+            plugin=plugin,
+            payload=root / current,
+            release_payload=release_payload,
+        )
+        if not trust.ok:
+            return Report(
+                ok=False,
+                current_version=current,
+                actions=(),
+                problems=trust.problems,
+            )
+
     versioned_hook_scripts, _ = declared_hook_scripts(payload=root / current)
     if not versioned_hook_scripts:
         return Report(
@@ -205,9 +180,7 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
             hook_declarations=hook_declarations,
         )
 
-    observed = tuple(
-        sorted(set(_load_state(path=state_path)) | set(versions), key=version_sort_key)
-    )
+    observed = tuple(sorted(set(load_state(path=state_path)) | set(versions), key=version_sort_key))
     desired = {LATEST_ALIAS: current}
     for name in observed:
         if name != current and name not in versions:
@@ -216,16 +189,16 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
     unsafe = [
         f"{root / name}: refusing to replace an unmanaged or malformed path"
         for name in desired
-        if _alias_status(path=root / name) == "unsafe"
+        if alias_status(path=root / name) == "unsafe"
     ]
     if unsafe:
         return Report(ok=False, current_version=current, actions=(), problems=tuple(unsafe))
 
-    _save_state(path=state_path, observed=observed)
+    save_state(path=state_path, observed=observed)
     actions = tuple(
         f"{name} -> {target}"
         for name, target in desired.items()
-        if _link(path=root / name, target=target)
+        if link(path=root / name, target=target)
     )
     return Report(
         ok=True,
@@ -236,24 +209,11 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
     )
 
 
-def reconcile_all(*, home: Path) -> tuple[Report, ...]:
-    """Reconcile every configured marketplace plugin whose current payload has hooks."""
-    reports: list[Report] = []
-    for marketplace, plugin, root in covered_plugin_roots(home=home):
-        report = reconcile(
-            root=root,
-            state_path=state_file(marketplace=marketplace, plugin=plugin, codex_home_override=home),
-        )
-        reports.append(
-            dataclasses.replace(
-                report,
-                marketplace=marketplace,
-                plugin=plugin,
-                completed_at_epoch=time.time(),
-                problems=tuple(f"{marketplace}/{plugin}: {problem}" for problem in report.problems),
-            )
-        )
-    return tuple(reports)
+def reconcile_all(*, home: Path, only: tuple[str, str] | None = None) -> tuple[Report, ...]:
+    """Reconcile every covered plugin (or just `only`) with release-verified hook trust."""
+    from codex_hook_cache_all import reconcile_all as reconcile_covered_plugins
+
+    return reconcile_covered_plugins(home=home, only=only)
 
 
 def emit(*, event: str, level: str, **fields: object) -> None:
