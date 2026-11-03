@@ -81,3 +81,10 @@ def test_linux_provisioning_reports_a_missing_systemd_user_unit(tmp_path: Path) 
 
     assert result.returncode != 0
     assert "not running under an installed unit" in result.stderr
+
+
+def test_a_platform_without_a_supported_supervisor_is_named_as_such() -> None:
+    """Unsupported platforms are never misreported as lacking a Linux unit."""
+    provisioner = (DEV_TOOLING / "ensure-codex-plugins.sh").read_text(encoding="utf-8")
+
+    assert "has no supported supervisor on this platform" in provisioner
