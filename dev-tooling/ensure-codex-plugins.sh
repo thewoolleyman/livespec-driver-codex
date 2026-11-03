@@ -34,6 +34,10 @@ Darwin)
         echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
         exit 1
     fi
+    if [[ "$launchd_status" != *"state = running"* ]]; then
+        echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
+        exit 1
+    fi
     launchd_pid="$(printf '%s\n' "$launchd_status" | sed -nE 's/^[[:space:]]*pid = ([0-9]+)$/\1/p' | head -n 1)"
     if [[ -z "$launchd_pid" ]]; then
         echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
