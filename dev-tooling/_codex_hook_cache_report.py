@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import codex_hook_cache_reconcile as reconciler
@@ -41,7 +40,6 @@ def provision_all(*, home: Path, expected_pid: int | None = None) -> int:
         (report.marketplace, report.plugin): report
         for report in reconciler.reconcile_all(home=home)
     }
-    completed_at = time.time()
     results: list[bool] = []
     for marketplace, plugin, root in covered_plugin_roots(home=home):
         report = reports[(marketplace, plugin)]
@@ -53,7 +51,7 @@ def provision_all(*, home: Path, expected_pid: int | None = None) -> int:
             ),
             provisioner_ok=report.ok,
             provisioner_problem="; ".join(report.problems),
-            provisioner_completed_at_epoch=completed_at,
+            provisioner_completed_at_epoch=report.completed_at_epoch or 0.0,
             expected_pid=expected_pid,
         )
         reconciler.emit(

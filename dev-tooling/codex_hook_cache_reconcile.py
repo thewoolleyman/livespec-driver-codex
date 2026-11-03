@@ -21,6 +21,7 @@ import dataclasses
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -71,6 +72,7 @@ class Report:
     problems: tuple[str, ...]
     marketplace: str | None = None
     plugin: str | None = None
+    completed_at_epoch: float | None = None
 
 
 def codex_home(*, override: str | None = None) -> Path:
@@ -222,6 +224,7 @@ def reconcile_all(*, home: Path) -> tuple[Report, ...]:
                 report,
                 marketplace=marketplace,
                 plugin=plugin,
+                completed_at_epoch=time.time(),
                 problems=tuple(f"{marketplace}/{plugin}: {problem}" for problem in report.problems),
             )
         )
