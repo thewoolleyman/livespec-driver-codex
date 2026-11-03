@@ -8,6 +8,7 @@ process.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from pathlib import Path
@@ -151,3 +152,47 @@ def test_observer_service_definition_and_provisioning_check_are_shipped() -> Non
 def test_all_plugin_observer_uses_a_non_busy_poll_interval() -> None:
     """The systemd all-plugin loop leaves meaningful time between cache scans."""
     assert observer.POLL_SECONDS >= 1.0
+
+
+def test_shell_hook_entrypoints_are_validated_without_python_compilation(tmp_path: Path) -> None:
+    """A shell hook is executable payload, not Python source to compile."""
+    payload = write_payload(root=tmp_path, version="0.6.1")
+    hooks = payload / "hooks" / "hooks.json"
+    registration = json.loads(hooks.read_text(encoding="utf-8"))
+    registration["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = (
+        'bash "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh"'
+    )
+    hooks.write_text(json.dumps(registration), encoding="utf-8")
+    (payload / "hooks" / "guard.py").unlink()
+    (payload / "hooks" / "guard.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+
+    assert not observer.reconciler.validate_payload(payload=payload)
+
+
+def test_observer_status_is_per_plugin_and_honors_codex_home(tmp_path: Path) -> None:
+    """One plugin's heartbeat never supplies status for another plugin."""
+    home = tmp_path / "codex"
+    alpha = observer.reconciler.state_file(
+        marketplace="market", plugin="alpha", codex_home_override=home
+    )
+    beta = observer.reconciler.state_file(
+        marketplace="market", plugin="beta", codex_home_override=home
+    )
+    alpha_status = observer.status_file(state_path=alpha)
+    beta_status = observer.status_file(state_path=beta)
+    observer.write_status(path=alpha_status, pid=os.getpid(), last_error="broken alpha")
+    observer.write_status(path=beta_status, pid=os.getpid(), last_error=None)
+
+    assert alpha_status != beta_status
+    assert (
+        observer.main(
+            ["status", "--codex-home", str(home), "--marketplace", "market", "--plugin", "alpha"]
+        )
+        == 1
+    )
+    assert (
+        observer.main(
+            ["status", "--codex-home", str(home), "--marketplace", "market", "--plugin", "beta"]
+        )
+        == 0
+    )
