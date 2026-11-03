@@ -111,7 +111,7 @@ def run_loop(
     status_path = status_file(state_path=state_path)
     seen: tuple[tuple[str, float], ...] | None = None
     last_error: str | None = None
-    write_status(path=status_path, pid=os.getpid(), last_error=None)
+    write_status(path=status_path, pid=os.getpid(), last_error=None, completed_reconcile=False)
     last_beat = time.monotonic()
     count = 0
     while iterations is None or count < iterations:
@@ -126,7 +126,12 @@ def run_loop(
                 report = reconciler.reconcile(root=root, state_path=state_path)
                 reconciler.report_to_stream(report=report, root=root)
                 last_error = None if report.ok else "; ".join(report.problems)
-            write_status(path=status_path, pid=os.getpid(), last_error=last_error)
+            write_status(
+                path=status_path,
+                pid=os.getpid(),
+                last_error=last_error,
+                completed_reconcile=True,
+            )
             last_beat = time.monotonic()
         elif time.monotonic() - last_beat >= HEARTBEAT_SECONDS:
             write_status(path=status_path, pid=os.getpid(), last_error=last_error)
