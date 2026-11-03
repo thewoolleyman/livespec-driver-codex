@@ -483,16 +483,53 @@ failure for one covered plugin MUST NOT prevent reconciliation of the
 others; it MUST be reported as a provisioning or observer failure
 naming that plugin.
 
-The Driver MUST ship a service-supervisor definition for the observer;
-on Linux this is a systemd user unit. With it, host provisioning can
-keep the observer running across host reboots without any Codex or
-Claude session starting it. `ensure-codex-plugins` MUST report an
-observer whose process is not running under the installed supervisor
-unit; where the platform has no supervisor, it MUST say so rather than
-report the observer as supervised. Installing that definition on a
-host, and enabling user-session lingering so that the unit runs with no
-login session, are the host-provisioning automation's responsibility,
-not the Driver provisioner's.
+The Driver MUST ship a service-supervisor definition for the observer on
+each supported platform: on Linux a systemd user unit, and on macOS a
+launchd user LaunchAgent, shipped beside the systemd unit. Each
+definition supervises one observer that reconciles every covered plugin,
+and neither names a marketplace or a plugin. With it, host provisioning
+can keep the observer running without any Codex or Claude session
+starting it: on Linux across host reboots, and on macOS from each
+graphical (GUI) login session onward, across reboots and logout/login.
+The macOS definition MUST resolve the observer's Python interpreter
+correctly on both Apple Silicon and Intel Macs; it MUST NOT depend on an
+interpreter location that exists on only one of them.
+
+`ensure-codex-plugins` checks supervision; it does not take supervision
+over. It MUST report an observer whose process is not running under the
+platform's installed supervisor definition by exiting non-zero and
+naming the hook-cache observer, including when no definition is
+installed on a platform that has a supported supervisor, and it MUST do
+so even while an observer process that the supervisor did not start is
+alive. Where the platform has no supported supervisor, it MUST say so
+rather than report the observer as supervised. While the supervisor's
+observer is running, `ensure-codex-plugins` MUST NOT signal that process
+and MUST NOT start a second observer, including when that observer's
+status record reports a reconcile error. It reports that error instead,
+as a provisioning or observer failure naming the plugin, and exits
+non-zero. `ensure-codex-plugins` MUST NOT signal any observer process it
+did not start; where it finds a live observer not running under the
+installed supervisor definition, it reports it rather than terminating
+it.
+
+Observer health is reported per covered plugin. An observer that has
+started but has not completed its first reconcile of a covered plugin
+MUST be reported unhealthy for that plugin, and MUST NOT be reported
+healthy for that plugin until that plugin's own status record carries a
+completed reconcile that reported no error; a status record written
+before that first reconcile, such as a startup heartbeat, MUST NOT
+satisfy the health report. This is a necessary condition for health, not
+a sufficient one: any other rule in this section that reports the plugin
+unhealthy still applies. This holds on every platform.
+
+Installing a supervisor definition on a host, and on Linux enabling
+user-session lingering so that the unit runs with no login session, are
+the host-provisioning automation's responsibility, not the Driver
+provisioner's: neither `ensure-codex-plugins` nor a plugin install
+installs, loads, or replaces a supervisor definition as a side effect.
+Where no provisioning automation exists for a host, an operator-run
+installation of the shipped definition is that host's provisioning step;
+a definition generated or hand-written for that host is not.
 
 ## Versioning
 

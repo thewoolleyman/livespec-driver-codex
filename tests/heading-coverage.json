@@ -380,5 +380,29 @@
     "test": "TODO",
     "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
     "work_item": "livespec-driver-codex-kroiar"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: on macOS ensure-codex-plugins reports an observer not running under the installed LaunchAgent",
+    "test": "TODO",
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-yudufr (a macOS observer not running under the installed LaunchAgent, or with no LaunchAgent installed, is reported with a non-zero exit even while a detached observer is alive)",
+    "work_item": "livespec-driver-codex-yudufr"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: on macOS ensure-codex-plugins leaves a running LaunchAgent observer alone when it reports a reconcile error",
+    "test": "TODO",
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-yudufr (a running LaunchAgent observer whose status record reports a reconcile error is reported with a non-zero exit, never signalled, and never duplicated)",
+    "work_item": "livespec-driver-codex-yudufr"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an observer that has not completed its first reconcile of a covered plugin is reported unhealthy for that plugin",
+    "test": "TODO",
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-yudufr (a covered plugin is reported unhealthy until its own status record carries a completed first reconcile without error)",
+    "work_item": "livespec-driver-codex-yudufr"
   }
 ]

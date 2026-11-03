@@ -80,6 +80,12 @@ Every entry this repository commits in `.livespec.jsonc` under `dispatcher.facto
   (`contracts.md` §"Codex hook-cache compatibility").
 - Deleting or replacing a complete real version directory while the
   reconciler is reconciling hook-cache aliases.
+- Signalling the supervisor's hook-cache observer, or starting a second
+  observer, from `ensure-codex-plugins` while the supervisor's observer
+  is running (`contracts.md` §"Codex hook-cache compatibility").
+- Installing, loading or replacing a hook-cache observer supervisor
+  definition as a side effect of `ensure-codex-plugins` or of a plugin
+  install.
 - Creating, retargeting or deleting, while reconciling hook-cache
   aliases, any path inside the Codex plugin cache outside a covered
   plugin's own `<cache>/<marketplace>/<plugin>/` directory, or, inside
