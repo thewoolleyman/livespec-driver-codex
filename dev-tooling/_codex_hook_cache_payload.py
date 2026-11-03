@@ -128,6 +128,44 @@ def declares_hooks(*, payload: Path) -> bool:
     return bool(registrations or problems)
 
 
+def registered_hook_declarations(*, payload: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Describe every registered hook declaration for reconcile reporting.
+
+    Non-command hooks have no plugin-root entrypoint to validate. Reporting
+    them explicitly makes an inline manifest's declarations observable rather
+    than allowing them to be accepted but silently skipped.
+    """
+    registrations, problems = hook_registrations(payload=payload)
+    declarations: list[str] = []
+    for _, events in registrations:
+        for event, entries in events.items():
+            if not isinstance(entries, list):
+                continue
+            for matcher in entries:
+                if not isinstance(matcher, dict):
+                    continue
+                for hook in matcher.get("hooks", []) or []:
+                    if not isinstance(hook, dict):
+                        continue
+                    hook_type = hook.get("type")
+                    if hook_type == "command":
+                        declarations.append(
+                            f"{event}: command {hook.get('command')!r} "
+                            "(registered; entrypoint validation required)"
+                        )
+                    elif hook_type == "mcp_tool":
+                        declarations.append(
+                            f"{event}: mcp_tool {hook.get('server')}.{hook.get('tool')} "
+                            "(registered; no entrypoint validation for non-command hook)"
+                        )
+                    else:
+                        declarations.append(
+                            f"{event}: {hook_type!r} "
+                            "(registered; no entrypoint validation for non-command hook)"
+                        )
+    return tuple(declarations), tuple(problems)
+
+
 def _walk_registered_commands(*, events: dict[str, object]) -> list[str]:
     """Every hook command in a registration, independent of its event name."""
     found: list[str] = []
