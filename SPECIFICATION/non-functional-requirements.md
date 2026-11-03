@@ -72,8 +72,10 @@ locally, in pre-push, and in CI.
   deterministic mock-cache integration test for the hook-cache
   reconciler/observer (discovery, validation, one-hop retargeting,
   idempotent rerun, per-plugin observer health before and after the
-  first reconcile, and the provisioner's supervisor check on each
-  supported platform), plus a host-aware real release-tracking
+  first reconcile, the provisioner's supervisor check on each supported
+  platform, the provisioner starting no observer process, and the
+  newest-result rule between the provisioner's own reconcile and the
+  observer's status record), plus a host-aware real release-tracking
   transition test that starts a session against an old hook path of
   each covered plugin, advances the marketplace/plugin cache, and
   verifies each retained hook path resolves to the validated current
@@ -175,11 +177,15 @@ until that plugin's own status record carries a completed first
 reconcile, and the provisioner's supervisor check on each supported
 platform (an observer not running under the installed supervisor
 definition reported even while a detached observer is alive, an
-observer with no installed definition reported, a live observer the
-provisioner did not start reported rather than signalled, and a
-running supervised observer whose status record reports a reconcile
-error reported with a non-zero exit but neither signalled nor
-duplicated); a static assertion over the shipped macOS supervisor
+observer with no installed definition reported, a live observer
+reported rather than signalled, no observer process started by the
+provisioner in any run, a running supervised observer whose status
+record reports a reconcile error newer than the provisioner's own
+reconcile reported with a non-zero exit but neither signalled nor
+duplicated, and an older observer error superseded by a newer
+successful provisioner reconcile; the Linux systemd user unit
+inactive while a detached observer is alive, and no unit installed,
+are covered as well as the macOS LaunchAgent cases); a static assertion over the shipped macOS supervisor
 definition, separate from the mock-cache integration test, verifies
 that its interpreter resolution depends on no interpreter location
 present on only one of Apple Silicon and Intel Macs; a host-aware real release-tracking transition test —

@@ -503,24 +503,51 @@ installed on a platform that has a supported supervisor, and it MUST do
 so even while an observer process that the supervisor did not start is
 alive. Where the platform has no supported supervisor, it MUST say so
 rather than report the observer as supervised. While the supervisor's
-observer is running, `ensure-codex-plugins` MUST NOT signal that process
-and MUST NOT start a second observer, including when that observer's
-status record reports a reconcile error. It reports that error instead,
-as a provisioning or observer failure naming the plugin, and exits
-non-zero. `ensure-codex-plugins` MUST NOT signal any observer process it
-did not start; where it finds a live observer not running under the
-installed supervisor definition, it reports it rather than terminating
-it.
+observer is running, `ensure-codex-plugins` MUST NOT signal that
+process, including when that observer's status record reports a
+reconcile error. When that error is the reconcile result reported for
+the plugin under the newest-result rule below, it reports that error
+instead, as a provisioning or observer failure naming the plugin, and
+exits non-zero. `ensure-codex-plugins` MUST NOT start an observer
+process, on any platform, whether or not the supervisor's observer is
+running; starting the observer is the supervisor's job. It MUST NOT
+signal any observer process; where it finds a live observer not running
+under the installed supervisor definition, it reports it rather than
+terminating it.
+
+Each observer status record for a covered plugin MUST carry the time its
+reconcile completed, comparable with the completion time of a reconcile
+that `ensure-codex-plugins` runs; when the two times are equal, the
+observer's status record counts as the newer. For each covered plugin,
+the reconcile result that `ensure-codex-plugins` reports is the newer of
+its own reconcile of that plugin in the current run and the observer's
+status record for that plugin. An observer status record that reports a
+reconcile error and is older than a reconcile of that plugin that
+`ensure-codex-plugins` completed without error in the current run MUST
+NOT fail provisioning for that plugin, and, provided the observer has
+completed at least one reconcile of that plugin, that newer reconcile
+satisfies the per-plugin health rule's requirement of a completed
+reconcile that reported no error. An observer that has completed no
+reconcile of that plugin is still reported unhealthy for it. An observer
+status record that reports a reconcile error and is newer than that
+reconcile MUST be reported as a provisioning or observer failure naming
+the plugin, with a non-zero exit. Apart from that requirement, this rule
+decides only which reconcile result is reported; an observer error
+superseded by a newer reconcile in this way is not a reconcile failure
+for the purposes of any other rule in this section, while every other
+rule in this section that reports the plugin unhealthy, including the
+trust-continuity and fail-closed rules, still applies.
 
 Observer health is reported per covered plugin. An observer that has
 started but has not completed its first reconcile of a covered plugin
 MUST be reported unhealthy for that plugin, and MUST NOT be reported
 healthy for that plugin until that plugin's own status record carries a
-completed reconcile that reported no error; a status record written
-before that first reconcile, such as a startup heartbeat, MUST NOT
-satisfy the health report. This is a necessary condition for health, not
-a sufficient one: any other rule in this section that reports the plugin
-unhealthy still applies. This holds on every platform.
+completed reconcile that reported no error, except as the newest-result
+rule above provides; a status record written before that first
+reconcile, such as a startup heartbeat, MUST NOT satisfy the health
+report. This is a necessary condition for health, not a sufficient one:
+any other rule in this section that reports the plugin unhealthy still
+applies. This holds on every platform.
 
 Installing a supervisor definition on a host, and on Linux enabling
 user-session lingering so that the unit runs with no login session, are
