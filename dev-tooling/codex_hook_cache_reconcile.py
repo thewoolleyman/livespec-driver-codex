@@ -175,8 +175,7 @@ def _save_state(*, path: Path, observed: tuple[str, ...]) -> None:
 
 def reconcile(*, root: Path, state_path: Path) -> Report:
     """Bring the cache's alias topology in line with the current payload."""
-    versions = real_versions(root=root)
-    if not versions:
+    if not (versions := real_versions(root=root)):
         return Report(
             ok=False,
             current_version=None,
