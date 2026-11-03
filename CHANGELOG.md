@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.5](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.4...v0.11.5) (2026-11-03)
+
+
+### Bug Fixes
+
+* **hooks:** scope supervisor completion to the owning session (livespec-driver-codex-waq5mp) ([f8862c1](https://github.com/thewoolleyman/livespec-driver-codex/commit/f8862c1bf9c460af8c7c4cb901e5e48c280ce32f))
+
 ## [0.11.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.3...v0.11.4) (2026-11-03)
 
 
