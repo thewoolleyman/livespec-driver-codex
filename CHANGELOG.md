@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.0...v0.11.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **tests:** wait for producer exec ([d737039](https://github.com/thewoolleyman/livespec-driver-codex/commit/d73703903a824e1b452a41b0d1d6e3f960416fee))
+
 ## [0.11.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.10.1...v0.11.0) (2026-11-03)
 
 
