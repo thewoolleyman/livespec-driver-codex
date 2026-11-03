@@ -38,12 +38,11 @@ SETTLE_TIMEOUT_SECONDS = 120.0
 
 # Re-exported so callers see one module API even though the liveness/process
 # half lives in the sibling module.
-__all__ = [
-    "HEARTBEAT_SECONDS", "POLL_SECONDS", "SETTLE_TIMEOUT_SECONDS",
-    "STALE_AFTER_SECONDS", "await_complete_payload", "ensure", "fingerprint",
-    "health", "health_after_provisioner", "log_file", "main", "provision_all",
-    "run_all_loop", "run_loop", "status_all", "status_file", "write_status",
-]
+__all__ = """
+HEARTBEAT_SECONDS POLL_SECONDS SETTLE_TIMEOUT_SECONDS STALE_AFTER_SECONDS
+await_complete_payload ensure fingerprint health health_after_provisioner log_file
+main provision_all run_all_loop run_loop status_all status_file write_status
+""".split()
 
 
 def fingerprint(*, root: Path) -> tuple[tuple[str, float], ...]:
