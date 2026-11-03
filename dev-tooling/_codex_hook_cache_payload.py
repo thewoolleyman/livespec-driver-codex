@@ -97,12 +97,15 @@ def hook_registrations(*, payload: Path) -> tuple[list[tuple[Path, dict[str, obj
         return [], [manifest_problem or f"{manifest_path}: unreadable"]
     default_path = payload / "hooks" / "hooks.json"
     paths = {default_path: False}
-    hooks_rel = manifest.get("hooks")
-    if hooks_rel is not None:
-        if not isinstance(hooks_rel, str) or not hooks_rel:
-            return [], [f"{manifest_path}: malformed `hooks` entry"]
-        paths[payload / hooks_rel] = True
+    manifest_hooks = manifest.get("hooks")
     registrations: list[tuple[Path, dict[str, object]]] = []
+    if manifest_hooks is not None:
+        if isinstance(manifest_hooks, str) and manifest_hooks:
+            paths[payload / manifest_hooks] = True
+        elif isinstance(manifest_hooks, dict) and isinstance(manifest_hooks.get("hooks"), dict):
+            registrations.append((manifest_path, manifest_hooks["hooks"]))
+        else:
+            return [], [f"{manifest_path}: malformed `hooks` entry"]
     problems: list[str] = []
     for path, manifest_declared in paths.items():
         if path == default_path and not manifest_declared and not path.exists():
