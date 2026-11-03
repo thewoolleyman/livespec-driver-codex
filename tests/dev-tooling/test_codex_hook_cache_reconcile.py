@@ -562,3 +562,39 @@ def _write_manifest_only_payload(*, root: Path, version: str) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["hooks"] = "./hooks/manifest-hooks.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_a_plugin_without_versioned_entrypoints_still_has_its_hook_trust_restored(
+    tmp_path: Path, cache: Path, state: Path
+) -> None:
+    """A hook that names no plugin-root path is trusted from the release, not skipped."""
+    release_root = tmp_path / "release"
+    for root in (cache, release_root):
+        payload = write_payload(root=root, version="1.2.3")
+        (payload / "hooks" / "hooks.json").write_text(
+            json.dumps(
+                {
+                    "hooks": {
+                        "PreToolUse": [
+                            {"matcher": "Bash", "hooks": [{"type": "command", "command": "true"}]}
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir()
+    config.write_text("[hooks.state]\n", encoding="utf-8")
+
+    report = reconciler.reconcile(
+        root=cache,
+        state_path=state,
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        release_payload=release_root / "1.2.3",
+    )
+
+    assert report.ok
+    assert "plugin@market:hooks/hooks.json:pre_tool_use:0:0" in config.read_text(encoding="utf-8")

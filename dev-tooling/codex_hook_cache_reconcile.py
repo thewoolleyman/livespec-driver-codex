@@ -154,15 +154,6 @@ def reconcile(
             problems=declaration_problems,
         )
 
-    versioned_hook_scripts, _ = declared_hook_scripts(payload=root / current)
-    if not versioned_hook_scripts:
-        return Report(
-            ok=True,
-            current_version=current,
-            actions=(),
-            problems=(),
-            hook_declarations=hook_declarations,
-        )
     if config_path is not None and release_payload is not None:
         trust = reconcile_trust(
             config_path=config_path,
@@ -178,6 +169,16 @@ def reconcile(
                 actions=(),
                 problems=trust.problems,
             )
+
+    versioned_hook_scripts, _ = declared_hook_scripts(payload=root / current)
+    if not versioned_hook_scripts:
+        return Report(
+            ok=True,
+            current_version=current,
+            actions=(),
+            problems=(),
+            hook_declarations=hook_declarations,
+        )
 
     observed = tuple(sorted(set(load_state(path=state_path)) | set(versions), key=version_sort_key))
     desired = {LATEST_ALIAS: current}
