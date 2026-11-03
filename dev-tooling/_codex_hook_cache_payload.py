@@ -95,16 +95,17 @@ def hook_registrations(*, payload: Path) -> tuple[list[tuple[Path, dict[str, obj
     manifest, manifest_problem = read_json(path=manifest_path)
     if manifest is None:
         return [], [manifest_problem or f"{manifest_path}: unreadable"]
-    paths = [payload / "hooks" / "hooks.json"]
+    default_path = payload / "hooks" / "hooks.json"
+    paths = {default_path: False}
     hooks_rel = manifest.get("hooks")
     if hooks_rel is not None:
         if not isinstance(hooks_rel, str) or not hooks_rel:
             return [], [f"{manifest_path}: malformed `hooks` entry"]
-        paths.append(payload / hooks_rel)
+        paths[payload / hooks_rel] = True
     registrations: list[tuple[Path, dict[str, object]]] = []
     problems: list[str] = []
-    for path in dict.fromkeys(paths):
-        if path == paths[0] and not path.exists():
+    for path, manifest_declared in paths.items():
+        if path == default_path and not manifest_declared and not path.exists():
             continue
         registration, problem = read_json(path=path)
         if registration is None:

@@ -59,6 +59,35 @@ def test_an_incomplete_payload_is_not_aliased(cache: Path, state: Path) -> None:
     assert link_target(path=cache / "latest") == "0.6.0"
 
 
+def test_a_manifest_declared_default_hooks_file_must_exist_before_retargeting(
+    cache: Path, state: Path
+) -> None:
+    """A manifest-only successor is incomplete, not a hookless payload."""
+    write_payload(root=cache, version="0.6.0")
+    assert observer.reconciler.reconcile(root=cache, state_path=state).ok
+
+    successor = cache / "0.6.1"
+    (successor / ".codex-plugin").mkdir(parents=True)
+    manifest = {
+        "name": "livespec",
+        "version": "0.6.1",
+        "hooks": "./hooks/hooks.json",
+    }
+    (successor / ".codex-plugin" / "plugin.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    report = observer.reconciler.reconcile(root=cache, state_path=state)
+
+    missing_hooks = successor / "hooks" / "hooks.json"
+    assert not report.ok
+    assert any(str(missing_hooks) in problem for problem in report.problems)
+    assert link_target(path=cache / "latest") == "0.6.0"
+    assert (
+        observer.run_loop(root=cache, state_path=state, iterations=1, poll=0.01, settle_timeout=0.3)
+        == 1
+    )
+    assert link_target(path=cache / "latest") == "0.6.0"
+
+
 def test_await_complete_payload_reports_the_validation_problems(cache: Path) -> None:
     """A payload that never completes surfaces why, rather than timing out silently."""
     write_payload(root=cache, version="0.6.1", drop_hook_script=True)
