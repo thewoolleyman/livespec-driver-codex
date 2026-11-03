@@ -18,6 +18,7 @@ import argparse
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import codex_hook_cache_reconcile as reconciler
@@ -112,7 +113,14 @@ def run_loop(
     status_path = status_file(state_path=state_path)
     seen: tuple[tuple[str, float], ...] | None = None
     last_error: str | None = None
-    write_status(path=status_path, pid=os.getpid(), last_error=None, completed_reconcile=False)
+    reconcile_completed_at: str | None = None
+    write_status(
+        path=status_path,
+        pid=os.getpid(),
+        last_error=None,
+        completed_reconcile=False,
+        reconcile_completed_at=reconcile_completed_at,
+    )
     last_beat = time.monotonic()
     count = 0
     while iterations is None or count < iterations:
@@ -127,15 +135,22 @@ def run_loop(
                 report = reconciler.reconcile(root=root, state_path=state_path)
                 reconciler.report_to_stream(report=report, root=root)
                 last_error = None if report.ok else "; ".join(report.problems)
+            reconcile_completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             write_status(
                 path=status_path,
                 pid=os.getpid(),
                 last_error=last_error,
                 completed_reconcile=True,
+                reconcile_completed_at=reconcile_completed_at,
             )
             last_beat = time.monotonic()
         elif time.monotonic() - last_beat >= HEARTBEAT_SECONDS:
-            write_status(path=status_path, pid=os.getpid(), last_error=last_error)
+            write_status(
+                path=status_path,
+                pid=os.getpid(),
+                last_error=last_error,
+                reconcile_completed_at=reconcile_completed_at,
+            )
             last_beat = time.monotonic()
         time.sleep(poll)
     return 1 if last_error else 0
@@ -147,6 +162,7 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
     settled: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
     last_beat: dict[tuple[str, str], float] = {}
     errors: dict[tuple[str, str], str | None] = {}
+    completed_at: dict[tuple[str, str], str | None] = {}
     while True:
         roots = covered_plugin_roots(home=home)
         for marketplace, plugin, root in roots:
@@ -170,10 +186,12 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 )
                 errors[key] = "; ".join(problems) if problems else "; ".join(report.problems)
                 settled[key] = current
+                completed_at[key] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
                 write_status(
                     path=status_file(state_path=state_path),
                     pid=os.getpid(),
                     last_error=errors[key] or None,
+                    reconcile_completed_at=completed_at[key],
                 )
                 last_beat[key] = time.monotonic()
             elif time.monotonic() - last_beat.get(key, 0.0) >= HEARTBEAT_SECONDS:
@@ -181,6 +199,7 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                     path=status_file(state_path=state_path),
                     pid=os.getpid(),
                     last_error=errors.get(key),
+                    reconcile_completed_at=completed_at.get(key),
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)

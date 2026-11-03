@@ -166,6 +166,17 @@ def test_health_rejects_a_startup_heartbeat_before_first_reconcile(tmp_path: Pat
     assert "first reconcile" in why
 
 
+def test_status_records_the_wall_clock_time_a_reconcile_completed(tmp_path: Path) -> None:
+    """A status record distinguishes a completed reconcile from a heartbeat."""
+    record = tmp_path / "observer.json"
+
+    observer.write_status(path=record, pid=os.getpid(), last_error=None)
+
+    completed_at = json.loads(record.read_text(encoding="utf-8"))["reconcile_completed_at"]
+    assert isinstance(completed_at, str)
+    assert completed_at.endswith("Z")
+
+
 def test_runtime_paths_stay_outside_the_codex_managed_cache(state: Path, cache: Path) -> None:
     """The liveness record and log live beside the state file, never in the cache."""
     assert not observer.status_file(state_path=state).is_relative_to(cache)

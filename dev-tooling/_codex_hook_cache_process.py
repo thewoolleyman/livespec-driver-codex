@@ -19,6 +19,7 @@ from pathlib import Path
 
 STALE_AFTER_SECONDS = 60.0
 _START_TIMEOUT_SECONDS = 10.0
+_CURRENT_TIME = object()
 
 
 def runtime_dir(*, state_path: Path) -> Path:
@@ -37,16 +38,27 @@ def log_file(*, state_path: Path) -> Path:
 
 
 def write_status(
-    *, path: Path, pid: int, last_error: str | None, completed_reconcile: bool = True
+    *,
+    path: Path,
+    pid: int,
+    last_error: str | None,
+    completed_reconcile: bool = True,
+    reconcile_completed_at: str | None | object = _CURRENT_TIME,
 ) -> None:
     """Record liveness plus the outcome of the last reconcile attempt."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    completed_at = (
+        datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        if reconcile_completed_at is _CURRENT_TIME
+        else reconcile_completed_at
+    )
     body = json.dumps(
         {
             "pid": pid,
             "heartbeat_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "heartbeat_epoch": time.time(),
             "last_error": last_error,
+            "reconcile_completed_at": completed_at,
             "completed_reconcile": completed_reconcile,
         },
         indent=2,
