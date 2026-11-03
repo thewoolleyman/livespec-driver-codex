@@ -152,10 +152,12 @@ def _entrypoint_from_command(*, command: str) -> tuple[str | None, str | None]:
 def validate_payload(*, payload: Path) -> tuple[str, ...]:
     """Problems that make `payload` unfit to be the target of `latest`.
 
-    Every declared hook script must exist and compile under the same bare
-    interpreter form Codex invokes it with; a payload that fails here is
-    mid-write or broken, and aliasing to it would advertise hook
-    continuity the runtime cannot deliver.
+    Every declared hook entrypoint must exist. Python entrypoints must also
+    compile under the same bare interpreter form Codex invokes them with; a
+    payload that fails here is mid-write or broken, and aliasing to it would
+    advertise hook continuity the runtime cannot deliver. Other entrypoint
+    types (such as a `bash` script) are validated by their declaring launcher,
+    not by feeding them to Python.
     """
     if not payload.is_dir():
         return (f"{payload}: payload directory is missing",)
@@ -170,10 +172,11 @@ def validate_payload(*, payload: Path) -> tuple[str, ...]:
                     f"{script}: command {command!r} declares a hook entrypoint that is missing"
                 )
                 continue
-            try:
-                py_compile.compile(
-                    str(script), cfile=str(Path(scratch) / f"{index}.pyc"), doraise=True
-                )
-            except py_compile.PyCompileError as err:
-                failures.append(f"{script}: does not compile under python3 ({err.msg.strip()})")
+            if script.suffix == ".py":
+                try:
+                    py_compile.compile(
+                        str(script), cfile=str(Path(scratch) / f"{index}.pyc"), doraise=True
+                    )
+                except py_compile.PyCompileError as err:
+                    failures.append(f"{script}: does not compile under python3 ({err.msg.strip()})")
     return tuple(failures)

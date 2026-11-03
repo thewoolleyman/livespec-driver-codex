@@ -138,7 +138,9 @@ def run_loop(
 def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
     """Watch every currently covered plugin without spinning when none are present."""
     seen: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
+    settled: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
     last_beat: dict[tuple[str, str], float] = {}
+    errors: dict[tuple[str, str], str | None] = {}
     while True:
         roots = covered_plugin_roots(home=home)
         for marketplace, plugin, root in roots:
@@ -149,20 +151,30 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
             current = fingerprint(root=root)
             if seen.get(key) != current:
                 seen[key] = current
-                problems = await_complete_payload(root=root, poll=poll)
+                continue
+            if settled.get(key) != current:
+                versions = reconciler.real_versions(root=root)
+                problems = (
+                    reconciler.validate_payload(payload=root / versions[-1])
+                    if versions
+                    else (f"{root}: no version payload directory found",)
+                )
                 report = (
                     reconciler.reconcile(root=root, state_path=state_path) if not problems else None
                 )
-                error = "; ".join(problems) if problems else "; ".join(report.problems)
+                errors[key] = "; ".join(problems) if problems else "; ".join(report.problems)
+                settled[key] = current
                 write_status(
                     path=status_file(state_path=state_path),
                     pid=os.getpid(),
-                    last_error=error or None,
+                    last_error=errors[key] or None,
                 )
                 last_beat[key] = time.monotonic()
             elif time.monotonic() - last_beat.get(key, 0.0) >= HEARTBEAT_SECONDS:
                 write_status(
-                    path=status_file(state_path=state_path), pid=os.getpid(), last_error=None
+                    path=status_file(state_path=state_path),
+                    pid=os.getpid(),
+                    last_error=errors.get(key),
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)
@@ -195,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         override=args.state,
         marketplace=args.marketplace,
         plugin=args.plugin,
+        codex_home_override=home,
     )
     if args.mode == "run":
         return run_loop(root=root, state_path=state_path)

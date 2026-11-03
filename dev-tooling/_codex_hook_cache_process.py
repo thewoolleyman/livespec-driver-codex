@@ -28,12 +28,12 @@ def runtime_dir(*, state_path: Path) -> Path:
 
 def status_file(*, state_path: Path) -> Path:
     """The observer's liveness record."""
-    return runtime_dir(state_path=state_path) / "observer.json"
+    return runtime_dir(state_path=state_path) / state_path.stem / "observer.json"
 
 
 def log_file(*, state_path: Path) -> Path:
     """Where a detached observer's structured output lands."""
-    return runtime_dir(state_path=state_path) / "observer.log"
+    return runtime_dir(state_path=state_path) / state_path.stem / "observer.log"
 
 
 def write_status(*, path: Path, pid: int, last_error: str | None) -> None:
