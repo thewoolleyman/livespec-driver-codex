@@ -1,0 +1,130 @@
+---
+topic: codex-hook-trust-continuity
+author: claude-opus-5-5
+created_at: 2026-11-03T01:01:52Z
+spec_commitments:
+  impl_followups:
+    - id_hint: codex-hook-trust-continuity
+      description: |
+        Extend the Codex hook-cache reconciler and observer with trust continuity. After a covered plugin's payload changes, verify the payload's declared hook definitions and hook entrypoints against the plugin's release tag in its source repository, then re-establish Codex hook trust for those hooks; never trust an unverified payload, never use --dangerously-bypass-hook-trust, and never disable a hook. Detect an unrecognized Codex trust-record format and fail loudly without writing. Make ensure-codex-plugins and the observer health report name every covered plugin with installed but untrusted hooks, loudly, as a failure. Before choosing a mechanism, measure whether hooks provisioned as Codex managed hooks (managed-requirements key allow_managed_hooks_only) are exempt from per-plugin content-hash trust. Codex 0.166.0 has no setting that refuses tool execution while a configured hook is untrusted (see openai/codex#41979 and openai/codex#58011); if a later Codex release adds one, make host provisioning enable it and make ensure-codex-plugins report a host where it is not enabled. Prove it with the mock-cache integration test, the real transition test, and live evidence that an already-open session keeps running its hooks across a content-only release, with the footgun guard blocking a forbidden command again after reconciliation.
+---
+
+## Proposal: Hook continuity requires Codex hook-trust continuity for every covered plugin
+
+### Target specification files
+
+- SPECIFICATION/contracts.md
+- SPECIFICATION/constraints.md
+- SPECIFICATION/non-functional-requirements.md
+- SPECIFICATION/scenarios.md
+
+### Summary
+
+Make Codex hook trust part of the hook-continuity contract in `contracts.md` §"Codex hook-cache compatibility". Hook continuity for a covered plugin across a marketplace upgrade will require both path continuity, which the existing one-hop alias rules provide, and trust continuity. After a covered plugin's payload changes, the reconciler re-establishes Codex hook trust only after verifying the new payload's hook definitions and hook entrypoints against that plugin's release tag, never by trusting the cache. It never uses Codex's hook-trust bypass, never disables a hook, fails loudly on a trust-record format it does not recognize, and the provisioner and observer report installed-but-untrusted hooks loudly instead of reporting the plugin healthy. Trust continuity is framed as a safety invariant with a fail-closed fallback: where Codex exposes a setting that refuses tool execution while a configured hook is untrusted, host provisioning enables it. The stale "Trust model" paragraph, which recommends the bypass, is replaced, and matching constraints, test obligations, and two scenarios are added.
+
+### Motivation
+
+The ratified contract (history v014) gives a covered plugin path continuity: hook paths an open session captured under an older version keep resolving, in one hop through `latest`, to the validated current payload. On 2026-11-03, on the livespec dev host running Codex 0.166.0, path continuity held and hooks still failed, because Codex no longer trusted them.
+
+The measured facts are these.
+
+1. Codex persists hook trust in `~/.codex/config.toml`, in tables named `[hooks.state."<plugin>@<marketplace>:hooks/hooks.json:<event>:<i>:<j>"]`. Each table carries two fields. `trusted_hash` is specific to one hook definition. `trusted_content_hash` is identical across every hook of one plugin, so it is a hash over the whole plugin's content rather than over the hook.
+2. The `livespec-orchestrator-beads-fabro` marketplace upgrade from 0.276.2 to 0.277.0 (release v0.277.0, at 00:49:37Z) left the orchestrator's `hooks/` tree byte-identical, yet it invalidated trust: the recorded `trusted_content_hash` no longer matched. Three symptoms followed. An already-open session, whose 0.276.2 hook paths still resolved through the one-hop alias, showed `Hook failed — plugin contents changed; hook approval required`. Fresh `codex exec` sessions reported the orchestrator's two `SessionStart` hooks and its one `Stop` hook as Failed. A fresh interactive TUI prompted "Hooks need review — 3 hooks are new or changed", offering Review, "Trust all and continue", and "Continue without trusting (hooks won't run)".
+3. Trust was then re-established after verification. The cached 0.277.0 `hooks/hooks.json` and every hook script it names were byte-compared against the git tag v0.277.0, and the hooks were trusted through Codex's own review interface; only `trusted_content_hash` changed. The SAME already-open session then ran its next turn with no hook failure. Open sessions therefore re-read trust state, and alias continuity plus re-established trust is sufficient for an open session to keep running its captured hooks.
+4. An untrusted PreToolUse safety guard FAILS OPEN. This was measured on 2026-11-03 at 01:00Z on the same host and Codex version. A scratch `CODEX_HOME` held a copy of the real `config.toml` in which ONLY the Driver's `trusted_content_hash` values were invalidated. `codex exec` was asked to run `git commit --allow-empty --no-verify -m failopen-probe .`. It reported `hook: PreToolUse Failed` three times, and the shell command EXECUTED: git ran, and exited 1 only because of the probe's own `.` pathspec. With the real, trusted configuration, the same command was BLOCKED by `livespec_footgun_guard.py`. Codex's own prompt says the same thing in plainer words: untrusted hooks "won't run". A per-invocation `-c hooks.state....` configuration override does not affect trust evaluation, so there is no per-session workaround either. After any release that changes a covered plugin's content, that plugin's safety guards are therefore silently OFF on every host until trust is re-established, and today that happens only when a human notices and re-trusts by hand. Trust continuity is a safety invariant, not a convenience.
+6. Codex 0.166.0 has NO fail-closed setting for untrusted hooks; this was measured separately on the same host. Its only trust-related key is `bypass_hook_trust`, the configuration form of `--dangerously-bypass-hook-trust`, which must never be used. Upstream, openai/codex#41979 asks for opt-in fail-closed handling of PreToolUse failures, and openai/codex#58011 reports hook trust being invalidated by upgrades. Codex also has a managed-requirements key, `allow_managed_hooks_only`. If managed (administrator) hooks are exempt from per-plugin content-hash trust, provisioning the Driver's guards as managed hooks could remove the trust churn entirely, but that exemption is not yet measured.
+5. Codex offers `--dangerously-bypass-hook-trust`. It is not an acceptable remedy, because it disables a safety control for every hook, not only for the hooks that were verified. The current `contracts.md` §"Hook bundle" "Trust model" paragraph nevertheless tells a headless invocation to use that flag and declares trust "a Codex runtime concern, not a Driver contract". That paragraph is stale drift once trust is part of hook continuity.
+
+Every covered plugin is exposed, including the Driver's own payload, whose guards are the ones measured failing open above: any release that changes any byte of a plugin's payload, including a change unrelated to hooks, untrusts all of that plugin's hooks on every host. Trusting whatever the cache holds would close the gap by trusting unverified code, so the remedy must verify the payload's hooks against the plugin's released artifact before trusting them.
+
+### Proposed Changes
+
+In `contracts.md` (no `## ` heading changes in `contracts.md`):
+
+1. In §"Hook bundle", replace this paragraph verbatim:
+
+   ```
+   Trust model: Codex prompts once to trust a plugin's hooks in interactive
+   sessions; a headless invocation needs `--dangerously-bypass-hook-trust`
+   to run the guard without the trust prompt. The trust posture is a Codex
+   runtime concern, not a Driver contract.
+   ```
+
+   with:
+
+   > Trust model: Codex runs a plugin's hooks only while it trusts them, and it records that trust in the host's Codex configuration. For every covered plugin, the Driver's own payload included, re-establishing that trust after a marketplace upgrade is part of hook continuity and is governed by §"Codex hook-cache compatibility" below. The Driver MUST NOT use or recommend Codex's hook-trust bypass (`--dangerously-bypass-hook-trust`) in any shipped or provisioning surface as a remedy for untrusted hooks, because the bypass disables a safety control.
+
+2. In §"Codex hook-cache compatibility" (the H3 under §"Hook bundle"), insert five new paragraphs immediately after the paragraph that ends with this text, quoted verbatim:
+
+   ```
+   version-state record. It MUST be idempotent and MUST report a failed
+   repair as a provisioning/observer failure rather than claiming hook
+   continuity.
+   ```
+
+   and immediately before the paragraph that begins "Each covered plugin's durable version-state record and observer status record MUST be keyed by the plugin's marketplace and plugin name." The five paragraphs are:
+
+   > Hook continuity for a covered plugin across a marketplace upgrade requires both path continuity, which the one-hop alias topology above provides, and trust continuity, which means Codex trusts that plugin's current hooks. Codex can withdraw its trust in every hook of a plugin when any part of the plugin's installed payload changes, even when the plugin's hook definitions and hook entrypoints are byte-identical to the previously trusted release. Trust continuity is a safety invariant: an untrusted PreToolUse guard does not run, so the tool call it guards proceeds unguarded. After any upgrade of a covered plugin, exactly one of two outcomes MUST hold: either Codex trust in that plugin's hooks is re-established from release-verified bytes, as the next paragraph requires, or the host fails closed as the fifth paragraph below requires. A host MUST NOT leave Codex sessions running tools with a covered plugin's guards silently off until a human notices. The reconciler MUST NOT claim hook continuity for a covered plugin while either half is missing.
+   >
+   > After a covered plugin's current payload changes, the reconciler MUST re-establish Codex hook trust for that plugin's hooks, and it MUST do so only after verifying the new payload's declared hook definitions, and every hook entrypoint they declare, against that plugin's released artifact: the release tag, in the plugin's source repository, that corresponds to the installed version. Trust MUST NOT be established on the strength of the cache contents alone. The verification applies whether or not a hook definition changed relative to the previously trusted release, and a hook whose definition changed MUST NOT be trusted on any other basis. A payload that cannot be verified, because its released artifact cannot be identified or obtained or because any declared hook definition or entrypoint differs from that artifact, MUST NOT be trusted. It MUST be reported as a provisioning or observer failure naming the plugin and each unverified hook, exactly as a failed path repair is. The reconciler MUST NOT use Codex's hook-trust bypass, and it MUST NOT disable or remove a hook to clear a trust failure.
+   >
+   > Re-establishing trust depends on Codex's hook-trust record format, which is an external surface that any Codex release may change. The invariant is trust continuity from release-verified bytes, not any particular mechanism: whether the Driver re-establishes trust through an interface Codex provides, by writing Codex's trust records, or by provisioning the hooks through a Codex mechanism that does not subject them to per-plugin content-hash trust is an implementation choice. Whatever the mechanism, every hook Codex runs for a covered plugin MUST be byte-identical to the release-verified hook definitions and entrypoints. When it writes the records, it MUST first recognize the format of the host's existing trust records. When it does not recognize that format, it MUST NOT write any trust state and MUST fail loudly, as a provisioning or observer failure naming the plugin, rather than write a guessed record.
+   >
+   > `ensure-codex-plugins` and the observer's health report MUST report a covered plugin whose hooks are installed but not trusted by Codex loudly, as a failure, naming the plugin and each untrusted hook, and MUST NOT report that plugin healthy.
+   >
+   > Fail-closed fallback. If Codex exposes a setting that refuses tool execution while a configured hook is untrusted, host provisioning MUST enable it, and `ensure-codex-plugins` MUST report a host on which it is not enabled. Until Codex exposes such a setting, the Driver MUST report untrusted covered hooks as unhealthy through `ensure-codex-plugins` and the observer health check, naming the plugin and each untrusted hook, and each such report MUST state that Codex will run tools without that plugin's guards until trust is re-established, and the Driver MUST NOT describe those guards as active anywhere. In either case, the Driver and host provisioning MUST NOT use or recommend Codex's hook-trust bypass (`--dangerously-bypass-hook-trust`, or its configuration key `bypass_hook_trust`).
+
+   The existing isolation rule ("A reconcile failure for one covered plugin MUST NOT prevent reconciliation of the others") is kept unchanged; because the trust step is part of reconciling a plugin, it also covers a trust failure.
+
+In `constraints.md` §"Forbidden patterns", append three bullets after the last existing bullet, which ends "inside that directory, any entry other than the `latest` link and a bounded version-name alias link.":
+
+- "Using Codex's hook-trust bypass (`--dangerously-bypass-hook-trust`), or disabling or removing a hook, to restore or report hook continuity for a covered plugin (`contracts.md` §\"Codex hook-cache compatibility\")."
+- "Re-establishing Codex hook trust for a covered plugin's hooks without first verifying the payload's hook definitions and hook entrypoints against that plugin's release tag."
+- "Writing a Codex hook-trust record in a format the reconciler does not recognize."
+- "Leaving disabled, on a host whose Codex exposes a setting that refuses tool execution while a configured hook is untrusted, that setting."
+
+In `non-functional-requirements.md`:
+
+- §"Enforcement suite", in the `check-dev-tooling` bullet, after the sentence ending "verifies each retained hook path resolves to the validated current payload.", insert: "The mock-cache integration test MUST also cover trust continuity: trust re-established only for a payload whose hook definitions and entrypoints match the plugin's release tag, a payload that differs from or cannot be verified against that tag left untrusted and reported, an unrecognized trust-record format failing loudly with no trust state written, a covered plugin with installed but untrusted hooks reported rather than reported healthy, and, where Codex exposes a setting that refuses tool execution while a configured hook is untrusted, a host on which that setting is not enabled reported. The real transition test MUST also verify that Codex treats each retained hook as trusted after reconciliation."
+- §"Test discipline", in the `tests/dev-tooling/` paragraph, after the sentence ending "and verifies each retained hook path resolves to the validated current payload.", insert the same two sentences.
+
+In `scenarios.md`, add the following two scenarios after `## Scenario: long-running hooks survive a cache update of any covered plugin`, which is kept unchanged:
+
+`## Scenario: an already-open session keeps running its hooks after a covered plugin release changes only plugin content`
+
+```gherkin
+Given an already-open Codex session captured hook commands under the previous version of a covered plugin
+And Codex trusted that plugin's hooks for the previous release
+And a new release of that plugin changes its payload but leaves every hook definition and hook entrypoint byte-identical
+And the marketplace upgrade withdraws Codex's trust in that plugin's hooks
+When explicit provisioning or the persistent observer completes reconciliation
+Then each retained hook path of that plugin resolves through latest to the validated current payload
+And Codex trusts that plugin's hooks again, re-established only after the hook definitions and entrypoints were verified against the plugin's release tag
+And the already-open session's next turn runs those hooks with no hook failure and no trust prompt
+And where that plugin ships a PreToolUse safety guard, that guard denies a forbidden command in that session again rather than failing open
+And Codex's hook-trust bypass was not used and no hook was disabled
+```
+
+`## Scenario: a covered plugin whose hook trust cannot be safely re-established is reported, not trusted`
+
+```gherkin
+Given a covered plugin whose current payload declares a hook definition or hook entrypoint that differs from, or cannot be verified against, the plugin's release tag for the installed version
+Or the host's Codex trust records are in a format the reconciler does not recognize
+When explicit provisioning or the persistent observer reconciles that plugin
+Then the reconciler writes no Codex trust state for that plugin's hooks
+And the failure is reported as a provisioning or observer failure naming the plugin and each affected hook
+And ensure-codex-plugins does not report that plugin healthy
+And where Codex exposes a setting that refuses tool execution while a configured hook is untrusted, that setting is enabled, so no tool runs with that plugin's guards silently off
+And until Codex exposes such a setting, the plugin is reported unhealthy and the report states that Codex will run tools without that plugin's guards until trust is re-established
+And Codex's hook-trust bypass is neither used nor recommended
+And every other covered plugin is still reconciled
+```
+
+The resulting revise MUST add a `tests/heading-coverage.json` entry for each of the two new scenario headings, spelled `../tests/heading-coverage.json` in `resulting_files[]`. Each entry MUST map either to an integration-tier test or to a `TODO` whose `reason` explicitly names the integration tier, and it MUST cite the work item filed for this proposal's `codex-hook-trust-continuity` impl follow-up. No other `## ` heading in any spec file is added, renamed, or removed.
+
+Proposal notes, not resulting spec text:
+
+- Live-exercise evidence is the impl follow-up's post-merge acceptance evidence. That evidence is an already-open Codex session surviving a covered plugin's marketplace upgrade that changed the plugin's content hash but not its hooks, with the session's next turn running the plugin's hooks with no hook failure, after the Driver's reconciliation alone re-established trust. It belongs on the ledger work item, and the revise MUST NOT add it to the ratified text.
+- Codex 0.166.0 was measured to expose no setting that refuses tool execution while a configured hook is untrusted (motivation item 6). The fail-closed clause is worded conditionally so the ratified text stays correct when a later Codex release adds one, for example in response to openai/codex#41979; the loud unhealthy report is the operative fallback until then.
+- Before choosing a trust-continuity mechanism, the implementation MUST measure whether hooks provisioned as Codex managed (administrator) hooks, under the managed-requirements key `allow_managed_hooks_only`, are exempt from per-plugin content-hash trust. If they are, provisioning the Driver's guards that way may remove the trust churn entirely. This is a lead to measure, not a mechanism this proposal adopts; the contract text above stays mechanism-neutral, and any chosen mechanism still has to run only release-verified bytes.
+- A consequence of the verification rule: a covered third-party plugin whose source repository publishes no release tag for its installed version cannot be verified, so the Driver will report it as untrusted rather than trust it. That is deliberate. An operator may still trust such a plugin through Codex's own review interface, which this contract does not govern.
