@@ -50,6 +50,7 @@ __all__ = [
     "main",
     "run_all_loop",
     "run_loop",
+    "status_all",
     "status_file",
     "write_status",
 ]
@@ -185,6 +186,26 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
         time.sleep(poll)
 
 
+def status_all(*, home: Path, expected_pid: int | None = None) -> int:
+    """Report health for every covered plugin under one shared observer."""
+    results: list[bool] = []
+    for marketplace, plugin, root in covered_plugin_roots(home=home):
+        state_path = reconciler.state_file(
+            marketplace=marketplace, plugin=plugin, codex_home_override=home
+        )
+        ok, why = health(path=status_file(state_path=state_path), expected_pid=expected_pid)
+        reconciler.emit(
+            event=why if ok else f"codex hook cache observer is NOT healthy — {why}",
+            level="info" if ok else "error",
+            cache_root=str(root),
+            marketplace=marketplace,
+            plugin=plugin,
+            mode="status",
+        )
+        results.append(ok)
+    return 0 if all(results) else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Argument parser for the standalone entry point."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -194,6 +215,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--plugin", default=reconciler.DEFAULT_PLUGIN)
     parser.add_argument("--state", default=None)
     parser.add_argument("--all", action="store_true")
+    parser.add_argument("--expected-pid", type=int, default=None)
     return parser
 
 
@@ -203,6 +225,8 @@ def main(argv: list[str] | None = None) -> int:
     home = reconciler.codex_home(override=args.codex_home)
     if args.mode == "run" and args.all:
         return run_all_loop(home=home)
+    if args.mode == "status" and args.all:
+        return status_all(home=home, expected_pid=args.expected_pid)
     root = reconciler.cache_root(
         home=home,
         marketplace=args.marketplace,
@@ -224,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
             state_path=state_path,
         )
     else:
-        ok, why = health(path=status_file(state_path=state_path))
+        ok, why = health(path=status_file(state_path=state_path), expected_pid=args.expected_pid)
     reconciler.emit(
         event=why if ok else f"codex hook cache observer is NOT healthy — {why}",
         level="info" if ok else "error",

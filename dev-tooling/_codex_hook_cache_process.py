@@ -77,7 +77,9 @@ def pid_alive(*, pid: int) -> bool:
     return True
 
 
-def health(*, path: Path, now: float | None = None) -> tuple[bool, str]:
+def health(
+    *, path: Path, now: float | None = None, expected_pid: int | None = None
+) -> tuple[bool, str]:
     """Whether a healthy observer owns this runtime dir, and why not if it does not.
 
     A stale heartbeat and a failed last reconcile both count as unhealthy:
@@ -90,6 +92,11 @@ def health(*, path: Path, now: float | None = None) -> tuple[bool, str]:
     pid = status.get("pid")
     if not isinstance(pid, int) or not pid_alive(pid=pid):
         return False, f"observer pid {pid} is not running"
+    if expected_pid is not None and pid != expected_pid:
+        return (
+            False,
+            f"observer pid {pid} is not owned by the installed supervisor (pid {expected_pid})",
+        )
     beat = status.get("heartbeat_epoch")
     if not isinstance(beat, int | float):
         return False, "observer status record carries no heartbeat"

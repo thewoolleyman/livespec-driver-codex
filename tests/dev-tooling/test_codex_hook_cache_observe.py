@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import plistlib
+import subprocess
 import time
 from pathlib import Path
 
@@ -209,6 +210,50 @@ def test_macos_launchagent_is_a_generalized_supervisor_with_portable_python() ->
     assert definition["ThrottleInterval"] > 0
     assert "/opt/homebrew/bin" in definition["EnvironmentVariables"]["PATH"]
     assert "/usr/local/bin" in definition["EnvironmentVariables"]["PATH"]
+
+
+def test_macos_supervisor_check_reports_an_errored_launchagent_without_takeover(
+    tmp_path: Path,
+) -> None:
+    """Provisioning reports the managed observer's error; it never replaces it."""
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    calls = tmp_path / "calls"
+    scripts = {
+        "codex": "#!/bin/sh\nexit 0\n",
+        "uname": "#!/bin/sh\necho Darwin\n",
+        "launchctl": (
+            '#!/bin/sh\nprintf \'%s\\n\' "launchctl $*" >> "$CALLS"\n'
+            "printf 'state = running\\npid = 4242\\n'\n"
+        ),
+        "python3": (
+            '#!/bin/sh\nprintf \'%s\\n\' "python3 $*" >> "$CALLS"\n'
+            'case "$*" in *codex_hook_cache_observe.py*) '
+            "echo 'market/alpha: last reconcile failed' >&2; exit 1;; esac\n"
+        ),
+    }
+    for name, body in scripts.items():
+        command = commands / name
+        command.write_text(body, encoding="utf-8")
+        command.chmod(0o755)
+    env = {**os.environ, "CALLS": str(calls), "PATH": f"{commands}:{os.environ['PATH']}"}
+
+    result = subprocess.run(
+        ["/usr/bin/bash", str(REPO_ROOT / "dev-tooling" / "ensure-codex-plugins.sh")],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "market/alpha: last reconcile failed" in result.stderr
+    recorded = calls.read_text(encoding="utf-8")
+    assert "launchctl print gui/" in recorded
+    assert "codex_hook_cache_observe.py status --all --expected-pid 4242" in recorded
+    assert "ensure" not in recorded
+    assert "bootstrap" not in recorded
+    assert "bootout" not in recorded
 
 
 def test_all_plugin_observer_uses_a_non_busy_poll_interval() -> None:
