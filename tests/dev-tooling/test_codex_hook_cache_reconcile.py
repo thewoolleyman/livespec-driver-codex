@@ -161,6 +161,40 @@ def test_a_malformed_manifest_hooks_entry_is_rejected(cache: Path, state: Path) 
     assert any("malformed `hooks` entry" in problem for problem in report.problems)
 
 
+def test_an_inline_mcp_tool_manifest_reconciles_without_entrypoint_validation(
+    cache: Path, state: Path
+) -> None:
+    """Inline non-command declarations are registered without a payload path check."""
+    payload = write_payload(root=cache, version="0.6.1")
+    (payload / "hooks" / "hooks.json").unlink()
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = {
+        event: [
+            {
+                "hooks": [
+                    {
+                        "type": "mcp_tool",
+                        "server": "node_repl",
+                        "tool": "turn_ended",
+                    }
+                ]
+            }
+        ]
+        for event in ("Stop", "Interrupt", "SubagentStop")
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    report = reconciler.reconcile(root=cache, state_path=state)
+
+    assert report.ok
+    assert report.registered_declarations == (
+        "Stop: registered non-command mcp_tool hook; no entrypoint validation needed",
+        "Interrupt: registered non-command mcp_tool hook; no entrypoint validation needed",
+        "SubagentStop: registered non-command mcp_tool hook; no entrypoint validation needed",
+    )
+
+
 def test_rerunning_an_already_reconciled_cache_changes_nothing(cache: Path, state: Path) -> None:
     """Idempotence: a second pass still verifies and reports success, but acts."""
     write_payload(root=cache, version="0.6.1")

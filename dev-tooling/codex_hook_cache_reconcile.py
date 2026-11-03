@@ -30,6 +30,7 @@ from _codex_hook_cache_payload import (
     declared_hook_scripts,
     read_json,
     real_versions,
+    registered_non_command_hook_declarations,
     validate_payload,
     version_sort_key,
 )
@@ -71,6 +72,7 @@ class Report:
     problems: tuple[str, ...]
     marketplace: str | None = None
     plugin: str | None = None
+    registered_declarations: tuple[str, ...] = ()
 
 
 def codex_home(*, override: str | None = None) -> Path:
@@ -180,9 +182,16 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
             problems=(f"{root}: no version payload directory found",),
         )
     current = versions[-1]
+    registered_declarations = registered_non_command_hook_declarations(payload=root / current)
     problems = validate_payload(payload=root / current)
     if problems:
-        return Report(ok=False, current_version=current, actions=(), problems=problems)
+        return Report(
+            ok=False,
+            current_version=current,
+            actions=(),
+            problems=problems,
+            registered_declarations=registered_declarations,
+        )
 
     observed = tuple(
         sorted(set(_load_state(path=state_path)) | set(versions), key=version_sort_key)
@@ -206,7 +215,13 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
         for name, target in desired.items()
         if _link(path=root / name, target=target)
     )
-    return Report(ok=True, current_version=current, actions=actions, problems=())
+    return Report(
+        ok=True,
+        current_version=current,
+        actions=actions,
+        problems=(),
+        registered_declarations=registered_declarations,
+    )
 
 
 def reconcile_all(*, home: Path) -> tuple[Report, ...]:
@@ -250,6 +265,7 @@ def report_to_stream(*, report: Report, root: Path) -> None:
             cache_root=str(root),
             current_version=report.current_version,
             actions=list(report.actions),
+            registered_declarations=list(report.registered_declarations),
         )
         return
     for problem in report.problems:

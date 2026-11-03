@@ -80,6 +80,8 @@ def declared_hook_entrypoints(
     registrations, problems = hook_registrations(payload=payload)
     entries: list[tuple[Path, str]] = []
     for path, events in registrations:
+        if path.name == "plugin.json":
+            continue
         for command in _walk_registered_commands(events=events):
             entrypoint, problem = _entrypoint_from_command(command=command)
             if problem:
@@ -97,12 +99,17 @@ def hook_registrations(*, payload: Path) -> tuple[list[tuple[Path, dict[str, obj
         return [], [manifest_problem or f"{manifest_path}: unreadable"]
     default_path = payload / "hooks" / "hooks.json"
     paths = {default_path: False}
-    hooks_rel = manifest.get("hooks")
-    if hooks_rel is not None:
-        if not isinstance(hooks_rel, str) or not hooks_rel:
+    manifest_hooks = manifest.get("hooks")
+    if manifest_hooks is not None:
+        if isinstance(manifest_hooks, dict):
+            registrations = [(manifest_path, manifest_hooks)]
+        elif isinstance(manifest_hooks, str) and manifest_hooks:
+            registrations = []
+            paths[payload / manifest_hooks] = True
+        else:
             return [], [f"{manifest_path}: malformed `hooks` entry"]
-        paths[payload / hooks_rel] = True
-    registrations: list[tuple[Path, dict[str, object]]] = []
+    else:
+        registrations = []
     problems: list[str] = []
     for path, manifest_declared in paths.items():
         if path == default_path and not manifest_declared and not path.exists():
@@ -117,6 +124,35 @@ def hook_registrations(*, payload: Path) -> tuple[list[tuple[Path, dict[str, obj
             continue
         registrations.append((path, events))
     return registrations, problems
+
+
+def registered_non_command_hook_declarations(*, payload: Path) -> tuple[str, ...]:
+    """Name inline or file registrations that need no entrypoint validation."""
+    registrations, problems = hook_registrations(payload=payload)
+    if problems:
+        return ()
+    declarations: list[str] = []
+    for _, events in registrations:
+        for event, matchers in events.items():
+            if not isinstance(matchers, list):
+                continue
+            for matcher in matchers:
+                if not isinstance(matcher, dict):
+                    continue
+                hooks = matcher.get("hooks", [])
+                if not isinstance(hooks, list):
+                    continue
+                for hook in hooks:
+                    if (
+                        isinstance(hook, dict)
+                        and hook.get("type") == "mcp_tool"
+                        and not isinstance(hook.get("command"), str)
+                    ):
+                        declarations.append(
+                            f"{event}: registered non-command mcp_tool hook; "
+                            "no entrypoint validation needed"
+                        )
+    return tuple(declarations)
 
 
 def declares_hooks(*, payload: Path) -> bool:
