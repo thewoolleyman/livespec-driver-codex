@@ -330,3 +330,103 @@ When ensure-codex-plugins runs and completes its own reconcile of that plugin wi
 Then the older observer error does not fail provisioning for that plugin
 And ensure-codex-plugins starts no observer process
 ```
+
+## Scenario: an unidentified session ignores repository supervisor markers
+
+```gherkin
+Given no nonblank supervision topic identifies the current Codex session
+And the repository contains active, malformed and legacy non-JSON supervisor markers
+When the supervisor completion Stop gate evaluates the session
+Then it permits completion with empty stdout and exit zero
+And it does not discover, read or change those markers
+```
+
+## Scenario: a supervised session inspects only its owned marker
+
+```gherkin
+Given the current session is identified as supervising topic "repair"
+And another topic has a malformed legacy supervisor marker
+And the repair topic has valid completion and independently verified wake-producer evidence
+When the supervisor completion Stop gate evaluates the session
+Then it permits completion without reading or changing the foreign marker
+And it consults only the owned marker and independent authoritative producer evidence
+And an absent native Stop topic field does not lose the named session context
+And an owned marker whose topic differs from "repair" instead continues the session
+```
+
+## Scenario: invalid supervision paths never inspect foreign runtime state
+
+```gherkin
+Given explicit supervision context contains a non-string topic, a path traversal topic or a topic whose runtime subtree escapes through a symlink
+When the supervisor completion Stop gate evaluates the session
+Then it continues the session with a Codex-compatible block response and exit zero
+And an identified topic whose governed primary root is unresolved also continues without marker reads
+And it does not read or change a marker outside the identified topic's runtime subtree
+```
+
+## Scenario: missing or malformed owned evidence continues supervision
+
+```gherkin
+Given the session is identified as supervising one topic
+When its owned marker is missing, unreadable, malformed or legacy non-JSON
+Or its marker is stale while supervision_active is true
+Or its activation state or topic is missing, malformed or mismatched
+Then the supervisor completion gate continues the session with a block response and exit zero
+And a valid owned marker whose supervision_active is explicitly false permits completion regardless of age
+```
+
+## Scenario: terminal completion still requires independent wake evidence
+
+```gherkin
+Given an owned structured marker has supervision_active true
+When its freshness timestamp is absent, timezone-free, older than 24 hours or more than five minutes in the future
+Or it retains open obligations, a nonterminal disposition or malformed evidence
+Or its local producer has no matching live process or its forge or ledger producer identity is not independently registered
+Or its producer lacks cold-open reentry through the owned marker and a fresh authoritative query
+Then the supervisor completion gate continues the session
+And it accepts a fresh empty-obligation marker only with independently verified producer evidence and either plan-complete without a question or maintainer-blocking with exactly one question
+```
+
+## Scenario: only a real-user scoped stop command overrides supervision
+
+```gherkin
+Given the session is identified as supervising topic "repair" with incomplete owned evidence
+When the latest real-user message is exactly "stop supervising repair"
+Then the supervisor completion gate permits completion even when its owned marker is missing or malformed
+And assistant messages, tool results, ordinary user messages, objective-replacement requests and stop commands for another topic do not override supervision
+```
+
+## Scenario: Stop reentry does not recursively block completion
+
+```gherkin
+Given the Stop input has stop_hook_active true
+When the supervisor completion gate evaluates it
+Then it permits completion without inspecting any repository supervisor marker
+```
+
+## Scenario: canonical supervision context takes precedence over the compatibility alias
+
+```gherkin
+Given explicit runtime context contains a blank supervisor_topic and a nonblank topic alias
+When the supervisor completion gate resolves ownership
+Then it treats the session as unidentified without inspecting supervisor markers
+And it consults the topic alias only when supervisor_topic is absent
+```
+
+## Scenario: an unexpected supervised evaluation failure cannot grant completion
+
+```gherkin
+Given the session is identified as supervising one topic
+When an unexpected failure prevents evaluation of its owned completion evidence
+Then the supervisor completion gate emits a block response and exits zero
+```
+
+## Scenario: assistant and pane text cannot substitute for completion evidence
+
+```gherkin
+Given the identified supervisor retains an open obligation in its owned marker
+And assistant final-response or pane text claims completion
+When the supervisor completion gate evaluates the session
+Then it continues the session based on structured evidence
+And the completion claim supplies no evidence and no real-user override
+```

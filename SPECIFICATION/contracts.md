@@ -107,15 +107,16 @@ and emits one violation per offending invocation line.
 ## Hook bundle
 
 The Driver SHIPS a Codex hook bundle at `livespec/hooks/`: a `hooks.json`
-registration plus four fail-open scripts — the `livespec_footgun_guard.py`
+registration with PreToolUse guards and Stop hooks, including the `livespec_footgun_guard.py`
 PreToolUse guard, the `block_auto_memory.py` PreToolUse guard, the
 `no_shadow_ledger.py` Stop hook, and the `codex_background_memory_audit.py`
-Stop hook. Codex consumes
+Stop hook, together with the `supervisor_completion_gate.py` Stop gate specified
+in §"Supervisor completion gate". Codex consumes
 the Claude hook I/O formats, so the guard reads
 `{"tool_name": "Bash", "tool_input": {"command": "..."}}` on stdin and
 emits a `hookSpecificOutput.permissionDecision: "deny"` payload to
-deny a call (empty stdout + exit 0 lets it through), and the Stop hook
-reads `{"transcript_path": "...", "stop_hook_active": ...}` on stdin and
+deny a call (empty stdout + exit 0 lets it through), and the warning Stop hooks
+read `{"transcript_path": "...", "stop_hook_active": ...}` on stdin and
 emits a `{"systemMessage": "..."}` WARNING (empty stdout passes silently).
 A guard is **Bash-matched** when any matcher it is registered on is `Bash`.
 The runtime MUST start every Bash-matched PreToolUse guard, for a `Bash` call,
@@ -154,13 +155,15 @@ behaviour. Here the Driver's own plugin-root placeholder IS correct, since
 the scripts are Driver-owned and live in the Driver bundle, and the
 substitution works for Codex hooks.
 `hooks.json` MUST NOT carry a top-level `description` key. The bundle's *existence and wiring* are this repo's
-contract; each hook's *behavioral disciplines and postures* (the fail-open
+contract; each family-standard hook's *behavioral disciplines and postures* (the fail-open
 requirement, deny-vs-warn, the gating predicates) are owned upstream by
 `livespec/SPECIFICATION/contracts.md`, which this
-repo realizes. The script implementations and their unit tests live in
+repo realizes. The Driver-owned background-memory audit and supervisor
+completion gate are governed by this tree. The script implementations and their unit tests live in
 THIS repo (`tests/hooks/`).
 
-The bundle carries FOUR hooks.
+The following paragraphs specify the family-standard guards and warning hooks;
+the Driver-owned supervisor completion gate is specified separately below.
 
 A **PreToolUse** guard on `Bash` that DENIES only patterns that are never
 legitimate in the livespec family, each with an actionable message naming
@@ -298,8 +301,8 @@ posture requires a propose-change cycle, routed by ownership: for the
 family-standard `livespec_footgun_guard.py`, `block_auto_memory.py`, and
 `no_shadow_ledger.py` hooks — whose postures are owned upstream — the cycle
 runs against the upstream `livespec/SPECIFICATION/contracts.md`; for the
-Codex-specific, Driver-owned `codex_background_memory_audit.py` hook, which
-has no upstream posture owner, the cycle runs against THIS tree. The
+Codex-specific, Driver-owned `codex_background_memory_audit.py` and
+`supervisor_completion_gate.py` hooks, the cycle runs against THIS tree. The
 mechanical detection internals
 (segment tokenization, the primary-checkout probe) are Driver
 implementation detail and MAY be tuned without a spec cycle, provided the
@@ -308,14 +311,14 @@ postures hold.
 ### Codex hook-cache compatibility
 
 The reconciler and persistent observer required below are NOT members
-of the four-script hook bundle above and are not shipped inside
+of the plugin hook bundle above and are not shipped inside
 `livespec/hooks/` — they are `dev-tooling/`-owned executables,
 repo-level tooling in the same location and installation path as the
 existing `ensure-codex-plugins` provisioner, never copied into or run
 from the Codex-managed plugin cache. Their operative copies are
 therefore inherently outside the replaceable
 `<cache>/<marketplace>/<plugin>/<version>` tree without requiring any
-exception to "The bundle carries FOUR hooks." above.
+exception to the plugin hook-bundle contract above.
 
 The Driver MUST provide a cache-independent host reconciler and a
 persistent update observer. The reconciler and observer cover every
@@ -557,6 +560,69 @@ installs, loads, or replaces a supervisor definition as a side effect.
 Where no provisioning automation exists for a host, an operator-run
 installation of the shipped definition is that host's provisioning step;
 a definition generated or hand-written for that host is not.
+
+## Supervisor completion gate
+
+The Driver MUST ship `supervisor_completion_gate.py` as a self-contained Codex
+Stop hook. It MUST emit a Codex-compatible `{"decision":"block","reason":...}`
+response when continuation is required, and otherwise emit empty stdout, always
+exiting zero. Completion evidence MUST come from structured supervisor state
+and independently checked wake-producer evidence, never assistant final-response
+text or pane text. This is Driver-owned runtime behavior.
+
+The hook MUST determine the current session's supervision topic from explicit
+runtime context (`supervisor_topic`, or the compatibility alias `topic`). The
+canonical field takes precedence whenever present, including when blank; the
+alias is consulted only when the canonical field is absent. A named supervised
+session MUST deliver its topic through Driver session-scoped context even when
+the native Stop input omits these extension fields. Repository marker discovery
+MUST NOT substitute for that transport. An absent or blank topic means
+that the session is not identified as supervising: the hook MUST allow the turn
+to end without discovering or reading repository supervisor markers. A supplied
+non-string topic or nonblank topic that is not a single path component other
+than `.` or `..` MUST continue the session without probing any marker path.
+The hook MUST NOT derive topic ownership from the mere presence of a marker.
+
+For an identified topic, the hook MUST inspect only
+`tmp/overseer/<topic>/.supervisor-state` beneath the governed repository's
+primary checkout, resolved from the configured `livespec.primaryPath` when
+available and otherwise the discovered governed project root. An identified
+topic whose governed root cannot be resolved MUST continue without probing
+marker paths. Of supervisor markers, the gate MUST read only the owned one.
+It MAY independently read the authoritative producer registry and process
+identity evidence described below. It MUST refuse path traversal and symlink escapes from that topic's
+runtime subtree. It MUST NOT read or change another topic's marker, regardless
+of whether that foreign marker is active, malformed or legacy non-JSON state.
+A marker MUST be a structured JSON object whose topic matches the identified
+topic. Missing, unreadable, malformed, legacy non-JSON or mismatched owned
+evidence MUST continue the supervised session; it MUST NOT silently disable the
+gate. A valid owned marker with `supervision_active` explicitly false permits
+completion regardless of age; freshness applies only while it is true. Missing
+or malformed activation state MUST continue the session.
+
+While the owned marker has `supervision_active` true, completion MUST require a
+fresh marker (`updated_at`), an empty `open_obligations` array, and a terminal
+`completion_disposition` object whose `kind` is either `plan-complete` without a
+`question` or `maintainer-blocking` with exactly one nonempty `question` ending
+in a single `?`. A valid freshness timestamp MUST include its timezone and MUST be no more than
+24 hours old or five minutes in the future. Unknown or malformed completion or
+producer evidence MUST continue the session. Local wake producers MUST have a
+live PID whose observed command line matches both the expected command and
+identity. Forge/CI or ledger producers MUST have their `registered_producer_identity`
+independently present in the authoritative producer registry. The registry MAY
+be shared at `tmp/overseer/.wake-producers.json` or held in the owned topic
+subtree; it MUST NOT be inferred from a foreign topic marker. Every accepted wake producer
+MUST name cold-open reentry through the owned marker and a fresh authoritative
+ledger, forge or CI query; a promise to check later is insufficient.
+
+The exact real-user command `stop supervising <topic>` for the identified topic
+MUST allow completion even when its owned evidence is missing, unreadable,
+malformed, legacy non-JSON, stale or mismatched. Assistant
+messages, tool results, ordinary user messages, and objective-replacement requests
+MUST NOT be treated as that override. On `stop_hook_active` reentry the gate MUST
+allow completion without inspecting markers, avoiding recursive Stop blocking.
+An unexpected failure while evaluating an identified topic MUST continue that
+session rather than grant completion.
 
 ## Versioning
 

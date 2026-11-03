@@ -25,8 +25,8 @@ to conflict, the upstream constraint wins.
   filtering, formatting, a confirmation dialogue, or an opt-in flag — all
   such logic lives in the backing core wrapper.
 - The Driver bundle ships NO `scripts/` tree and NO wrapper CLIs: those
-  are core-owned and resolved at runtime. The bundle ships bindings, the
-  footgun-guard hook, and the manifest only.
+  are core-owned and resolved at runtime. The bundle ships bindings, the hook bundle specified by contracts.md,
+  and the manifest; it MUST NOT vendor core prose or wrapper CLIs.
 
 ## Resolution-substrate constraints
 
