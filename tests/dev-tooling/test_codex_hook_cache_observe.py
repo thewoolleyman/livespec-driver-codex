@@ -257,6 +257,43 @@ def test_macos_supervisor_check_reports_an_errored_launchagent_without_takeover(
     assert "bootout" not in recorded
 
 
+def test_linux_provisioner_uses_its_newer_reconcile_instead_of_an_old_observer_error(
+    tmp_path: Path,
+) -> None:
+    """An explicit repair supersedes an earlier observer failure for that plugin."""
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    calls = tmp_path / "calls"
+    scripts = {
+        "codex": "#!/bin/sh\nexit 0\n",
+        "uname": "#!/bin/sh\necho Linux\n",
+        "systemctl": "#!/bin/sh\nexit 0\n",
+        "python3": (
+            '#!/bin/sh\nprintf \'%s\\n\' "python3 $*" >> "$CALLS"\n'
+            'case "$*" in *codex_hook_cache_observe.py\ provision\ --all*) exit 0;; esac\n'
+            'case "$*" in *codex_hook_cache_reconcile.py*) exit 0;; esac\n'
+            "echo 'market/alpha: earlier observer reconcile failed' >&2; exit 1\n"
+        ),
+    }
+    for name, body in scripts.items():
+        command = commands / name
+        command.write_text(body, encoding="utf-8")
+        command.chmod(0o755)
+
+    result = subprocess.run(
+        ["/usr/bin/bash", str(REPO_ROOT / "dev-tooling" / "ensure-codex-plugins.sh")],
+        capture_output=True,
+        check=False,
+        env={**os.environ, "CALLS": str(calls), "PATH": f"{commands}:{os.environ['PATH']}"},
+        text=True,
+    )
+
+    assert result.returncode == 0
+    recorded = calls.read_text(encoding="utf-8")
+    assert "codex_hook_cache_observe.py provision --all" in recorded
+    assert "codex_hook_cache_observe.py ensure" not in recorded
+
+
 def test_macos_supervisor_check_rejects_a_loaded_but_exited_launchagent(tmp_path: Path) -> None:
     """A stale launchd job record is not evidence that its observer is running."""
     commands = tmp_path / "commands"
