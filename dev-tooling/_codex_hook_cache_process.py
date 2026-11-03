@@ -36,7 +36,9 @@ def log_file(*, state_path: Path) -> Path:
     return runtime_dir(state_path=state_path) / state_path.stem / "observer.log"
 
 
-def write_status(*, path: Path, pid: int, last_error: str | None) -> None:
+def write_status(
+    *, path: Path, pid: int, last_error: str | None, completed_reconcile: bool = True
+) -> None:
     """Record liveness plus the outcome of the last reconcile attempt."""
     path.parent.mkdir(parents=True, exist_ok=True)
     body = json.dumps(
@@ -45,6 +47,7 @@ def write_status(*, path: Path, pid: int, last_error: str | None) -> None:
             "heartbeat_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "heartbeat_epoch": time.time(),
             "last_error": last_error,
+            "completed_reconcile": completed_reconcile,
         },
         indent=2,
         sort_keys=True,
@@ -96,6 +99,8 @@ def health(*, path: Path, now: float | None = None) -> tuple[bool, str]:
     last_error = status.get("last_error")
     if isinstance(last_error, str) and last_error:
         return False, f"last reconcile failed: {last_error}"
+    if status.get("completed_reconcile") is not True:
+        return False, "observer has not completed its first reconcile"
     return True, "observer is running and healthy"
 
 

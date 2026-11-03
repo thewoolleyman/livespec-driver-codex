@@ -151,6 +151,20 @@ def test_health_accepts_a_fresh_successful_record(tmp_path: Path) -> None:
     assert "healthy" in why
 
 
+def test_health_rejects_a_startup_heartbeat_before_first_reconcile(tmp_path: Path) -> None:
+    """A live observer is not healthy for a plugin until it repaired that plugin once."""
+    record = tmp_path / "observer.json"
+    observer.write_status(path=record, pid=os.getpid(), last_error=None)
+    startup_record = json.loads(record.read_text(encoding="utf-8"))
+    startup_record["completed_reconcile"] = False
+    record.write_text(json.dumps(startup_record), encoding="utf-8")
+
+    healthy, why = observer.health(path=record)
+
+    assert not healthy
+    assert "first reconcile" in why
+
+
 def test_runtime_paths_stay_outside_the_codex_managed_cache(state: Path, cache: Path) -> None:
     """The liveness record and log live beside the state file, never in the cache."""
     assert not observer.status_file(state_path=state).is_relative_to(cache)
