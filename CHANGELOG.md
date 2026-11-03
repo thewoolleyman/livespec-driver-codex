@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.10.1...v0.11.0) (2026-11-03)
+
+
+### Features
+
+* ship a portable macOS observer LaunchAgent ([0ca7a0e](https://github.com/thewoolleyman/livespec-driver-codex/commit/0ca7a0e7372cc604ebdabcf615fb59502b658da1))
+
+
+### Bug Fixes
+
+* preserve LaunchAgent interpreter search paths ([e716155](https://github.com/thewoolleyman/livespec-driver-codex/commit/e71615525e654fa62dc254a51fdc97cce7544a68))
+* report macOS observer errors without takeover ([0a8da55](https://github.com/thewoolleyman/livespec-driver-codex/commit/0a8da55c66ad23fb02a33f5d79130d0193ff3967))
+* require a completed observer reconcile for health ([a4f5191](https://github.com/thewoolleyman/livespec-driver-codex/commit/a4f51913515bd55e3beb351065f6b4491448eade))
+* require a running macOS LaunchAgent observer ([7beb294](https://github.com/thewoolleyman/livespec-driver-codex/commit/7beb294121f5f4ff15f5c05127af8f25ec729bbe))
+
 ## [0.10.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.10.0...v0.10.1) (2026-11-03)
 
 
