@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -51,32 +52,50 @@ def _payload_from_stdin() -> dict[str, object] | None:
 def _find_project_dir() -> Path | None:
     env_dir = os.environ.get("CLAUDE_PROJECT_DIR", "").strip()
     if env_dir:
-        return Path(env_dir)
+        return _primary_project_dir(project_dir=Path(env_dir))
     cwd = Path.cwd()
     for candidate in [cwd, *cwd.parents]:
         if (candidate / ".livespec.jsonc").is_file():
-            return candidate
+            return _primary_project_dir(project_dir=candidate)
     return None
 
 
+def _primary_project_dir(*, project_dir: Path) -> Path | None:
+    result = subprocess.run(
+        ["git", "-C", str(project_dir), "config", "--get", "livespec.primaryPath"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    configured = result.stdout.strip() if result.returncode == 0 else ""
+    root = Path(configured) if configured else project_dir
+    if not root.is_absolute():
+        root = project_dir / root
+    return root.resolve() if (root / ".livespec.jsonc").is_file() else None
+
+
+# EXPEDITED_INCIDENT_RESPONSE flag: livespec-driver-codex-waq5mp
 def _topic_from_payload(*, payload: dict[str, object]) -> str | None:
+    value: object = os.environ.get("LIVESPEC_SUPERVISOR_TOPIC", "")
     for key in ("supervisor_topic", "topic"):
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return None
+        if key in payload:
+            value = payload[key]
+            break
+    if not isinstance(value, str):
+        raise ValueError("non-string supervisor topic")
+    topic = value.strip()
+    if topic in (".", "..") or "/" in topic or "\\" in topic or "\0" in topic:
+        raise ValueError("unsafe supervisor topic")
+    return topic or None
 
 
-def _marker_paths(*, project_dir: Path, payload: dict[str, object]) -> tuple[list[Path], list[str]]:
-    topic = _topic_from_payload(payload=payload)
-    if topic is not None:
-        marker = project_dir / "tmp" / "overseer" / topic / ".supervisor-state"
-        return ([marker] if marker.is_file() else []), ([] if marker.is_file() else [topic])
-    overseer_dir = project_dir / "tmp" / "overseer"
-    if not overseer_dir.is_dir():
-        return [], []
-    markers = sorted(overseer_dir.glob("*/.supervisor-state"))
-    return markers, []
+def _owned_marker(*, project_dir: Path, topic: str) -> Path:
+    marker = project_dir / "tmp" / "overseer" / topic / ".supervisor-state"
+    # Refuse redirects at every runtime component before opening marker bytes.
+    if marker.resolve() != marker:
+        raise ValueError("unsafe supervisor marker path")
+    return marker
 
 
 def _read_marker(*, marker: Path) -> tuple[dict[str, object] | None, str | None]:
@@ -196,24 +215,24 @@ def _is_stop_override(*, payload: dict[str, object], topic: str) -> bool:
 def _state_block_reason(
     *,
     project_dir: Path,
-    payload: dict[str, object],
+    topic: str,
     marker: Path,
 ) -> str | None:
     state, read_reason = _read_marker(marker=marker)
     if read_reason is not None or state is None:
         return read_reason
-    if state.get("supervision_active") is not True:
-        return None
-    topic = state.get("topic")
-    if not isinstance(topic, str) or not topic.strip():
+    if state.get("topic") != topic:
         return "malformed marker topic"
-    if _is_stop_override(payload=payload, topic=topic.strip()):
+    active = state.get("supervision_active")
+    if active is False:
         return None
+    if active is not True:
+        return "malformed marker activation state"
     marker_reason = _staleness_reason(state=state)
     completion_reason = _completion_reason(state=state)
     producer_reason = wake_producer_block_reason(
         project_dir=project_dir,
-        topic=topic.strip(),
+        topic=topic,
         producer=state.get("wake_producer"),
     )
     return marker_reason or completion_reason or producer_reason
@@ -223,17 +242,25 @@ def _decision() -> str | None:
     payload = _payload_from_stdin()
     if payload is None or payload.get("stop_hook_active") is True:
         return None
+    try:
+        topic = _topic_from_payload(payload=payload)
+    except ValueError:
+        return _block_payload(reason="unsafe or non-string supervisor topic")
+    if topic is None:
+        return None
+    if _is_stop_override(payload=payload, topic=topic):
+        return None
     project_dir = _find_project_dir()
     if project_dir is None:
-        return None
-    markers, missing_topics = _marker_paths(project_dir=project_dir, payload=payload)
-    if missing_topics:
-        return _block_payload(reason=f"missing marker for {', '.join(missing_topics)}")
-    for marker in markers:
-        reason = _state_block_reason(project_dir=project_dir, payload=payload, marker=marker)
-        if reason is not None:
-            return _block_payload(reason=reason)
-    return None
+        return _block_payload(reason="governed root cannot be resolved")
+    try:
+        marker = _owned_marker(project_dir=project_dir, topic=topic)
+    except ValueError:
+        return _block_payload(reason="unsafe supervisor marker path")
+    if not marker.exists():
+        return _block_payload(reason=f"missing marker for {topic}")
+    reason = _state_block_reason(project_dir=project_dir, topic=topic, marker=marker)
+    return _block_payload(reason=reason) if reason is not None else None
 
 
 def main() -> int:

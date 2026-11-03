@@ -70,8 +70,14 @@ def declared_stop_hook_scripts(*, hooks_json: Path) -> tuple[str, ...]:
     return tuple(names)
 
 
-def _stop_stdin(*, transcript_path: str = "/nonexistent") -> str:
-    return json.dumps({"stop_hook_active": False, "transcript_path": transcript_path})
+def _stop_stdin(*, transcript_path: str = "/nonexistent", topic: str | None = None) -> str:
+    payload: dict[str, object] = {
+        "stop_hook_active": False,
+        "transcript_path": transcript_path,
+    }
+    if topic is not None:
+        payload["supervisor_topic"] = topic
+    return json.dumps(payload)
 
 
 def _governed_project(*, root: Path) -> Path:
@@ -182,7 +188,7 @@ def _supervisor_open_obligations_block(*, root: Path) -> StopScenario:
     _write_marker(project=project, text=json.dumps(state))
     return StopScenario(
         script="supervisor_completion_gate.py",
-        stdin=_stop_stdin(),
+        stdin=_stop_stdin(topic="topic"),
         cwd=project,
         env={"CLAUDE_PROJECT_DIR": str(project)},
         expected_keys=_BLOCK_KEYS,
@@ -195,7 +201,7 @@ def _supervisor_malformed_marker_block(*, root: Path) -> StopScenario:
     _write_marker(project=project, text="{not-json")
     return StopScenario(
         script="supervisor_completion_gate.py",
-        stdin=_stop_stdin(),
+        stdin=_stop_stdin(topic="topic"),
         cwd=project,
         env={"CLAUDE_PROJECT_DIR": str(project)},
         expected_keys=_BLOCK_KEYS,
