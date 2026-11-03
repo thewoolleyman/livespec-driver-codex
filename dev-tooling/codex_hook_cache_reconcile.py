@@ -69,6 +69,8 @@ class Report:
     current_version: str | None
     actions: tuple[str, ...]
     problems: tuple[str, ...]
+    marketplace: str | None = None
+    plugin: str | None = None
 
 
 def codex_home(*, override: str | None = None) -> Path:
@@ -209,17 +211,21 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
 
 def reconcile_all(*, home: Path) -> tuple[Report, ...]:
     """Reconcile every configured marketplace plugin whose current payload has hooks."""
-    return tuple(
-        reconcile(
+    reports: list[Report] = []
+    for marketplace, plugin, root in covered_plugin_roots(home=home):
+        report = reconcile(
             root=root,
-            state_path=state_file(
+            state_path=state_file(marketplace=marketplace, plugin=plugin, codex_home_override=home),
+        )
+        reports.append(
+            dataclasses.replace(
+                report,
                 marketplace=marketplace,
                 plugin=plugin,
-                codex_home_override=home,
-            ),
+                problems=tuple(f"{marketplace}/{plugin}: {problem}" for problem in report.problems),
+            )
         )
-        for marketplace, plugin, root in covered_plugin_roots(home=home)
-    )
+    return tuple(reports)
 
 
 def emit(*, event: str, level: str, **fields: object) -> None:
