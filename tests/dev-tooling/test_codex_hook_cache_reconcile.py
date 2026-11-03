@@ -16,6 +16,7 @@ from pathlib import Path
 
 import codex_hook_cache_all
 import pytest
+from _codex_hook_cache_aliases import alias_status, link, load_state, save_state
 from _codex_hook_release_source import ReleasePayload
 from test_codex_hook_cache_fixtures import link_target, observer, reconciler, write_payload
 
@@ -42,6 +43,23 @@ def test_discovery_ignores_aliases_and_picks_the_newest_payload(cache: Path) -> 
     (cache / "latest").symlink_to("0.9.0")
 
     assert reconciler.real_versions(root=cache) == ("0.6.0", "0.9.0", "0.10.0")
+
+
+def test_alias_state_helpers_preserve_only_managed_links_and_version_names(tmp_path: Path) -> None:
+    """Alias-state mechanics reject unsafe slots and retain valid recorded versions."""
+    state_path = tmp_path / "state.json"
+    save_state(path=state_path, observed=("1.0.0", "invalid", "1.1.0"))
+    assert load_state(path=state_path) == ("1.0.0", "1.1.0")
+
+    alias = tmp_path / "latest"
+    assert alias_status(path=alias) == "absent"
+    assert link(path=alias, target="1.1.0")
+    assert alias_status(path=alias) == "managed"
+    assert not link(path=alias, target="1.1.0")
+
+    unsafe = tmp_path / "unsafe"
+    unsafe.symlink_to("../outside")
+    assert alias_status(path=unsafe) == "unsafe"
 
 
 def test_reconcile_points_latest_at_the_current_payload(cache: Path, state: Path) -> None:
