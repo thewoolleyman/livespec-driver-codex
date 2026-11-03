@@ -206,6 +206,39 @@ def test_observer_service_definition_and_provisioning_check_are_shipped() -> Non
     assert "not running under the installed supervisor unit" in provisioner
 
 
+def test_linux_provisioner_reports_an_inactive_or_missing_systemd_unit_without_takeover(
+    tmp_path: Path,
+) -> None:
+    """A detached observer is left to systemd rather than adopted or terminated."""
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    calls = tmp_path / "calls"
+    scripts = {
+        "codex": "#!/bin/sh\nexit 0\n",
+        "uname": "#!/bin/sh\necho Linux\n",
+        "systemctl": '#!/bin/sh\nprintf "%s\\n" "systemctl $*" >> "$CALLS"\nexit 1\n',
+        "python3": '#!/bin/sh\nprintf "%s\\n" "python3 $*" >> "$CALLS"\nexit 0\n',
+    }
+    for name, body in scripts.items():
+        command = commands / name
+        command.write_text(body, encoding="utf-8")
+        command.chmod(0o755)
+
+    result = subprocess.run(
+        ["/usr/bin/bash", str(REPO_ROOT / "dev-tooling" / "ensure-codex-plugins.sh")],
+        capture_output=True,
+        check=False,
+        env={**os.environ, "CALLS": str(calls), "PATH": f"{commands}:{os.environ['PATH']}"},
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "not running under the installed systemd user unit" in result.stderr
+    recorded = calls.read_text(encoding="utf-8")
+    assert "systemctl --user is-active" in recorded
+    assert "python3" not in recorded
+
+
 def test_macos_launchagent_is_a_generalized_supervisor_with_portable_python() -> None:
     """The shipped LaunchAgent runs one all-plugin observer on either Mac architecture."""
     agent = REPO_ROOT / "dev-tooling" / "com.livespec.codex-hook-cache-observer.plist"
