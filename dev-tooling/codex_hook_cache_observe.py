@@ -23,18 +23,15 @@ from pathlib import Path
 import codex_hook_cache_reconcile as reconciler
 from _codex_hook_cache_coverage import covered_plugin_roots
 from _codex_hook_cache_process import (
-    STALE_AFTER_SECONDS as STALE_AFTER_SECONDS,
-)
-from _codex_hook_cache_process import (
+    STALE_AFTER_SECONDS,
     ensure,
     health,
     health_after_provisioner,
+    log_file,
     status_file,
     write_status,
 )
-from _codex_hook_cache_process import (
-    log_file as log_file,
-)
+from _codex_hook_cache_report import provision_all, status_all
 
 POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 5.0
@@ -42,11 +39,25 @@ SETTLE_TIMEOUT_SECONDS = 120.0
 
 # Re-exported so callers see one module API even though the liveness/process
 # half lives in the sibling module.
-__all__ = """
-HEARTBEAT_SECONDS POLL_SECONDS SETTLE_TIMEOUT_SECONDS STALE_AFTER_SECONDS
-await_complete_payload ensure fingerprint health health_after_provisioner log_file
-main provision_all run_all_loop run_loop status_all status_file write_status
-""".split()
+__all__ = [
+    "HEARTBEAT_SECONDS",
+    "POLL_SECONDS",
+    "SETTLE_TIMEOUT_SECONDS",
+    "STALE_AFTER_SECONDS",
+    "await_complete_payload",
+    "ensure",
+    "fingerprint",
+    "health",
+    "health_after_provisioner",
+    "log_file",
+    "main",
+    "provision_all",
+    "run_all_loop",
+    "run_loop",
+    "status_all",
+    "status_file",
+    "write_status",
+]
 
 
 def fingerprint(*, root: Path) -> tuple[tuple[str, float], ...]:
@@ -191,59 +202,6 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)
-
-
-def status_all(*, home: Path, expected_pid: int | None = None) -> int:
-    """Report health for every covered plugin under one shared observer."""
-    results: list[bool] = []
-    for marketplace, plugin, root in covered_plugin_roots(home=home):
-        state_path = reconciler.state_file(
-            marketplace=marketplace, plugin=plugin, codex_home_override=home
-        )
-        ok, why = health(path=status_file(state_path=state_path), expected_pid=expected_pid)
-        reconciler.emit(
-            event=why if ok else f"codex hook cache observer is NOT healthy — {why}",
-            level="info" if ok else "error",
-            cache_root=str(root),
-            marketplace=marketplace,
-            plugin=plugin,
-            mode="status",
-        )
-        results.append(ok)
-    return 0 if all(results) else 1
-
-
-def provision_all(*, home: Path, expected_pid: int | None = None) -> int:
-    """Reconcile covered plugins and report the newer observer or local result."""
-    reports = {
-        (report.marketplace, report.plugin): report
-        for report in reconciler.reconcile_all(home=home)
-    }
-    completed_at = time.time()
-    results: list[bool] = []
-    for marketplace, plugin, root in covered_plugin_roots(home=home):
-        report = reports[(marketplace, plugin)]
-        ok, why = health_after_provisioner(
-            path=status_file(
-                state_path=reconciler.state_file(
-                    marketplace=marketplace, plugin=plugin, codex_home_override=home
-                )
-            ),
-            provisioner_ok=report.ok,
-            provisioner_problem="; ".join(report.problems),
-            provisioner_completed_at_epoch=completed_at,
-            expected_pid=expected_pid,
-        )
-        reconciler.emit(
-            event=why if ok else f"codex hook cache observer is NOT healthy — {why}",
-            level="info" if ok else "error",
-            cache_root=str(root),
-            marketplace=marketplace,
-            plugin=plugin,
-            mode="provision",
-        )
-        results.append(ok)
-    return 0 if all(results) else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
