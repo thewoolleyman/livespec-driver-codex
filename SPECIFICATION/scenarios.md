@@ -274,7 +274,7 @@ And it does not report the observer as supervised
 
 ```gherkin
 Given a macOS host whose hook-cache observer is running under the installed LaunchAgent
-And that observer's status record for a covered plugin reports a reconcile error
+And that observer's status record for a covered plugin reports a reconcile error newer than any reconcile of that plugin ensure-codex-plugins completes in this run
 When ensure-codex-plugins runs
 Then it reports the reconcile error as an observer failure, naming that plugin
 And it exits non-zero
@@ -291,4 +291,42 @@ When ensure-codex-plugins reports observer health for that plugin
 Then that plugin is reported unhealthy
 And a status record written before the first reconcile does not make it healthy
 And once that plugin's own status record carries a completed reconcile without error, the first-reconcile rule no longer reports that plugin unhealthy
+```
+
+## Scenario: on Linux ensure-codex-plugins reports an observer not running under the installed systemd user unit and starts none
+
+```gherkin
+Given a Linux host whose host provisioning installed the Driver's shipped systemd user unit for the hook-cache observer
+And that unit is not active
+And a detached observer process that the user service manager did not start is alive
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under the installed systemd user unit
+And it does not report the observer as supervised
+And the detached observer process receives no signal from ensure-codex-plugins
+And ensure-codex-plugins starts no observer process
+
+Given a Linux host on which no systemd user unit for the hook-cache observer is installed
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under an installed systemd user unit
+And ensure-codex-plugins starts no observer process
+```
+
+## Scenario: on Linux ensure-codex-plugins leaves a running supervised observer alone when it reports a reconcile error
+
+```gherkin
+Given a Linux host whose hook-cache observer is running under the installed systemd user unit
+And that observer's status record for a covered plugin reports a reconcile error newer than any reconcile of that plugin ensure-codex-plugins completes in this run
+When ensure-codex-plugins runs
+Then it reports the reconcile error as an observer failure, naming that plugin
+And it exits non-zero
+And the supervised observer process receives no signal from ensure-codex-plugins
+And no second observer process is started
+
+Given a Linux host whose hook-cache observer is running under the installed systemd user unit
+And that observer has completed a reconcile of a covered plugin whose status record reports a reconcile error
+When ensure-codex-plugins runs and completes its own reconcile of that plugin without error after that record
+Then the older observer error does not fail provisioning for that plugin
+And ensure-codex-plugins starts no observer process
 ```
