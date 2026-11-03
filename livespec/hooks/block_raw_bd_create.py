@@ -213,6 +213,14 @@ def _decision_result(*, raw: str) -> Result[str | None, Exception]:
         return Failure(exc)
 
 
+def evaluate(*, raw: str) -> str | None:
+    """Return this fail-open guard's decision for the shared dispatcher."""
+    try:
+        return _decision_result(raw=raw).value_or(default=None)
+    except Exception:  # noqa: BLE001 — this guard's declared boundary is fail-open
+        return None
+
+
 def main() -> int:
     """Hook entry point: emit the deny decision, if any; always exit 0.
 
@@ -222,7 +230,7 @@ def main() -> int:
     exits non-zero.
     """
     try:
-        decision = _decision_result(raw=sys.stdin.read()).value_or(default=None)
+        decision = evaluate(raw=sys.stdin.read())
         if decision is not None:
             _ = sys.stdout.write(decision + "\n")
     except Exception:  # noqa: BLE001 — sole fail-open hook boundary: silent pass-through, exit 0
