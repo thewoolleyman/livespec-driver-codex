@@ -23,6 +23,11 @@ _EVENT_NAMES = {
     "Interrupt": "interrupt",
 }
 
+# Codex ignores matcher values on Stop hooks.  Its persisted declaration
+# fingerprint consequently omits them too; retaining an ignored matcher here
+# would replace a valid trust record with one Codex does not recognize.
+_MATCHER_EVENTS = frozenset(_EVENT_NAMES) - {"Stop"}
+
 
 def verified_hook_keys(
     *, marketplace: str, plugin: str, payload: Path, release_payload: Path
@@ -43,7 +48,27 @@ def verified_hook_keys(
     problems.extend(
         _entrypoint_problems(plugin=plugin, payload=payload, release_payload=release_payload)
     )
-    return (tuple(hooks), tuple(problems)) if not problems else ((), tuple(problems))
+    if problems:
+        return (), untrusted_hook_problems(
+            plugin=plugin,
+            payload=payload,
+            reason="release verification failed",
+        )
+    return tuple(hooks), ()
+
+
+def untrusted_hook_problems(*, plugin: str, payload: Path, reason: str) -> tuple[str, ...]:
+    """Name every installed hook when no release artifact can establish trust."""
+    registrations, registration_problems = hook_registrations(payload=payload)
+    labels: list[str] = []
+    for path, events in registrations:
+        relative = _relative(path=path, root=payload)
+        labels.extend(_hook_labels(plugin=plugin, source_path=relative, events=events))
+    if labels:
+        return tuple(f"{label} ({reason})" for label in labels)
+    return tuple(
+        f"{plugin}: unverified hook {problem} ({reason})" for problem in registration_problems
+    )
 
 
 def _registration_problems(*, plugin: str, problems: tuple[str, ...]) -> list[str]:
@@ -143,7 +168,7 @@ def _declaration_hash(*, event: str, group: dict[str, object], handler: dict[str
         "event_name": _EVENT_NAMES[event],
         "hooks": [_normalized_handler(handler=handler)],
     }
-    if isinstance(group.get("matcher"), str):
+    if event in _MATCHER_EVENTS and isinstance(group.get("matcher"), str):
         identity["matcher"] = group["matcher"]
     encoded = json.dumps(identity, separators=(",", ":"), sort_keys=True).encode()
     return f"sha256:{hashlib.sha256(encoded).hexdigest()}"

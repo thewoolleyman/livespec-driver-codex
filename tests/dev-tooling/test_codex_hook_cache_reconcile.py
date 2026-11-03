@@ -8,11 +8,15 @@ end-to-end without touching the host's cache.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
+import codex_hook_cache_all
 import pytest
+from _codex_hook_release_source import ReleasePayload
 from test_codex_hook_cache_fixtures import link_target, observer, reconciler, write_payload
 
 
@@ -67,11 +71,12 @@ def test_retained_old_version_resolves_through_latest_in_one_hop(cache: Path, st
 
 
 def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Every registered hook plugin gets its own retained-version alias chain."""
     home = tmp_path / "codex"
     _write_config(home=home, marketplaces=("first", "second"))
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     first = home / "plugins" / "cache" / "first" / "default-only"
     second = home / "plugins" / "cache" / "second" / "manifest-only"
     _write_default_only_payload(root=first, version="1.0.0")
@@ -92,10 +97,13 @@ def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks
     assert link_target(path=second / "latest") == "1.1.0"
 
 
-def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(tmp_path: Path) -> None:
+def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """One malformed payload reports its identity without blocking its sibling."""
     home = tmp_path / "codex"
     _write_config(home=home, marketplaces=("first", "second"))
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     broken = home / "plugins" / "cache" / "first" / "broken"
     healthy = home / "plugins" / "cache" / "second" / "healthy"
     broken_payload = write_payload(root=broken, version="1.0.0")
@@ -243,9 +251,12 @@ def test_reconcile_refuses_an_unmanaged_latest_for_versioned_hook_paths(
     assert latest.readlink() == before
 
 
-def test_status_all_is_healthy_after_reconciling_an_inline_only_plugin(tmp_path: Path) -> None:
+def test_status_all_is_healthy_after_reconciling_an_inline_only_plugin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """An unmanaged inline-only `latest` does not make observer status unhealthy."""
     home = tmp_path / "codex"
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     (home / "config.toml").parent.mkdir()
     (home / "config.toml").write_text("[marketplaces.openai-bundled]\n", encoding="utf-8")
     root = home / "plugins" / "cache" / "openai-bundled" / "chrome"
@@ -353,9 +364,12 @@ def test_reconcile_rejects_a_missing_command_entrypoint_from_wrapped_inline_hook
     )
 
 
-def test_status_all_is_healthy_for_mixed_inline_and_path_declared_plugins(tmp_path: Path) -> None:
+def test_status_all_is_healthy_for_mixed_inline_and_path_declared_plugins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """An inline bundled plugin never makes a healthy path plugin report unhealthy."""
     home = tmp_path / "codex"
+    _use_cache_release_payload(monkeypatch=monkeypatch, home=home)
     (home / "config.toml").parent.mkdir()
     (home / "config.toml").write_text(
         "[marketplaces.openai-bundled]\n\n[marketplaces.market]\n", encoding="utf-8"
@@ -490,6 +504,22 @@ def _write_config(*, home: Path, marketplaces: tuple[str, ...]) -> None:
     home.mkdir(parents=True)
     lines = [f"[marketplaces.{name}]" for name in marketplaces]
     (home / "config.toml").write_text("\n\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _use_cache_release_payload(*, monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
+    """Provide exact release bytes without making mock-cache tests use a network remote."""
+
+    @contextlib.contextmanager
+    def from_cache(
+        *, config_path: Path, marketplace: str, plugin: str, version: str
+    ) -> Iterator[ReleasePayload]:
+        del config_path
+        yield ReleasePayload(
+            payload=home / "plugins" / "cache" / marketplace / plugin / version,
+            problem=None,
+        )
+
+    monkeypatch.setattr(codex_hook_cache_all, "release_payload", from_cache)
 
 
 def _write_default_only_payload(*, root: Path, version: str) -> None:
