@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -139,3 +140,40 @@ def test_reconciler_refuses_fields_under_an_unkeyed_hook_state_table(
     assert not report.ok
     assert report.problems == ("plugin: unrecognized Codex trust record format",)
     assert config.read_text(encoding="utf-8") == original
+
+
+def test_reconciler_removes_trust_for_a_hook_missing_from_the_verified_release(
+    tmp_path: Path,
+) -> None:
+    """Trust survives only for the release-verified hooks currently declared."""
+    trust = importlib.import_module("codex_hook_trust")
+    cache = tmp_path / "codex" / "plugins" / "cache" / "market" / "plugin"
+    payload = write_payload(root=cache, version="1.2.3")
+    release = tmp_path / "release"
+    release.mkdir()
+    release_payload = write_payload(root=release, version="1.2.3")
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("[hooks.state]\n", encoding="utf-8")
+    assert trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    ).ok
+    for hook_file in (payload / "hooks" / "hooks.json", release_payload / "hooks" / "hooks.json"):
+        declaration = json.loads(hook_file.read_text(encoding="utf-8"))
+        declaration["hooks"].pop("Stop")
+        hook_file.write_text(json.dumps(declaration), encoding="utf-8")
+
+    report = trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    )
+
+    assert report.ok
+    assert config.read_text(encoding="utf-8").count("[hooks.state.") == 1
