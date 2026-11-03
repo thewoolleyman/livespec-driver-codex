@@ -1,4 +1,13 @@
-"""Release-byte verification and declaration fingerprints for Codex hooks."""
+"""Release-byte verification and declaration fingerprints for Codex hooks.
+
+Verification scope.  Trust is recorded only when (a) every hook declaration equals the
+release's, (b) every `${CLAUDE_PLUGIN_ROOT}/` entrypoint byte-matches the release, and
+(c) every other file under each entrypoint's directory (its sibling helper modules)
+byte-matches the release.  Stated limits: a module imported from outside every
+entrypoint directory is covered only by Codex's plugin-wide content hash, not by a
+byte comparison; and a command naming no `${CLAUDE_PLUGIN_ROOT}/` path references no
+payload file, so its verified declaration text is its entire content.
+"""
 
 from __future__ import annotations
 
@@ -138,7 +147,22 @@ def _entrypoint_problems(*, plugin: str, payload: Path, release_payload: Path) -
         if not release_path.is_file() or entrypoint.read_bytes() != release_path.read_bytes():
             relative = entrypoint.relative_to(payload).as_posix()
             problems.append(f"{plugin}: unverified hook {relative}")
+    for helper in _helper_files(payload=payload):
+        release_path = release_payload / helper.relative_to(payload)
+        if not release_path.is_file() or helper.read_bytes() != release_path.read_bytes():
+            relative = helper.relative_to(payload).as_posix()
+            problems.append(f"{plugin}: unverified hook {relative}")
     return problems
+
+
+def _helper_files(*, payload: Path) -> tuple[Path, ...]:
+    """Every file beside or beneath an entrypoint's directory, an import candidate."""
+    helpers: dict[Path, None] = {}
+    for directory in {entrypoint.parent for entrypoint in _entrypoint_paths(payload=payload)}:
+        for path in sorted(directory.rglob("*")):
+            if path.is_file() and "__pycache__" not in path.parts:
+                helpers[path] = None
+    return tuple(helpers)
 
 
 def _relative(*, path: Path, root: Path) -> str:

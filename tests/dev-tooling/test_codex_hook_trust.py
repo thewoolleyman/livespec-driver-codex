@@ -177,3 +177,32 @@ def test_reconciler_removes_trust_for_a_hook_missing_from_the_verified_release(
 
     assert report.ok
     assert config.read_text(encoding="utf-8").count("[hooks.state.") == 1
+
+
+def test_an_unmatched_helper_module_beside_an_entrypoint_is_not_trusted(tmp_path: Path) -> None:
+    """A helper the entrypoint can import must byte-match the release, not just the hash."""
+    trust = importlib.import_module("codex_hook_trust")
+    cache = tmp_path / "codex" / "plugins" / "cache" / "market" / "plugin"
+    payload = write_payload(root=cache, version="1.2.3")
+    release = tmp_path / "release"
+    release.mkdir()
+    release_payload = write_payload(root=release, version="1.2.3")
+    (release_payload / "hooks" / "_helper.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (payload / "hooks" / "_helper.py").write_text("VALUE = 2\n", encoding="utf-8")
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("[hooks.state]\n", encoding="utf-8")
+    original = config.read_text(encoding="utf-8")
+
+    report = trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    )
+
+    assert not report.ok
+    assert any("hooks/hooks.json:PreToolUse" in problem for problem in report.problems)
+    assert any("hooks/hooks.json:Stop" in problem for problem in report.problems)
+    assert config.read_text(encoding="utf-8") == original

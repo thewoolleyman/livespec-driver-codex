@@ -15,6 +15,9 @@ _TABLE = re.compile(r'^\s*\[marketplaces\.("(?:[^"\\\\]|\\\\.)*"|[^]\s]+)]\s*(?:
 _FIELD = re.compile(r'^\s*(source_type|source)\s*=\s*("(?:[^"\\\\]|\\\\.)*")\s*(?:#.*)?$')
 
 
+_CLONE_TIMEOUT_SECONDS = 90
+
+
 @dataclass(frozen=True, kw_only=True)
 class ReleasePayload:
     """A verified-source checkout payload or an explanation of its absence."""
@@ -72,23 +75,27 @@ def marketplace_source(*, config_path: Path, marketplace: str) -> tuple[str | No
 
 def checkout_release(*, source: str, version: str, checkout: Path) -> str | None:
     """Clone either conventional release-tag spelling into a disposable root."""
-    attempted: list[str] = []
+    failures: list[str] = []
     for tag in (f"v{version}", version):
-        result = subprocess.run(
-            ["git", "clone", "--quiet", "--depth", "1", "--branch", tag, source, str(checkout)],
-            capture_output=True,
-            check=False,
-            text=True,
-            timeout=90,
-        )
-        if result.returncode == 0:
-            return None
-        attempted.append(tag)
+        try:
+            result = subprocess.run(
+                ["git", "clone", "--quiet", "--depth", "1", "--branch", tag, source, str(checkout)],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=_CLONE_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            failures.append(f"{tag} timed out after {_CLONE_TIMEOUT_SECONDS}s")
+        except OSError as err:
+            failures.append(f"{tag} could not be fetched: {err}")
+        else:
+            if result.returncode == 0:
+                return None
+            failures.append(tag)
         if checkout.exists():
             _remove_checkout(checkout=checkout)
-    return (
-        f"release tag cannot be obtained for installed version {version} ({', '.join(attempted)})"
-    )
+    return f"release tag cannot be obtained for installed version {version} ({', '.join(failures)})"
 
 
 def catalog_plugin_payload(*, checkout: Path, plugin: str) -> tuple[Path | None, str | None]:
