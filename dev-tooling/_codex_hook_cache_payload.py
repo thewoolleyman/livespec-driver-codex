@@ -16,8 +16,8 @@ import tempfile
 from pathlib import Path
 
 VERSION_RE = re.compile(r"^\d+(\.\d+){2}([-.][0-9A-Za-z.-]+)?$")
-_HOOK_EVENTS = ("PreToolUse", "Stop")
 _PLUGIN_ROOT_TOKEN = "${CLAUDE_PLUGIN_ROOT}/"
+_ENTRYPOINT_RE = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([^\s'\";|&]+)")
 
 
 def version_sort_key(name: str) -> tuple[int, ...]:
@@ -63,56 +63,82 @@ def read_json(*, path: Path) -> tuple[dict[str, object] | None, str | None]:
 
 
 def declared_hook_scripts(*, payload: Path) -> tuple[tuple[Path, ...], tuple[str, ...]]:
-    """Hook scripts the payload's own `hooks.json` declares for Codex to run.
+    """Entrypoints declared by the manifest and default hook registrations.
 
     Returns `(scripts, problems)`. The commands are read from the payload
     rather than from `codex plugin list`, whose `source.path` names the
     marketplace checkout and not the versioned cache the runtime executes.
     """
+    registrations, problems = hook_registrations(payload=payload)
+    scripts: list[Path] = []
+    for path, events in registrations:
+        for command in _walk_registered_commands(events=events):
+            entrypoint, problem = _entrypoint_from_command(command=command)
+            if problem:
+                problems.append(f"{path}: {problem}")
+            elif entrypoint is not None:
+                scripts.append(payload / entrypoint)
+    return tuple(dict.fromkeys(scripts)), tuple(problems)
+
+
+def hook_registrations(*, payload: Path) -> tuple[list[tuple[Path, dict[str, object]]], list[str]]:
+    """Read the union of manifest-selected and default hook registrations."""
     manifest_path = payload / ".codex-plugin" / "plugin.json"
-    manifest, problem = read_json(path=manifest_path)
+    manifest, manifest_problem = read_json(path=manifest_path)
     if manifest is None:
-        return (), (problem or f"{manifest_path}: unreadable",)
+        return [], [manifest_problem or f"{manifest_path}: unreadable"]
+    paths = [payload / "hooks" / "hooks.json"]
     hooks_rel = manifest.get("hooks")
-    if not isinstance(hooks_rel, str) or not hooks_rel:
-        return (), (f"{manifest_path}: manifest declares no `hooks` entry",)
-    hooks_path = (payload / hooks_rel).resolve()
-    registration, problem = read_json(path=hooks_path)
-    if registration is None:
-        return (), (problem or f"{hooks_path}: unreadable",)
-    if "description" in registration:
-        return (), (f"{hooks_path}: top-level `description` key is rejected by Codex",)
-    events = registration.get("hooks")
-    if not isinstance(events, dict):
-        return (), (f"{hooks_path}: missing a `hooks` object",)
-    scripts = [payload / rel for rel in _walk_registered_scripts(events=events)]
-    if not scripts:
-        return (), (f"{hooks_path}: declares no PreToolUse or Stop Python hook",)
-    return tuple(dict.fromkeys(scripts)), ()
+    if hooks_rel is not None:
+        if not isinstance(hooks_rel, str) or not hooks_rel:
+            return [], [f"{manifest_path}: malformed `hooks` entry"]
+        paths.append(payload / hooks_rel)
+    registrations: list[tuple[Path, dict[str, object]]] = []
+    problems: list[str] = []
+    for path in dict.fromkeys(paths):
+        if path == paths[0] and not path.exists():
+            continue
+        registration, problem = read_json(path=path)
+        if registration is None:
+            problems.append(problem or f"{path}: unreadable")
+            continue
+        events = registration.get("hooks")
+        if not isinstance(events, dict):
+            problems.append(f"{path}: missing a `hooks` object")
+            continue
+        registrations.append((path, events))
+    return registrations, problems
 
 
-def _walk_registered_scripts(*, events: dict[str, object]) -> list[str]:
-    """Every PreToolUse/Stop Python script path the registration names, in order."""
+def declares_hooks(*, payload: Path) -> bool:
+    """Whether the payload has any hook declaration, including a malformed one."""
+    registrations, problems = hook_registrations(payload=payload)
+    return bool(registrations or problems)
+
+
+def _walk_registered_commands(*, events: dict[str, object]) -> list[str]:
+    """Every hook command in a registration, independent of its event name."""
     found: list[str] = []
-    for event in _HOOK_EVENTS:
-        entries = events.get(event) or []
+    for entries in events.values():
         if not isinstance(entries, list):
             continue
         for matcher in entries:
-            for hook in (matcher or {}).get("hooks", []) or []:
-                rel = _script_from_command(command=(hook or {}).get("command", ""))
-                if rel is not None:
-                    found.append(rel)
+            if not isinstance(matcher, dict):
+                continue
+            for hook in matcher.get("hooks", []) or []:
+                if isinstance(hook, dict) and isinstance(hook.get("command"), str):
+                    found.append(hook["command"])
     return found
 
 
-def _script_from_command(*, command: object) -> str | None:
-    """Extract the plugin-root-relative script path Codex actually executes."""
-    if not isinstance(command, str) or _PLUGIN_ROOT_TOKEN not in command:
-        return None
-    tail = command.split(_PLUGIN_ROOT_TOKEN, 1)[1]
-    rel = tail.split('"', 1)[0].split("'", 1)[0].strip()
-    return rel if rel.endswith(".py") else None
+def _entrypoint_from_command(*, command: str) -> tuple[str | None, str | None]:
+    """Extract the first versioned path, rejecting malformed root mentions."""
+    match = _ENTRYPOINT_RE.search(command)
+    if match:
+        return match.group(1), None
+    if "CLAUDE_PLUGIN_ROOT" in command:
+        return None, f"command {command!r} mentions CLAUDE_PLUGIN_ROOT without an entrypoint"
+    return None, None
 
 
 def validate_payload(*, payload: Path) -> tuple[str, ...]:
@@ -131,8 +157,8 @@ def validate_payload(*, payload: Path) -> tuple[str, ...]:
     failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="livespec-hook-validate-") as scratch:
         for index, script in enumerate(scripts):
-            if not script.is_file():
-                failures.append(f"{script}: declared hook script is missing")
+            if not script.is_relative_to(payload) or not script.is_file():
+                failures.append(f"{script}: declared hook entrypoint is missing")
                 continue
             try:
                 py_compile.compile(

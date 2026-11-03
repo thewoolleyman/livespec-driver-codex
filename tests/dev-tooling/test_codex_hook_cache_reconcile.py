@@ -65,6 +65,32 @@ def test_retained_old_version_resolves_through_latest_in_one_hop(cache: Path, st
     assert (cache / "0.6.0" / "hooks" / "stop.py").is_file()
 
 
+def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks(
+    tmp_path: Path,
+) -> None:
+    """Every registered hook plugin gets its own retained-version alias chain."""
+    home = tmp_path / "codex"
+    _write_config(home=home, marketplaces=("first", "second"))
+    first = home / "plugins" / "cache" / "first" / "default-only"
+    second = home / "plugins" / "cache" / "second" / "manifest-only"
+    _write_default_only_payload(root=first, version="1.0.0")
+    _write_manifest_only_payload(root=second, version="1.0.0")
+    assert all(report.ok for report in reconciler.reconcile_all(home=home))
+
+    _delete_tree(path=first / "1.0.0")
+    _delete_tree(path=second / "1.0.0")
+    _write_default_only_payload(root=first, version="1.1.0")
+    _write_manifest_only_payload(root=second, version="1.1.0")
+
+    reports = reconciler.reconcile_all(home=home)
+
+    assert all(report.ok for report in reports)
+    assert link_target(path=first / "1.0.0") == "latest"
+    assert link_target(path=first / "latest") == "1.1.0"
+    assert link_target(path=second / "1.0.0") == "latest"
+    assert link_target(path=second / "latest") == "1.1.0"
+
+
 def test_backfill_is_bounded_to_versions_the_reconciler_recorded(cache: Path, state: Path) -> None:
     """Only versions in the durable state record are backfilled."""
     write_payload(root=cache, version="0.6.1")
@@ -100,14 +126,18 @@ def test_an_incomplete_payload_is_rejected(cache: Path, state: Path) -> None:
     assert not (cache / "latest").exists()
 
 
-def test_a_manifest_without_a_hooks_entry_is_rejected(cache: Path, state: Path) -> None:
-    """Validation starts at the manifest, not at a guessed hooks path."""
-    write_payload(root=cache, version="0.6.1", manifest_hooks=None)
+def test_a_malformed_manifest_hooks_entry_is_rejected(cache: Path, state: Path) -> None:
+    """A malformed manifest declaration is not excused by the default registration."""
+    payload = write_payload(root=cache, version="0.6.1")
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = 42
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     report = reconciler.reconcile(root=cache, state_path=state)
 
     assert not report.ok
-    assert any("declares no `hooks` entry" in problem for problem in report.problems)
+    assert any("malformed `hooks` entry" in problem for problem in report.problems)
 
 
 def test_rerunning_an_already_reconciled_cache_changes_nothing(cache: Path, state: Path) -> None:
@@ -200,3 +230,34 @@ def _delete_tree(*, path: Path) -> None:
     for child in sorted(path.rglob("*"), key=lambda item: len(item.parts), reverse=True):
         child.rmdir() if child.is_dir() else child.unlink()
     path.rmdir()
+
+
+def _write_config(*, home: Path, marketplaces: tuple[str, ...]) -> None:
+    """Write the small host configuration shape coverage discovery consumes."""
+    home.mkdir(parents=True)
+    lines = [f"[marketplaces.{name}]" for name in marketplaces]
+    (home / "config.toml").write_text("\n\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_default_only_payload(*, root: Path, version: str) -> None:
+    """Make a default-registration-only payload with a shell hook command."""
+    payload = write_payload(root=root, version=version)
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("hooks")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    registration = json.loads((payload / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    registration["hooks"]["Stop"][0]["hooks"][0]["command"] = (
+        'if true; then bash "${CLAUDE_PLUGIN_ROOT}/hooks/stop.py"; fi'
+    )
+    (payload / "hooks" / "hooks.json").write_text(json.dumps(registration), encoding="utf-8")
+
+
+def _write_manifest_only_payload(*, root: Path, version: str) -> None:
+    """Make a manifest-registration-only payload with no default registration."""
+    payload = write_payload(root=root, version=version)
+    (payload / "hooks" / "hooks.json").rename(payload / "hooks" / "manifest-hooks.json")
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = "./hooks/manifest-hooks.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
