@@ -218,11 +218,18 @@ delegated_gate = true
 # The dev host delegates this commit-time aggregate when it can submit a gates
 # Job; sandbox and credentialless hosts retain the local pre-commit gate.
 delegated_pre_commit = true
-# The remote Job restores the staged index then runs this repository's existing
-# pre-commit aggregate under `check-pre-commit-gated-tree`.
+# This suite serves BOTH delegated gates. The pre-push Job runs it as declared,
+# so its final member is `check-pre-push`; the pre-commit client replaces only
+# that final member with `check-pre-commit-gated-tree`, which restores the
+# staged index and runs this repository's pre-commit aggregate. The bootstrap is
+# the documented fall-through suite's: the worktree pack AND the commit-refuse
+# hooks, which a gate Job's fresh `/workspace` checkout lacks. Ending the suite
+# in `check-pre-commit` made every delegated dev-host pre-push run no tests
+# (livespec-dev-tooling-jrcp4m, 2026-11-03).
 gate_check_suite = [
     "install-worktree-pack",
-    "check-pre-commit",
+    "install-commit-refuse-hooks",
+    "check-pre-push",
 ]
 # `tests.dev-tooling` is an integration tier here, not a unit one: the suite it
 # names builds a whole Codex plugin cache (payloads, manifests, hook
