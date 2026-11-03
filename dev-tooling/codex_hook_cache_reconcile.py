@@ -196,6 +196,16 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
             problems=declaration_problems,
         )
 
+    versioned_hook_scripts, _ = declared_hook_scripts(payload=root / current)
+    if not versioned_hook_scripts:
+        return Report(
+            ok=True,
+            current_version=current,
+            actions=(),
+            problems=(),
+            hook_declarations=hook_declarations,
+        )
+
     observed = tuple(
         sorted(set(_load_state(path=state_path)) | set(versions), key=version_sort_key)
     )

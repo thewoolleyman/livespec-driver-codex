@@ -201,6 +201,84 @@ def test_reconcile_accepts_wrapped_inline_mcp_tool_hook_declarations(
     assert report.ok
 
 
+def test_reconcile_leaves_an_unmanaged_latest_for_inline_only_hooks_untouched(
+    cache: Path, state: Path
+) -> None:
+    """Inline-only hooks need no versioned alias topology to preserve."""
+    payload = write_payload(root=cache, version="0.6.1")
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = {
+        "hooks": {
+            "Stop": [{"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "turn_ended"}]}]
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (payload / "hooks" / "hooks.json").unlink()
+    latest = cache / "latest"
+    latest.symlink_to(payload)
+    before = latest.readlink()
+
+    report = reconciler.reconcile(root=cache, state_path=state)
+
+    assert report.ok
+    assert latest.readlink() == before
+
+
+def test_reconcile_refuses_an_unmanaged_latest_for_versioned_hook_paths(
+    cache: Path, state: Path
+) -> None:
+    """A plugin-root hook still protects its cache topology from Codex-owned aliases."""
+    payload = write_payload(root=cache, version="0.6.1")
+    latest = cache / "latest"
+    latest.symlink_to(payload)
+    before = latest.readlink()
+
+    report = reconciler.reconcile(root=cache, state_path=state)
+
+    assert not report.ok
+    assert any(
+        str(latest) in problem and "refusing to replace" in problem for problem in report.problems
+    )
+    assert latest.readlink() == before
+
+
+def test_status_all_is_healthy_after_reconciling_an_inline_only_plugin(tmp_path: Path) -> None:
+    """An unmanaged inline-only `latest` does not make observer status unhealthy."""
+    home = tmp_path / "codex"
+    (home / "config.toml").parent.mkdir()
+    (home / "config.toml").write_text("[marketplaces.openai-bundled]\n", encoding="utf-8")
+    root = home / "plugins" / "cache" / "openai-bundled" / "chrome"
+    payload = write_payload(root=root, version="26.1007.71326")
+    manifest_path = payload / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["hooks"] = {
+        "hooks": {
+            "Stop": [{"hooks": [{"type": "mcp_tool", "server": "node_repl", "tool": "turn_ended"}]}]
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (payload / "hooks" / "hooks.json").unlink()
+    latest = root / "latest"
+    latest.symlink_to(payload)
+    before = latest.readlink()
+
+    reports = reconciler.reconcile_all(home=home)
+    for report in reports:
+        state_path = reconciler.state_file(
+            marketplace=report.marketplace or "",
+            plugin=report.plugin or "",
+            codex_home_override=home,
+        )
+        observer.write_status(
+            path=observer.status_file(state_path=state_path), pid=os.getpid(), last_error=None
+        )
+
+    assert all(report.ok for report in reports)
+    assert latest.readlink() == before
+    assert observer.main(["status", "--all", "--codex-home", str(home)]) == 0
+
+
 def test_reconcile_output_names_wrapped_inline_non_command_hook_declarations(
     cache: Path, state: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
