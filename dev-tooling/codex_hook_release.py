@@ -46,6 +46,20 @@ def verified_hook_keys(
     return (tuple(hooks), tuple(problems)) if not problems else ((), tuple(problems))
 
 
+def untrusted_hook_problems(*, plugin: str, payload: Path, reason: str) -> tuple[str, ...]:
+    """Name every installed hook when no release artifact can establish trust."""
+    registrations, registration_problems = hook_registrations(payload=payload)
+    labels: list[str] = []
+    for path, events in registrations:
+        relative = _relative(path=path, root=payload)
+        labels.extend(_hook_labels(plugin=plugin, source_path=relative, events=events))
+    if labels:
+        return tuple(f"{label} ({reason})" for label in labels)
+    return tuple(
+        f"{plugin}: unverified hook {problem} ({reason})" for problem in registration_problems
+    )
+
+
 def _registration_problems(*, plugin: str, problems: tuple[str, ...]) -> list[str]:
     return [f"{plugin}: unverified hook {problem}" for problem in problems]
 

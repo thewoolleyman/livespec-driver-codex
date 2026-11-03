@@ -9,6 +9,8 @@ end-to-end without touching the host's cache.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -96,7 +98,26 @@ def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks
 ) -> None:
     """Every registered hook plugin gets its own retained-version alias chain."""
     home = tmp_path / "codex"
-    _write_config(home=home, marketplaces=("first", "second"))
+    _write_config(
+        home=home,
+        marketplaces=("first", "second"),
+        sources={
+            "first": _write_release_repository(
+                tmp_path=tmp_path,
+                name="first",
+                plugin="default-only",
+                versions=("1.0.0", "1.1.0"),
+                layout="default",
+            ),
+            "second": _write_release_repository(
+                tmp_path=tmp_path,
+                name="second",
+                plugin="manifest-only",
+                versions=("1.0.0", "1.1.0"),
+                layout="manifest",
+            ),
+        },
+    )
     first = home / "plugins" / "cache" / "first" / "default-only"
     second = home / "plugins" / "cache" / "second" / "manifest-only"
     _write_default_only_payload(root=first, version="1.0.0")
@@ -120,7 +141,26 @@ def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks
 def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(tmp_path: Path) -> None:
     """One malformed payload reports its identity without blocking its sibling."""
     home = tmp_path / "codex"
-    _write_config(home=home, marketplaces=("first", "second"))
+    _write_config(
+        home=home,
+        marketplaces=("first", "second"),
+        sources={
+            "first": _write_release_repository(
+                tmp_path=tmp_path,
+                name="first",
+                plugin="broken",
+                versions=("1.0.0",),
+                layout="full",
+            ),
+            "second": _write_release_repository(
+                tmp_path=tmp_path,
+                name="second",
+                plugin="healthy",
+                versions=("1.0.0",),
+                layout="full",
+            ),
+        },
+    )
     broken = home / "plugins" / "cache" / "first" / "broken"
     healthy = home / "plugins" / "cache" / "second" / "healthy"
     broken_payload = write_payload(root=broken, version="1.0.0")
@@ -136,6 +176,26 @@ def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(tmp_pat
     assert "command" in " ".join(broken_report.problems)
     assert healthy_report.ok
     assert link_target(path=healthy / "latest") == "1.0.0"
+
+
+def test_reconcile_all_refuses_to_trust_a_plugin_without_an_identifiable_release(
+    tmp_path: Path,
+) -> None:
+    """A plugin without a release tag is reported with every untrusted hook."""
+    home = tmp_path / "codex"
+    _write_config(home=home, marketplaces=("market",))
+    root = home / "plugins" / "cache" / "market" / "plugin"
+    write_payload(root=root, version="1.0.0")
+
+    reports = reconciler.reconcile_all(home=home)
+
+    assert len(reports) == 1
+    report = reports[0]
+    assert not report.ok
+    assert report.plugin == "plugin"
+    assert "plugin: unverified hook" in " ".join(report.problems)
+    assert len(report.problems) == 2
+    assert "trusted_content_hash" not in (home / "config.toml").read_text(encoding="utf-8")
 
 
 def test_backfill_is_bounded_to_versions_the_reconciler_recorded(cache: Path, state: Path) -> None:
@@ -279,14 +339,68 @@ def _delete_tree(*, path: Path) -> None:
     path.rmdir()
 
 
-def _write_config(*, home: Path, marketplaces: tuple[str, ...]) -> None:
+def _write_config(
+    *, home: Path, marketplaces: tuple[str, ...], sources: dict[str, Path] | None = None
+) -> None:
     """Write the small host configuration shape coverage discovery consumes."""
     home.mkdir(parents=True)
-    lines = [f"[marketplaces.{name}]" for name in marketplaces]
+    lines: list[str] = []
+    for name in marketplaces:
+        lines.append(f"[marketplaces.{name}]")
+        if sources and name in sources:
+            lines.extend(('source_type = "git"', f'source = "{sources[name]}"'))
     (home / "config.toml").write_text("\n\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _write_default_only_payload(*, root: Path, version: str) -> None:
+def _write_release_repository(
+    *, tmp_path: Path, name: str, plugin: str, versions: tuple[str, ...], layout: str
+) -> Path:
+    """Build a local marketplace whose tags are release-verification fixtures."""
+    repository = tmp_path / f"{name}-marketplace"
+    repository.mkdir()
+    _run_git(args=("init", "--quiet"), cwd=repository)
+    for version in versions:
+        artifact_root = tmp_path / f"{name}-{version}"
+        if layout == "default":
+            artifact = _write_default_only_payload(root=artifact_root, version=version)
+        elif layout == "manifest":
+            artifact = _write_manifest_only_payload(root=artifact_root, version=version)
+        else:
+            artifact = write_payload(root=artifact_root, version=version)
+        payload = repository / plugin
+        if payload.exists():
+            shutil.rmtree(payload)
+        shutil.copytree(artifact, payload)
+        catalog = repository / ".agents" / "plugins" / "marketplace.json"
+        catalog.parent.mkdir(parents=True, exist_ok=True)
+        catalog.write_text(
+            json.dumps({"plugins": [{"name": plugin, "source": {"path": f"./{plugin}"}}]}),
+            encoding="utf-8",
+        )
+        _run_git(args=("add", "."), cwd=repository)
+        _run_git(
+            args=(
+                "-c",
+                "user.email=test@example.invalid",
+                "-c",
+                "user.name=Test",
+                "commit",
+                "--quiet",
+                "-m",
+                version,
+            ),
+            cwd=repository,
+        )
+        _run_git(args=("tag", f"v{version}"), cwd=repository)
+    return repository
+
+
+def _run_git(*, args: tuple[str, ...], cwd: Path) -> None:
+    """Run fixture git setup with failure details preserved by pytest."""
+    subprocess.run(("git", *args), check=True, cwd=cwd)
+
+
+def _write_default_only_payload(*, root: Path, version: str) -> Path:
     """Make a default-registration-only payload with a shell hook command."""
     payload = write_payload(root=root, version=version)
     manifest_path = payload / ".codex-plugin" / "plugin.json"
@@ -298,9 +412,10 @@ def _write_default_only_payload(*, root: Path, version: str) -> None:
         'if true; then bash "${CLAUDE_PLUGIN_ROOT}/hooks/stop.py"; fi'
     )
     (payload / "hooks" / "hooks.json").write_text(json.dumps(registration), encoding="utf-8")
+    return payload
 
 
-def _write_manifest_only_payload(*, root: Path, version: str) -> None:
+def _write_manifest_only_payload(*, root: Path, version: str) -> Path:
     """Make a manifest-registration-only payload with no default registration."""
     payload = write_payload(root=root, version=version)
     (payload / "hooks" / "hooks.json").rename(payload / "hooks" / "manifest-hooks.json")
@@ -308,3 +423,4 @@ def _write_manifest_only_payload(*, root: Path, version: str) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["hooks"] = "./hooks/manifest-hooks.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return payload
