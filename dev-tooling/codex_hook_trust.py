@@ -96,6 +96,8 @@ def _state_table_key(
         return None, "unrecognized Codex trust record format"
     if not isinstance(key, str):
         return None, "unrecognized Codex trust record format"
+    if key in state:
+        return None, "unrecognized Codex trust record format"
     state[key] = {}
     return key, None
 
@@ -149,8 +151,9 @@ def _append_trust_records(
     hooks: tuple[tuple[str, str], ...],
     content_hash: str,
 ) -> None:
-    """Append only missing or stale state fields, preserving operator choices."""
-    lines: list[str] = []
+    """Replace stale records in place without creating duplicate TOML tables."""
+    replacements: list[str] = []
+    replaced_keys: set[str] = set()
     for key, declaration_hash in hooks:
         state = existing.get(key, {})
         if not isinstance(state, dict):
@@ -160,14 +163,44 @@ def _append_trust_records(
             and state.get("trusted_content_hash") == content_hash
         ):
             continue
-        lines.extend(
+        replaced_keys.add(key)
+        replacements.extend(
             (
                 "",
                 f"[hooks.state.{json.dumps(key)}]",
+                *_enabled_field(state=state),
                 f"trusted_hash = {json.dumps(declaration_hash)}",
                 f"trusted_content_hash = {json.dumps(content_hash)}",
             )
         )
-    if lines:
-        with config_path.open("a", encoding="utf-8") as output:
-            _ = output.write("\n".join(lines) + "\n")
+    if replacements:
+        text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+        retained = _without_state_tables(text=text, keys=replaced_keys)
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(
+            retained.rstrip() + "\n".join(replacements) + "\n",
+            encoding="utf-8",
+        )
+
+
+def _enabled_field(*, state: dict[object, object]) -> tuple[str, ...]:
+    """Keep a recognized operator-managed enablement selection."""
+    enabled = state.get("enabled")
+    return (f"enabled = {json.dumps(enabled)}",) if isinstance(enabled, bool) else ()
+
+
+def _without_state_tables(*, text: str, keys: set[str]) -> str:
+    """Remove complete known state tables that new trusted records supersede."""
+    retained: list[str] = []
+    skipping = False
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        table = re.fullmatch(r'\[hooks\.state\.("(?:[^"\\]|\\.)*")\]', stripped)
+        if table is not None:
+            key = json.loads(table.group(1))
+            skipping = key in keys
+        elif stripped.startswith("["):
+            skipping = False
+        if not skipping:
+            retained.append(line)
+    return "".join(retained)

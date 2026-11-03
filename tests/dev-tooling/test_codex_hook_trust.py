@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import re
 import subprocess
 from pathlib import Path
 
@@ -68,3 +69,45 @@ def test_codex_stop_hash_omits_an_empty_matcher_and_driver_content_hash_is_stabl
 
     assert problem is None
     assert content_hash == "sha256:8f1f4a1f11d47abe6b6827979a9aa53db5fa0038d5774d14ef8d84497ef44776"
+
+
+def test_reconciler_replaces_a_stale_record_without_duplicate_toml_tables(
+    tmp_path: Path,
+) -> None:
+    """Same-version re-materialization repairs rather than invalidates Codex state."""
+    trust = importlib.import_module("codex_hook_trust")
+    cache = tmp_path / "codex" / "plugins" / "cache" / "market" / "plugin"
+    payload = write_payload(root=cache, version="1.2.3")
+    release = tmp_path / "release"
+    release.mkdir()
+    release_payload = write_payload(root=release, version="1.2.3")
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("[hooks.state]\n", encoding="utf-8")
+    assert trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    ).ok
+    stale = re.sub(
+        r'trusted_content_hash = ".*"',
+        'trusted_content_hash = "sha256:stale"',
+        config.read_text(encoding="utf-8"),
+        count=1,
+    )
+    config.write_text(stale, encoding="utf-8")
+
+    report = trust.reconcile_trust(
+        config_path=config,
+        marketplace="market",
+        plugin="plugin",
+        payload=payload,
+        release_payload=release_payload,
+    )
+
+    repaired = config.read_text(encoding="utf-8")
+    assert report.ok
+    assert repaired.count("[hooks.state.") == 2
+    assert "sha256:stale" not in repaired
