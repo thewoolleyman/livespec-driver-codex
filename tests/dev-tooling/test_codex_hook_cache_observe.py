@@ -186,6 +186,84 @@ def test_an_old_observer_error_with_a_wall_clock_time_is_superseded_by_provision
     assert "provisioner reconcile succeeded" in why
 
 
+def test_an_equal_time_observer_error_wins_over_a_successful_provisioner(tmp_path: Path) -> None:
+    """Equal completion times intentionally select the observer record."""
+    record = tmp_path / "observer.json"
+    observer.write_status(path=record, pid=os.getpid(), last_error="observer failure")
+    status = json.loads(record.read_text(encoding="utf-8"))
+    status["reconcile_completed_at_epoch"] = 1.0
+    record.write_text(json.dumps(status), encoding="utf-8")
+
+    healthy, why = observer.health_after_provisioner(
+        path=record,
+        provisioner_ok=True,
+        provisioner_problem="",
+        provisioner_completed_at_epoch=1.0,
+    )
+
+    assert not healthy
+    assert "observer failure" in why
+
+
+def test_an_observer_without_a_completed_reconcile_stays_unhealthy_after_provisioning(
+    tmp_path: Path,
+) -> None:
+    """A provisioner success cannot substitute for the observer's first repair."""
+    record = tmp_path / "observer.json"
+    observer.write_status(path=record, pid=os.getpid(), last_error=None, completed_reconcile=False)
+
+    healthy, why = observer.health_after_provisioner(
+        path=record,
+        provisioner_ok=True,
+        provisioner_problem="",
+        provisioner_completed_at_epoch=time.time(),
+    )
+
+    assert not healthy
+    assert "first reconcile" in why
+
+
+def test_an_untrusted_provisioner_result_is_not_hidden_by_an_old_observer_error(
+    tmp_path: Path,
+) -> None:
+    """Trust failures remain visible even when the observer error is superseded."""
+    record = tmp_path / "observer.json"
+    observer.write_status(path=record, pid=os.getpid(), last_error="old observer failure")
+    status = json.loads(record.read_text(encoding="utf-8"))
+    status["reconcile_completed_at_epoch"] = 1.0
+    record.write_text(json.dumps(status), encoding="utf-8")
+
+    healthy, why = observer.health_after_provisioner(
+        path=record,
+        provisioner_ok=False,
+        provisioner_problem="untrusted hook payload",
+        provisioner_completed_at_epoch=time.time(),
+    )
+
+    assert not healthy
+    assert "untrusted hook payload" in why
+
+
+def test_a_non_finite_observer_completion_time_is_not_superseded(tmp_path: Path) -> None:
+    """A non-finite time is unusable and therefore conservatively wins ordering."""
+    record = tmp_path / "observer.json"
+    observer.write_status(path=record, pid=os.getpid(), last_error="observer failure")
+    status = json.loads(record.read_text(encoding="utf-8"))
+    status["reconcile_completed_at_epoch"] = float("nan")
+    status.pop("reconcile_completed_at")
+    record.write_text(json.dumps(status), encoding="utf-8")
+
+    healthy, why = observer.health_after_provisioner(
+        path=record,
+        provisioner_ok=True,
+        provisioner_problem="",
+        provisioner_completed_at_epoch=time.time(),
+    )
+
+    assert not healthy
+    assert "observer failure" in why
+
+
 def test_health_rejects_a_startup_heartbeat_before_first_reconcile(tmp_path: Path) -> None:
     """A live observer is not healthy for a plugin until it repaired that plugin once."""
     record = tmp_path / "observer.json"

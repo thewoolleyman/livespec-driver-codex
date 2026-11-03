@@ -10,6 +10,7 @@ provisioning reason.
 from __future__ import annotations
 
 import json
+import math
 import os
 import signal
 import subprocess
@@ -113,7 +114,8 @@ def _reconcile_completion_epoch(*, status: dict[str, object]) -> float | None:
     """Read the durable wall-clock completion time from an observer record."""
     epoch = status.get("reconcile_completed_at_epoch")
     if isinstance(epoch, int | float):
-        return float(epoch)
+        numeric_epoch = float(epoch)
+        return numeric_epoch if math.isfinite(numeric_epoch) else None
     wall_clock = status.get("reconcile_completed_at")
     if not isinstance(wall_clock, str):
         return None
