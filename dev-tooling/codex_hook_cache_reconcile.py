@@ -33,6 +33,7 @@ from _codex_hook_cache_payload import (
     validate_payload,
     version_sort_key,
 )
+from codex_hook_trust import reconcile_trust
 
 # Re-exported so callers (the observer, the test suite) see one module API
 # even though the discovery/validation half lives in the sibling module.
@@ -169,7 +170,15 @@ def _save_state(*, path: Path, observed: tuple[str, ...]) -> None:
     staging.replace(path)
 
 
-def reconcile(*, root: Path, state_path: Path) -> Report:
+def reconcile(
+    *,
+    root: Path,
+    state_path: Path,
+    config_path: Path | None = None,
+    marketplace: str = DEFAULT_MARKETPLACE,
+    plugin: str = DEFAULT_PLUGIN,
+    release_payload: Path | None = None,
+) -> Report:
     """Bring the cache's alias topology in line with the current payload."""
     versions = real_versions(root=root)
     if not versions:
@@ -183,6 +192,21 @@ def reconcile(*, root: Path, state_path: Path) -> Report:
     problems = validate_payload(payload=root / current)
     if problems:
         return Report(ok=False, current_version=current, actions=(), problems=problems)
+    if config_path is not None and release_payload is not None:
+        trust = reconcile_trust(
+            config_path=config_path,
+            marketplace=marketplace,
+            plugin=plugin,
+            payload=root / current,
+            release_payload=release_payload,
+        )
+        if not trust.ok:
+            return Report(
+                ok=False,
+                current_version=current,
+                actions=(),
+                problems=trust.problems,
+            )
 
     observed = tuple(
         sorted(set(_load_state(path=state_path)) | set(versions), key=version_sort_key)
@@ -216,6 +240,8 @@ def reconcile_all(*, home: Path) -> tuple[Report, ...]:
         report = reconcile(
             root=root,
             state_path=state_file(marketplace=marketplace, plugin=plugin, codex_home_override=home),
+            marketplace=marketplace,
+            plugin=plugin,
         )
         reports.append(
             dataclasses.replace(

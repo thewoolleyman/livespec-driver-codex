@@ -50,6 +50,32 @@ def test_reconcile_points_latest_at_the_current_payload(cache: Path, state: Path
     assert link_target(path=cache / "latest") == "0.6.1"
 
 
+def test_reconcile_restores_lost_trust_from_release_verified_bytes(
+    cache: Path, state: Path, tmp_path: Path
+) -> None:
+    """A trustless current payload is not healthy until matching release bytes re-trust it."""
+    payload = write_payload(root=cache, version="0.6.1")
+    release_root = tmp_path / "release"
+    release_root.mkdir()
+    release_payload = write_payload(root=release_root, version="0.6.1")
+    config = tmp_path / "codex" / "config.toml"
+    config.parent.mkdir(parents=True)
+    config.write_text("[hooks.state]\n", encoding="utf-8")
+
+    report = reconciler.reconcile(
+        root=cache,
+        state_path=state,
+        config_path=config,
+        marketplace="livespec-driver-codex",
+        plugin="livespec",
+        release_payload=release_payload,
+    )
+
+    assert report.ok
+    assert payload.is_dir()
+    assert "trusted_content_hash" in config.read_text(encoding="utf-8")
+
+
 def test_retained_old_version_resolves_through_latest_in_one_hop(cache: Path, state: Path) -> None:
     """A version the reconciler saw before, now deleted, aliases to `latest` — not past it."""
     write_payload(root=cache, version="0.6.0")
