@@ -36,6 +36,9 @@ from _codex_hook_cache_report import provision_all, status_all
 POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 5.0
 SETTLE_TIMEOUT_SECONDS = 120.0
+# Bounds detecting lost trust and starting the reconcile (two polls). Obtaining the
+# release adds at most two bounded git clones (see _codex_hook_release_source), after
+# which trust is restored or the plugin is reported; a timeout is reported, not raised.
 TRUST_RECONCILE_LATENCY_SECONDS = 2.0
 
 # Re-exported so callers see one module API even though the liveness/process
