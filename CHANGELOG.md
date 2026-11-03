@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.2...v0.11.3) (2026-11-03)
+
+
+### Bug Fixes
+
+* cover wrapped inline Codex hooks ([44b7f44](https://github.com/thewoolleyman/livespec-driver-codex/commit/44b7f44b8e1b0f90cc41a47bb44cd3623712f447))
+* report inline non-command hook declarations ([814595b](https://github.com/thewoolleyman/livespec-driver-codex/commit/814595ba685f08a23c273f646388d0c5e2508c9b))
+
 ## [0.11.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.1...v0.11.2) (2026-11-03)
 
 
