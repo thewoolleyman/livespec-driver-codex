@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import cast
@@ -573,6 +574,21 @@ def test_local_producer_requires_live_pid_expected_command_and_identity(tmp_path
         text=True,
     )
     try:
+        command_line_path = Path("/proc") / str(proc.pid) / "cmdline"
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                command_line = command_line_path.read_bytes().replace(b"\x00", b" ").decode(
+                    "utf-8", errors="replace"
+                )
+            except OSError:
+                command_line = ""
+            if "time.sleep" in command_line and "wake-identity" in command_line:
+                break
+            time.sleep(0.01)
+        else:
+            pytest.fail("spawned wake producer did not exec its expected command before deadline")
+
         state = _base_state()
         state["wake_producer"] = {
             "kind": "pane-watcher",
