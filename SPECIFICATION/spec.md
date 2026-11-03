@@ -28,7 +28,8 @@ This repo ships exactly three things, all Codex-runtime mechanics:
    resolves livespec core at runtime, reads core's operation prose, and
    dispatches the config-named spec-side CLI.
 2. **A plugin-shipped hook bundle** under `livespec/hooks/` —
-   `hooks.json` plus a fail-open `PreToolUse` footgun guard. This is
+   `hooks.json` plus PreToolUse guards, warning Stop hooks, and a
+   topic-scoped supervisor completion Stop gate. This is
    Driver-owned runtime surface (unlike the prose and CLIs, which are
    core's).
 3. **A structural gate** (`dev-tooling/check_plugin_structure.py`) that
@@ -58,8 +59,10 @@ Out of scope — these are core-owned and this tree references them, never
 restates them: the operation prose contents; the wrapper-CLI surfaces,
 exit codes, and wire contracts; the JSON schemas; the built-in templates;
 the eight sub-command *names* and any rename (those require a core
-propose-change cycle); and the hook *disciplines and postures* (fail-open
-contract, deny-vs-warn) — those live in `livespec/SPECIFICATION/contracts.md`. The family-standard primary-checkout commit-refuse
+propose-change cycle); and the family-standard hook *disciplines and postures* (fail-open
+contract, deny-vs-warn) — those live in `livespec/SPECIFICATION/contracts.md`.
+Codex-specific hook behavior, including the supervisor completion gate, is
+Driver-owned and governed by this tree. The family-standard primary-checkout commit-refuse
 hook is likewise core-owned (`livespec/SPECIFICATION/non-functional-requirements.md`); this repo carries the scaffold but
 does not re-specify it.
 

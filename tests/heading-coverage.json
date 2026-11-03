@@ -420,5 +420,93 @@
     "test": "TODO",
     "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-n2b3ui (a running supervised Linux observer's newer reconcile error is reported non-zero without signal or duplication, and an older error superseded by a newer successful provisioner reconcile does not fail provisioning)",
     "work_item": "livespec-driver-codex-n2b3ui"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Supervisor completion gate",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an unidentified session ignores repository supervisor markers",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a supervised session inspects only its owned marker",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: invalid supervision paths never inspect foreign runtime state",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: missing or malformed owned evidence continues supervision",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: terminal completion still requires independent wake evidence",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: only a real-user scoped stop command overrides supervision",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: Stop reentry does not recursively block completion",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: canonical supervision context takes precedence over the compatibility alias",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an unexpected supervised evaluation failure cannot grant completion",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: assistant and pane text cannot substitute for completion evidence",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "reason": "A real test at the integration tier or above is owed for this supervisor completion behavior; livespec-driver-codex-waq5mp owns the implementation and its proof."
   }
 ]

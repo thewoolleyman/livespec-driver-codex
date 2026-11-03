@@ -8,6 +8,13 @@
   },
   {
     "spec_root": "SPECIFICATION",
+    "spec_file": "contracts.md",
+    "heading": "## Supervisor completion gate",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
     "spec_file": "non-functional-requirements.md",
     "heading": "## Boundary",
     "work_item": "livespec-driver-codex-cea",
@@ -19,6 +26,13 @@
     "heading": "## Inherited from livespec",
     "work_item": "livespec-driver-codex-cea",
     "first_seen": "2026-06-23"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: Stop reentry does not recursively block completion",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
   },
   {
     "spec_root": "SPECIFICATION",
@@ -51,6 +65,13 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: a supervised session inspects only its owned marker",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not",
     "work_item": "livespec-driver-codex-v52m6a",
     "first_seen": "2026-11-03"
@@ -65,9 +86,51 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: an unexpected supervised evaluation failure cannot grant completion",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: an unidentified session ignores repository supervisor markers",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: assistant and pane text cannot substitute for completion evidence",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: canonical supervision context takes precedence over the compatibility alias",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: invalid supervision paths never inspect foreign runtime state",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a cache update of any covered plugin",
     "work_item": "livespec-driver-codex-esytmj",
     "first_seen": "2026-11-02"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: missing or malformed owned evidence continues supervision",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
   },
   {
     "spec_root": "SPECIFICATION",
@@ -103,6 +166,20 @@
     "heading": "## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards",
     "work_item": "livespec-driver-codex-kroiar",
     "first_seen": "2026-11-02"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: only a real-user scoped stop command overrides supervision",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: terminal completion still requires independent wake evidence",
+    "work_item": "livespec-driver-codex-waq5mp",
+    "first_seen": "2026-11-03"
   },
   {
     "spec_root": "SPECIFICATION",
