@@ -26,6 +26,7 @@ from _codex_hook_cache_process import (
     STALE_AFTER_SECONDS,
     ensure,
     health,
+    health_after_provisioner,
     log_file,
     status_file,
     write_status,
@@ -46,8 +47,10 @@ __all__ = [
     "ensure",
     "fingerprint",
     "health",
+    "health_after_provisioner",
     "log_file",
     "main",
+    "provision_all",
     "run_all_loop",
     "run_loop",
     "status_all",
@@ -112,6 +115,7 @@ def run_loop(
     status_path = status_file(state_path=state_path)
     seen: tuple[tuple[str, float], ...] | None = None
     last_error: str | None = None
+    reconcile_completed_at_epoch: float | None = None
     write_status(path=status_path, pid=os.getpid(), last_error=None, completed_reconcile=False)
     last_beat = time.monotonic()
     count = 0
@@ -127,15 +131,23 @@ def run_loop(
                 report = reconciler.reconcile(root=root, state_path=state_path)
                 reconciler.report_to_stream(report=report, root=root)
                 last_error = None if report.ok else "; ".join(report.problems)
+            reconcile_completed_at_epoch = time.time()
             write_status(
                 path=status_path,
                 pid=os.getpid(),
                 last_error=last_error,
                 completed_reconcile=True,
+                reconcile_completed_at_epoch=reconcile_completed_at_epoch,
             )
             last_beat = time.monotonic()
         elif time.monotonic() - last_beat >= HEARTBEAT_SECONDS:
-            write_status(path=status_path, pid=os.getpid(), last_error=last_error)
+            write_status(
+                path=status_path,
+                pid=os.getpid(),
+                last_error=last_error,
+                completed_reconcile=reconcile_completed_at_epoch is not None,
+                reconcile_completed_at_epoch=reconcile_completed_at_epoch,
+            )
             last_beat = time.monotonic()
         time.sleep(poll)
     return 1 if last_error else 0
@@ -147,6 +159,7 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
     settled: dict[tuple[str, str], tuple[tuple[str, float], ...]] = {}
     last_beat: dict[tuple[str, str], float] = {}
     errors: dict[tuple[str, str], str | None] = {}
+    completed_at: dict[tuple[str, str], float] = {}
     while True:
         roots = covered_plugin_roots(home=home)
         for marketplace, plugin, root in roots:
@@ -170,10 +183,12 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 )
                 errors[key] = "; ".join(problems) if problems else "; ".join(report.problems)
                 settled[key] = current
+                completed_at[key] = time.time()
                 write_status(
                     path=status_file(state_path=state_path),
                     pid=os.getpid(),
                     last_error=errors[key] or None,
+                    reconcile_completed_at_epoch=completed_at[key],
                 )
                 last_beat[key] = time.monotonic()
             elif time.monotonic() - last_beat.get(key, 0.0) >= HEARTBEAT_SECONDS:
@@ -181,6 +196,8 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                     path=status_file(state_path=state_path),
                     pid=os.getpid(),
                     last_error=errors.get(key),
+                    completed_reconcile=key in completed_at,
+                    reconcile_completed_at_epoch=completed_at.get(key),
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)
@@ -206,10 +223,43 @@ def status_all(*, home: Path, expected_pid: int | None = None) -> int:
     return 0 if all(results) else 1
 
 
+def provision_all(*, home: Path, expected_pid: int | None = None) -> int:
+    """Reconcile covered plugins and report the newer observer or local result."""
+    reports = {
+        (report.marketplace, report.plugin): report
+        for report in reconciler.reconcile_all(home=home)
+    }
+    completed_at = time.time()
+    results: list[bool] = []
+    for marketplace, plugin, root in covered_plugin_roots(home=home):
+        report = reports[(marketplace, plugin)]
+        ok, why = health_after_provisioner(
+            path=status_file(
+                state_path=reconciler.state_file(
+                    marketplace=marketplace, plugin=plugin, codex_home_override=home
+                )
+            ),
+            provisioner_ok=report.ok,
+            provisioner_problem="; ".join(report.problems),
+            provisioner_completed_at_epoch=completed_at,
+            expected_pid=expected_pid,
+        )
+        reconciler.emit(
+            event=why if ok else f"codex hook cache observer is NOT healthy — {why}",
+            level="info" if ok else "error",
+            cache_root=str(root),
+            marketplace=marketplace,
+            plugin=plugin,
+            mode="provision",
+        )
+        results.append(ok)
+    return 0 if all(results) else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Argument parser for the standalone entry point."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("mode", choices=("run", "ensure", "status"))
+    parser.add_argument("mode", choices=("run", "ensure", "status", "provision"))
     parser.add_argument("--codex-home", default=None)
     parser.add_argument("--marketplace", default=reconciler.DEFAULT_MARKETPLACE)
     parser.add_argument("--plugin", default=reconciler.DEFAULT_PLUGIN)
@@ -227,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_all_loop(home=home)
     if args.mode == "status" and args.all:
         return status_all(home=home, expected_pid=args.expected_pid)
+    if args.mode == "provision" and args.all:
+        return provision_all(home=home, expected_pid=args.expected_pid)
     root = reconciler.cache_root(
         home=home,
         marketplace=args.marketplace,

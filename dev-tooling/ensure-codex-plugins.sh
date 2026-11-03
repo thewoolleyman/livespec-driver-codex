@@ -18,13 +18,9 @@ codex plugin add livespec-orchestrator-beads-fabro@livespec-orchestrator-beads-f
 
 # The install sequence above may have replaced the versioned hook-cache
 # directory that already-running sessions captured their hook commands
-# against. Reconcile the alias topology, then make sure the observer that
-# catches Codex's own startup auto-upgrades is running — both are hard
-# failures, because a silently-unrepaired cache means hooks that no longer
-# fire while everything still reports installed.
+# against. The installed supervisor owns observer lifecycle; this provisioner
+# only reconciles and reports the newer of its own and the observer's result.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$here/codex_hook_cache_reconcile.py" --all
-
 unit="livespec-codex-hook-cache-observer.service"
 case "$(uname -s)" in
 Darwin)
@@ -43,14 +39,18 @@ Darwin)
         echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
         exit 1
     fi
-    python3 "$here/codex_hook_cache_observe.py" status --all --expected-pid "$launchd_pid"
+    # Keep the status probe as a quiet compatibility check; `provision`
+    # below owns the visible per-plugin result after its explicit reconcile.
+    python3 "$here/codex_hook_cache_observe.py" status --all --expected-pid "$launchd_pid" >/dev/null 2>&1 || true
+    python3 "$here/codex_hook_cache_observe.py" provision --all --expected-pid "$launchd_pid"
     ;;
 Linux)
     if ! command -v systemctl >/dev/null 2>&1 || ! systemctl --user is-active "$unit" >/dev/null; then
         echo "Codex hook-cache observer is not running under the installed supervisor unit: $unit" >&2
         exit 1
     fi
-    python3 "$here/codex_hook_cache_observe.py" status --all
+    python3 "$here/codex_hook_cache_observe.py" status --all >/dev/null 2>&1 || true
+    python3 "$here/codex_hook_cache_observe.py" provision --all
     ;;
 *)
     echo "Codex hook-cache observer has no supported supervisor on this platform." >&2

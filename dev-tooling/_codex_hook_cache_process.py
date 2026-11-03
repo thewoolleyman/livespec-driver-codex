@@ -37,10 +37,20 @@ def log_file(*, state_path: Path) -> Path:
 
 
 def write_status(
-    *, path: Path, pid: int, last_error: str | None, completed_reconcile: bool = True
+    *,
+    path: Path,
+    pid: int,
+    last_error: str | None,
+    completed_reconcile: bool = True,
+    reconcile_completed_at_epoch: float | None = None,
 ) -> None:
     """Record liveness plus the outcome of the last reconcile attempt."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    completed_at = (
+        time.time()
+        if completed_reconcile and reconcile_completed_at_epoch is None
+        else reconcile_completed_at_epoch
+    )
     body = json.dumps(
         {
             "pid": pid,
@@ -48,6 +58,7 @@ def write_status(
             "heartbeat_epoch": time.time(),
             "last_error": last_error,
             "completed_reconcile": completed_reconcile,
+            "reconcile_completed_at_epoch": completed_at,
         },
         indent=2,
         sort_keys=True,
@@ -64,6 +75,32 @@ def read_status(*, path: Path) -> dict[str, object] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return parsed if isinstance(parsed, dict) else None
+
+
+def _active_completed_status(
+    *, path: Path, expected_pid: int | None, now: float | None
+) -> tuple[dict[str, object] | None, str | None]:
+    """Return a live, fresh, reconciled record or its health failure."""
+    status = read_status(path=path)
+    if status is None:
+        return None, "no observer status record"
+    pid = status.get("pid")
+    if not isinstance(pid, int) or not pid_alive(pid=pid):
+        return None, f"observer pid {pid} is not running"
+    if expected_pid is not None and pid != expected_pid:
+        return (
+            None,
+            f"observer pid {pid} is not owned by the installed supervisor (pid {expected_pid})",
+        )
+    beat = status.get("heartbeat_epoch")
+    if not isinstance(beat, int | float):
+        return None, "observer status record carries no heartbeat"
+    age = (time.time() if now is None else now) - float(beat)
+    if age > STALE_AFTER_SECONDS:
+        return None, f"observer heartbeat is stale ({age:.0f}s old)"
+    if status.get("completed_reconcile") is not True:
+        return None, "observer has not completed its first reconcile"
+    return status, None
 
 
 def pid_alive(*, pid: int) -> bool:
@@ -86,29 +123,51 @@ def health(
     an observer that is running but not repairing is exactly the silent
     failure this machinery exists to prevent.
     """
-    status = read_status(path=path)
-    if status is None:
-        return False, "no observer status record"
-    pid = status.get("pid")
-    if not isinstance(pid, int) or not pid_alive(pid=pid):
-        return False, f"observer pid {pid} is not running"
-    if expected_pid is not None and pid != expected_pid:
-        return (
-            False,
-            f"observer pid {pid} is not owned by the installed supervisor (pid {expected_pid})",
-        )
-    beat = status.get("heartbeat_epoch")
-    if not isinstance(beat, int | float):
-        return False, "observer status record carries no heartbeat"
-    age = (time.time() if now is None else now) - float(beat)
-    if age > STALE_AFTER_SECONDS:
-        return False, f"observer heartbeat is stale ({age:.0f}s old)"
+    status, failure = _active_completed_status(path=path, expected_pid=expected_pid, now=now)
+    if failure:
+        return False, failure
+    assert status is not None
     last_error = status.get("last_error")
     if isinstance(last_error, str) and last_error:
         return False, f"last reconcile failed: {last_error}"
-    if status.get("completed_reconcile") is not True:
-        return False, "observer has not completed its first reconcile"
     return True, "observer is running and healthy"
+
+
+def health_after_provisioner(
+    *,
+    path: Path,
+    provisioner_ok: bool,
+    provisioner_problem: str,
+    provisioner_completed_at_epoch: float,
+    expected_pid: int | None = None,
+    now: float | None = None,
+) -> tuple[bool, str]:
+    """Select the newer observer or provisioner reconcile result for one plugin.
+
+    A missing, malformed, or future observer completion time is deliberately
+    treated as newer.  Its potentially unsafe result must therefore remain
+    visible instead of being hidden by a provisioner run it cannot be safely
+    ordered against.
+    """
+    status, failure = _active_completed_status(path=path, expected_pid=expected_pid, now=now)
+    if failure:
+        return False, failure
+    assert status is not None
+    current_time = time.time() if now is None else now
+    completed_at = status.get("reconcile_completed_at_epoch")
+    if not isinstance(completed_at, int | float) or float(completed_at) > current_time:
+        error = status.get("last_error")
+        if isinstance(error, str) and error:
+            return False, f"last reconcile failed: {error}"
+        return False, "observer status record carries no usable reconcile completion time"
+    if float(completed_at) >= provisioner_completed_at_epoch:
+        error = status.get("last_error")
+        if isinstance(error, str) and error:
+            return False, f"last reconcile failed: {error}"
+        return True, "observer is running and healthy"
+    if provisioner_ok:
+        return True, "provisioner reconcile succeeded after the observer record"
+    return False, f"provisioner reconcile failed: {provisioner_problem}"
 
 
 def spawn(*, entry_point: Path, interpreter: str, root: Path, state_path: Path) -> int:
