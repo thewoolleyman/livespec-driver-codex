@@ -43,8 +43,8 @@ locally, in pre-push, and in CI.
 |---|---|
 | `.agents/plugins/marketplace.json` | The marketplace catalog (`livespec-driver-codex`), listing the single `livespec` plugin sourced from `./livespec` |
 | `livespec/` | The Driver plugin: `.codex-plugin/plugin.json`, the eight `skills/<name>/SKILL.md` bindings, and the `hooks/` bundle (`hooks.json` + `livespec_footgun_guard.py`) |
-| `dev-tooling/` | `check_plugin_structure.py` (the structural gate), the family-standard git-hook scaffold, the Codex hook-cache compatibility reconciler + observer executables, and the observer's shipped service-supervisor definition (a systemd user unit on Linux) |
-| `tests/dev-tooling/` | Tests for the hook-cache compatibility reconciler and observer: a deterministic mock-cache integration test plus a host-aware real release-tracking transition test |
+| `dev-tooling/` | `check_plugin_structure.py` (the structural gate), the family-standard git-hook scaffold, the Codex hook-cache compatibility reconciler + observer executables, and the observer's shipped service-supervisor definitions (a systemd user unit on Linux and a launchd user LaunchAgent on macOS) |
+| `tests/dev-tooling/` | Tests for the hook-cache compatibility reconciler and observer: a deterministic mock-cache integration test, a static assertion over the shipped macOS supervisor definition, and a host-aware real release-tracking transition test |
 | `tests/e2e-cli/` | The CLI end-to-end harness consumer (mock-tier skill discovery + fail-closed fixture coverage gate + static binding assertions) |
 | `tests/hooks/` | Unit tests for the plugin-shipped footgun guard |
 | `SPECIFICATION/` | This spec tree (dogfooded) |
@@ -71,7 +71,9 @@ locally, in pre-push, and in CI.
 - **`check-dev-tooling`** — runs the `tests/dev-tooling/` suite: a
   deterministic mock-cache integration test for the hook-cache
   reconciler/observer (discovery, validation, one-hop retargeting,
-  idempotent rerun), plus a host-aware real release-tracking
+  idempotent rerun, per-plugin observer health before and after the
+  first reconcile, and the provisioner's supervisor check on each
+  supported platform), plus a host-aware real release-tracking
   transition test that starts a session against an old hook path of
   each covered plugin, advances the marketplace/plugin cache, and
   verifies each retained hook path resolves to the validated current
@@ -166,9 +168,21 @@ discovery, validation, one-hop retargeting, and idempotent rerun, and
 also covers a covered plugin whose hooks are declared only by the
 default `hooks/hooks.json`, a covered plugin whose entrypoints are
 `bash`-invoked or sit behind a shell conditional, two covered plugins
-reconciled together with isolated state and status, and a covered
+reconciled together with isolated state and status, a covered
 plugin with a missing entrypoint failing loudly while a sibling plugin
-still reconciles; a host-aware real release-tracking transition test —
+still reconciles, an observer reported unhealthy for a covered plugin
+until that plugin's own status record carries a completed first
+reconcile, and the provisioner's supervisor check on each supported
+platform (an observer not running under the installed supervisor
+definition reported even while a detached observer is alive, an
+observer with no installed definition reported, a live observer the
+provisioner did not start reported rather than signalled, and a
+running supervised observer whose status record reports a reconcile
+error reported with a non-zero exit but neither signalled nor
+duplicated); a static assertion over the shipped macOS supervisor
+definition, separate from the mock-cache integration test, verifies
+that its interpreter resolution depends on no interpreter location
+present on only one of Apple Silicon and Intel Macs; a host-aware real release-tracking transition test —
 gated the same way as the live TUI picker acceptance above — starts a
 session against an old hook path of each covered plugin installed on
 the host, advances the marketplace/plugin cache, and verifies each

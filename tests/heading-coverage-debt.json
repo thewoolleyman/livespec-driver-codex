@@ -58,9 +58,30 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: an observer that has not completed its first reconcile of a covered plugin is reported unhealthy for that plugin",
+    "work_item": "livespec-driver-codex-yudufr",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a cache update of any covered plugin",
     "work_item": "livespec-driver-codex-esytmj",
     "first_seen": "2026-11-02"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: on macOS ensure-codex-plugins leaves a running LaunchAgent observer alone when it reports a reconcile error",
+    "work_item": "livespec-driver-codex-yudufr",
+    "first_seen": "2026-11-03"
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: on macOS ensure-codex-plugins reports an observer not running under the installed LaunchAgent",
+    "work_item": "livespec-driver-codex-yudufr",
+    "first_seen": "2026-11-03"
   },
   {
     "spec_root": "SPECIFICATION",

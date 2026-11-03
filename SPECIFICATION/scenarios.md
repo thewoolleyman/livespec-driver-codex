@@ -251,3 +251,44 @@ Then the pre-push path MUST run the delegation client instead of running `just c
 And the push MUST complete only on a passing verdict from the executor
 
 And the push MUST be refused when the executor returns no verdict
+
+## Scenario: on macOS ensure-codex-plugins reports an observer not running under the installed LaunchAgent
+
+```gherkin
+Given a macOS host whose host provisioning installed the Driver's shipped LaunchAgent for the hook-cache observer
+And the observer is not running under that LaunchAgent
+And a detached observer process that launchd did not start is alive
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under the installed LaunchAgent
+And it does not report the observer as supervised
+
+Given a macOS host on which no LaunchAgent definition for the hook-cache observer is installed
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under an installed LaunchAgent
+And it does not report the observer as supervised
+```
+
+## Scenario: on macOS ensure-codex-plugins leaves a running LaunchAgent observer alone when it reports a reconcile error
+
+```gherkin
+Given a macOS host whose hook-cache observer is running under the installed LaunchAgent
+And that observer's status record for a covered plugin reports a reconcile error
+When ensure-codex-plugins runs
+Then it reports the reconcile error as an observer failure, naming that plugin
+And it exits non-zero
+And the LaunchAgent's observer process receives no signal from ensure-codex-plugins
+And no second observer process is started
+```
+
+## Scenario: an observer that has not completed its first reconcile of a covered plugin is reported unhealthy for that plugin
+
+```gherkin
+Given the hook-cache observer has started under its supervisor
+And it has not yet completed its first reconcile of a covered plugin
+When ensure-codex-plugins reports observer health for that plugin
+Then that plugin is reported unhealthy
+And a status record written before the first reconcile does not make it healthy
+And once that plugin's own status record carries a completed reconcile without error, the first-reconcile rule no longer reports that plugin unhealthy
+```
