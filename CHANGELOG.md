@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.10.0...v0.10.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* reject missing manifest-declared hooks file ([2f57ce9](https://github.com/thewoolleyman/livespec-driver-codex/commit/2f57ce906a6d6ab158e00645a337f49ad0811e5b))
+
 ## [0.10.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.9.0...v0.10.0) (2026-11-03)
 
 
