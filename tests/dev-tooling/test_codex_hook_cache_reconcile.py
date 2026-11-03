@@ -91,6 +91,27 @@ def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks
     assert link_target(path=second / "latest") == "1.1.0"
 
 
+def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(tmp_path: Path) -> None:
+    """One malformed payload reports its identity without blocking its sibling."""
+    home = tmp_path / "codex"
+    _write_config(home=home, marketplaces=("first", "second"))
+    broken = home / "plugins" / "cache" / "first" / "broken"
+    healthy = home / "plugins" / "cache" / "second" / "healthy"
+    broken_payload = write_payload(root=broken, version="1.0.0")
+    (broken_payload / "hooks" / "stop.py").unlink()
+    write_payload(root=healthy, version="1.0.0")
+
+    reports = reconciler.reconcile_all(home=home)
+
+    broken_report = next(report for report in reports if report.plugin == "broken")
+    healthy_report = next(report for report in reports if report.plugin == "healthy")
+    assert not broken_report.ok
+    assert "first/broken" in " ".join(broken_report.problems)
+    assert "command" in " ".join(broken_report.problems)
+    assert healthy_report.ok
+    assert link_target(path=healthy / "latest") == "1.0.0"
+
+
 def test_backfill_is_bounded_to_versions_the_reconciler_recorded(cache: Path, state: Path) -> None:
     """Only versions in the durable state record are backfilled."""
     write_payload(root=cache, version="0.6.1")

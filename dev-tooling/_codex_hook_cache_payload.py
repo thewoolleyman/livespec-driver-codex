@@ -69,16 +69,24 @@ def declared_hook_scripts(*, payload: Path) -> tuple[tuple[Path, ...], tuple[str
     rather than from `codex plugin list`, whose `source.path` names the
     marketplace checkout and not the versioned cache the runtime executes.
     """
+    entries, problems = declared_hook_entrypoints(payload=payload)
+    return tuple(dict.fromkeys(path for path, _ in entries)), problems
+
+
+def declared_hook_entrypoints(
+    *, payload: Path
+) -> tuple[tuple[tuple[Path, str], ...], tuple[str, ...]]:
+    """Entrypoints paired with the command that declares each one."""
     registrations, problems = hook_registrations(payload=payload)
-    scripts: list[Path] = []
+    entries: list[tuple[Path, str]] = []
     for path, events in registrations:
         for command in _walk_registered_commands(events=events):
             entrypoint, problem = _entrypoint_from_command(command=command)
             if problem:
                 problems.append(f"{path}: {problem}")
             elif entrypoint is not None:
-                scripts.append(payload / entrypoint)
-    return tuple(dict.fromkeys(scripts)), tuple(problems)
+                entries.append((payload / entrypoint, command))
+    return tuple(dict.fromkeys(entries)), tuple(problems)
 
 
 def hook_registrations(*, payload: Path) -> tuple[list[tuple[Path, dict[str, object]]], list[str]]:
@@ -151,14 +159,16 @@ def validate_payload(*, payload: Path) -> tuple[str, ...]:
     """
     if not payload.is_dir():
         return (f"{payload}: payload directory is missing",)
-    scripts, problems = declared_hook_scripts(payload=payload)
+    entries, problems = declared_hook_entrypoints(payload=payload)
     if problems:
         return problems
     failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="livespec-hook-validate-") as scratch:
-        for index, script in enumerate(scripts):
+        for index, (script, command) in enumerate(entries):
             if not script.is_relative_to(payload) or not script.is_file():
-                failures.append(f"{script}: declared hook entrypoint is missing")
+                failures.append(
+                    f"{script}: command {command!r} declares a hook entrypoint that is missing"
+                )
                 continue
             try:
                 py_compile.compile(
