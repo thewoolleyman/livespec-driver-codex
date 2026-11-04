@@ -564,3 +564,9 @@ check-marketplace-ref-release-only:
 
 check-plan-no-live-handoff-file:
     uv run python -m livespec_dev_tooling.checks.plan_no_live_handoff_file
+
+check-codex-hook-reconcilable:
+    uv run python -m livespec_dev_tooling.checks.codex_hook_reconcilable
+
+check-delegated-gate-check-suite:
+    uv run python -m livespec_dev_tooling.checks.delegated_gate_check_suite
