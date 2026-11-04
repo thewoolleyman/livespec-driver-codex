@@ -153,7 +153,7 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.168.0
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.171.0
     env:
       # The image installs the pinned tools under /root (build-time HOME), but
       # container-hooks run steps with a DIFFERENT HOME — so mise's default data
@@ -295,7 +295,7 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.168.0
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.171.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -374,7 +374,7 @@ jobs:
     needs: check-coverage
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.168.0
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.171.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -430,7 +430,7 @@ jobs:
     name: check-python-batch
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.168.0
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.171.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -510,7 +510,7 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.168.0
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.171.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -572,7 +572,7 @@ jobs:
     name: check-metadata-batch
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.168.0
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.171.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
@@ -661,8 +661,10 @@ jobs:
           just check-ci-matrix-completeness || failed="$failed check-ci-matrix-completeness"
           just check-ci-gate-parity || failed="$failed check-ci-gate-parity"
           just check-claude-md-coverage || failed="$failed check-claude-md-coverage"
+          just check-codex-hook-reconcilable || failed="$failed check-codex-hook-reconcilable"
           just check-comment-line-anchors || failed="$failed check-comment-line-anchors"
           just check-commit-pairs-source-and-test || failed="$failed check-commit-pairs-source-and-test"
+          just check-delegated-gate-check-suite || failed="$failed check-delegated-gate-check-suite"
           just check-fleet-marketplace-relative-sources || failed="$failed check-fleet-marketplace-relative-sources"
           just check-handoff-dispatch-routing || failed="$failed check-handoff-dispatch-routing"
           just check-heading-coverage || failed="$failed check-heading-coverage"
@@ -707,7 +709,7 @@ jobs:
     name: check-doctor-static
     runs-on: ${{ fromJSON(vars.CI_RUNNER_LABELS || '["ubuntu-latest"]') }}
     container:
-      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.168.0
+      image: ghcr.io/thewoolleyman/livespec-fabro-sandbox:python-v1.171.0
     env:
       MISE_DATA_DIR: /root/.local/share/mise
       MISE_NOT_FOUND_AUTO_INSTALL: "0"
