@@ -103,3 +103,7 @@ Every entry this repository commits in `.livespec.jsonc` under `dispatcher.facto
   does not recognize.
 - Leaving disabled a Codex setting that refuses tool execution while a
   configured hook is untrusted, on a host whose Codex exposes one.
+- Writing the host's Codex configuration file from the reconciler, the
+  observer, `ensure-codex-plugins`, or host provisioning without
+  serialization against the other Driver writers, atomic replacement, and
+  a fresh read taken while serialized (`contracts.md` §"Hook bundle").
