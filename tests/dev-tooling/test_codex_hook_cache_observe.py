@@ -302,6 +302,7 @@ def test_observer_service_definition_and_provisioning_check_are_shipped() -> Non
 
     assert unit.is_file()
     assert "[Service]" in unit.read_text(encoding="utf-8")
+    assert "Restart=always" in unit.read_text(encoding="utf-8")
     assert "systemctl --user is-active" in provisioner
     assert "not running under the installed supervisor unit" in provisioner
 
@@ -537,8 +538,15 @@ def test_provisioning_orders_each_plugin_against_its_own_reconcile_completion(
     reconciled: list[Path] = []
     real_reconcile = observer.reconciler.reconcile
 
-    def reconcile_then_record_late_error(*, root: Path, state_path: Path) -> object:
-        report = real_reconcile(root=root, state_path=state_path)
+    def reconcile_then_record_late_error(
+        *, root: Path, state_path: Path, marketplace: str, plugin: str
+    ) -> object:
+        report = real_reconcile(
+            root=root,
+            state_path=state_path,
+            marketplace=marketplace,
+            plugin=plugin,
+        )
         if reconciled:
             time.sleep(0.01)
             observer.write_status(
