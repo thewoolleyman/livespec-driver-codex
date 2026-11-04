@@ -15,6 +15,7 @@ import os
 import re
 from pathlib import Path
 
+from codex_config_write import ConfigWriteError, rewrite_config
 from codex_hook_release import verified_hook_keys
 
 _STATE_KEYS = {"enabled", "trusted_hash", "trusted_content_hash"}
@@ -46,29 +47,37 @@ def reconcile_trust(
     )
     if problems:
         return TrustReport(ok=False, trusted_hooks=(), problems=problems)
-    config, problem = _read_recognized_state(config_path=config_path)
-    if problem:
-        return TrustReport(ok=False, trusted_hooks=(), problems=(f"{plugin}: {problem}",))
     content_hash, hash_problem = _plugin_content_hash(root=payload)
     if hash_problem:
         return TrustReport(ok=False, trusted_hooks=(), problems=(f"{plugin}: {hash_problem}",))
-    _append_trust_records(
-        config_path=config_path,
-        existing=config,
-        hooks=hooks,
-        content_hash=content_hash,
-        marketplace=marketplace,
-        plugin=plugin,
-    )
+    refused: list[str] = []
+
+    def rewrite(text: str) -> str:
+        state, problem = _parse_recognized_state(text=text)
+        if problem:
+            refused.append(problem)
+            raise ConfigWriteError(problem)
+        return _with_trust_records(
+            text=text,
+            existing=state,
+            hooks=hooks,
+            content_hash=content_hash,
+            marketplace=marketplace,
+            plugin=plugin,
+        )
+
+    write_problem = rewrite_config(config_path=config_path, rewrite=rewrite)
+    if write_problem and refused:
+        return TrustReport(ok=False, trusted_hooks=(), problems=(f"{plugin}: {write_problem}",))
+    if write_problem:
+        names = ", ".join(key for key, _ in hooks)
+        problem = f"{plugin}: Codex trust was not written for {names}: {write_problem}"
+        return TrustReport(ok=False, trusted_hooks=(), problems=(problem,))
     return TrustReport(ok=True, trusted_hooks=tuple(key for key, _ in hooks), problems=())
 
 
-def _read_recognized_state(*, config_path: Path) -> tuple[dict[str, object], str | None]:
+def _parse_recognized_state(*, text: str) -> tuple[dict[str, object], str | None]:
     """Parse only the known hooks.state table format before mutating it."""
-    try:
-        text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
-    except OSError as err:
-        return {}, f"unrecognized Codex trust record format ({err})"
     state: dict[str, object] = {}
     active_key: str | None = None
     under_unkeyed_state = False
@@ -158,15 +167,15 @@ def _plugin_content_hash(*, root: Path) -> tuple[str, str | None]:
     return f"sha256:{digest.hexdigest()}", None
 
 
-def _append_trust_records(
+def _with_trust_records(
     *,
-    config_path: Path,
+    text: str,
     existing: dict[str, object],
     hooks: tuple[tuple[str, str], ...],
     content_hash: str,
     marketplace: str,
     plugin: str,
-) -> None:
+) -> str:
     """Replace stale records in place without creating duplicate TOML tables."""
     replacements: list[str] = []
     desired_keys = {key for key, _ in hooks}
@@ -193,14 +202,10 @@ def _append_trust_records(
                 f"trusted_content_hash = {json.dumps(content_hash)}",
             )
         )
-    if replacements:
-        text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
-        retained = _without_state_tables(text=text, keys=replaced_keys)
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(
-            retained.rstrip() + "\n".join(replacements) + "\n",
-            encoding="utf-8",
-        )
+    if not replacements:
+        return text
+    retained = _without_state_tables(text=text, keys=replaced_keys)
+    return retained.rstrip() + "\n".join(replacements) + "\n"
 
 
 def _enabled_field(*, state: dict[object, object]) -> tuple[str, ...]:
