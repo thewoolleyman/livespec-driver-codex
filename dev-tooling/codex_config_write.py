@@ -82,6 +82,7 @@ def _locked(*, lock_path: Path, wait_seconds: float) -> Iterator[None]:
 def _replace_atomically(*, target: Path, text: str) -> None:
     """Write a same-directory temporary file and rename it over the target."""
     descriptor, temporary = tempfile.mkstemp(dir=target.parent, prefix=f"{target.name}.")
+    replaced = False
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             _ = handle.write(text)
@@ -90,7 +91,8 @@ def _replace_atomically(*, target: Path, text: str) -> None:
         if target.exists():
             shutil.copymode(target, temporary)
         _ = Path(temporary).replace(target)
-    except BaseException:
-        with contextlib.suppress(OSError):
-            Path(temporary).unlink()
-        raise
+        replaced = True
+    finally:
+        if not replaced:
+            with contextlib.suppress(OSError):
+                Path(temporary).unlink()
