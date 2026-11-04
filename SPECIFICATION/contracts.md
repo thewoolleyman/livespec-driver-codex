@@ -459,6 +459,28 @@ hooks as untrusted, and MUST fail loudly, as a provisioning or observer
 failure naming the plugin. Trust that an operator grants through Codex's
 own review interface is not governed by this contract.
 
+Writing the host's Codex configuration. Codex records hook trust in the
+host's Codex configuration file, which Codex itself also writes and which
+more than one Driver process (the reconciler run by `ensure-codex-plugins`
+and the one run by the observer) may write at the same time. Every Driver
+write to that file, including trust state and the fail-closed setting that
+host provisioning enables, MUST preserve the file's integrity:
+(a) the Driver's writers MUST be serialized with one another, including
+across separate processes, so that two concurrent writers can never each
+read the file and then overwrite what the other wrote; (b) each write MUST
+replace the file atomically, so that an interrupted write leaves either the
+complete prior file or the complete new file, never a truncated or
+partially written one; and (c) each write MUST be computed from the file's
+contents as read while serialized, immediately before the replacement, so
+that it carries forward every setting it does not intend to change. Codex
+does not take part in the Driver's serialization, so clause (c) narrows,
+but cannot eliminate, the window in which a concurrent Codex edit could be
+overwritten. A writer that cannot meet these conditions within a bounded
+wait, which the implementation states and its tests verify, MUST NOT write
+and MUST report the failure loudly, as a provisioning or observer failure
+naming each plugin whose trust it could not write, exactly as an
+unrecognized trust-record format is reported.
+
 `ensure-codex-plugins` and the observer's health report MUST report a
 covered plugin whose hooks are installed but not trusted by Codex
 loudly, as a failure, naming the plugin and each untrusted hook, and
