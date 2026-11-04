@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 from codex_config_write import ConfigWriteError, rewrite_config
-from codex_hook_release import verified_hook_keys
+from codex_hook_release import installed_hook_keys, verified_hook_keys
 
 _STATE_KEYS = {"enabled", "trusted_hash", "trusted_content_hash"}
 
@@ -28,6 +28,48 @@ class TrustReport:
     ok: bool
     trusted_hooks: tuple[str, ...]
     problems: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class TrustStatus:
+    """Whether Codex's own records already cover a payload's installed hooks."""
+
+    trusted: bool
+    problems: tuple[str, ...]
+
+
+def trust_status(*, config_path: Path, marketplace: str, plugin: str, payload: Path) -> TrustStatus:
+    """Read, without writing, whether every installed hook's record matches its bytes.
+
+    Only an unrecognized record format yields problems; every other reason the
+    records cannot be matched is simply "not trusted" and is left to the
+    release-verification path to establish or report.
+    """
+    hooks, hook_problems = installed_hook_keys(
+        marketplace=marketplace, plugin=plugin, payload=payload
+    )
+    if hook_problems:
+        return TrustStatus(trusted=False, problems=())
+    try:
+        text = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    except OSError:
+        return TrustStatus(trusted=False, problems=())
+    state, problem = _parse_recognized_state(text=text)
+    if problem:
+        return TrustStatus(trusted=False, problems=(f"{plugin}: {problem}",))
+    content_hash, hash_problem = _plugin_content_hash(root=payload)
+    if hash_problem:
+        return TrustStatus(trusted=False, problems=())
+    for key, declaration_hash in hooks:
+        record = state.get(key)
+        if not isinstance(record, dict):
+            return TrustStatus(trusted=False, problems=())
+        if (
+            record.get("trusted_hash") != declaration_hash
+            or record.get("trusted_content_hash") != content_hash
+        ):
+            return TrustStatus(trusted=False, problems=())
+    return TrustStatus(trusted=True, problems=())
 
 
 def reconcile_trust(

@@ -22,6 +22,8 @@ from pathlib import Path
 
 import codex_hook_cache_reconcile as reconciler
 from _codex_hook_cache_coverage import covered_plugin_roots
+from _codex_hook_cache_fingerprint import all_fingerprint as _all_fingerprint
+from _codex_hook_cache_fingerprint import fingerprint
 from _codex_hook_cache_process import (
     STALE_AFTER_SECONDS,
     ensure,
@@ -37,6 +39,7 @@ from _codex_hook_release_source import RELEASE_FETCH_BUDGET_SECONDS
 POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 5.0
 SETTLE_TIMEOUT_SECONDS = 120.0
+RETRY_AFTER_FAILURE_SECONDS = 300.0
 
 
 def trust_reconcile_latency_seconds(*, covered_plugins: int) -> float:
@@ -71,17 +74,6 @@ __all__ = [
     "trust_reconcile_latency_seconds",
     "write_status",
 ]
-
-
-def fingerprint(*, root: Path) -> tuple[tuple[str, float], ...]:
-    """Cheap signature of the cache's real payload set."""
-    marks: list[tuple[str, float]] = []
-    for name in reconciler.real_versions(root=root):
-        try:
-            marks.append((name, (root / name).stat().st_mtime))
-        except OSError:
-            continue
-    return tuple(marks)
 
 
 def await_complete_payload(
@@ -167,14 +159,28 @@ def run_loop(
     return 1 if last_error else 0
 
 
-def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
-    """Watch payload and trust state; see `trust_reconcile_latency_seconds` for the bound."""
+def run_all_loop(
+    *,
+    home: Path,
+    poll: float = POLL_SECONDS,
+    iterations: int | None = None,
+    retry_seconds: float = RETRY_AFTER_FAILURE_SECONDS,
+) -> None:
+    """Watch payload and trust state; see `trust_reconcile_latency_seconds` for the bound.
+
+    A reconcile that reported a problem is retried every `retry_seconds` even with no
+    further change, so a transient release outage is not a permanent failure; the first
+    attempt, and its report, still happen within the stated latency.
+    """
     seen: dict[tuple[str, str], tuple[object, ...]] = {}
     settled: dict[tuple[str, str], tuple[object, ...]] = {}
     last_beat: dict[tuple[str, str], float] = {}
     errors: dict[tuple[str, str], str | None] = {}
     completed_at: dict[tuple[str, str], float] = {}
-    while True:
+    retry_at: dict[tuple[str, str], float] = {}
+    count = 0
+    while iterations is None or count < iterations:
+        count += 1
         roots = covered_plugin_roots(home=home)
         for marketplace, plugin, root in roots:
             key = (marketplace, plugin)
@@ -185,7 +191,8 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
             if seen.get(key) != current:
                 seen[key] = current
                 continue
-            if settled.get(key) != current:
+            retry_due = bool(errors.get(key)) and time.monotonic() >= retry_at.get(key, 0.0)
+            if settled.get(key) != current or retry_due:
                 reports = reconciler.reconcile_all(home=home, only=key)
                 report = next(
                     (
@@ -204,6 +211,7 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 seen[key] = refreshed
                 settled[key] = refreshed
                 completed_at[key] = time.time()
+                retry_at[key] = time.monotonic() + retry_seconds
                 write_status(
                     path=status_file(state_path=state_path),
                     pid=os.getpid(),
@@ -221,35 +229,6 @@ def run_all_loop(*, home: Path, poll: float = POLL_SECONDS) -> int:
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)
-
-
-def _all_fingerprint(*, root: Path, config_path: Path) -> tuple[object, ...]:
-    """Include file-level payload marks and the trust-record file.
-
-    A directory's own mtime does not move when an existing file inside it is
-    rewritten, so each file's mtime and size are fingerprinted as well.
-    """
-    payload = fingerprint(root=root)
-    files = tuple(
-        mark for name in reconciler.real_versions(root=root) for mark in _tree_marks(root / name)
-    )
-    try:
-        return (*payload, files, ("config.toml", config_path.stat().st_mtime_ns))
-    except OSError:
-        return (*payload, files, ("config.toml", -1))
-
-
-def _tree_marks(top: Path) -> list[tuple[str, int, int]]:
-    marks: list[tuple[str, int, int]] = []
-    for directory, _, names in os.walk(top, followlinks=False):
-        for name in sorted(names):
-            path = Path(directory) / name
-            try:
-                stat = path.lstat()
-            except OSError:
-                continue
-            marks.append((str(path.relative_to(top.parent)), stat.st_mtime_ns, stat.st_size))
-    return marks
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -270,7 +249,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     home = reconciler.codex_home(override=args.codex_home)
     if args.mode == "run" and args.all:
-        return run_all_loop(home=home)
+        run_all_loop(home=home)
+        return 0
     if args.mode == "status" and args.all:
         return status_all(home=home, expected_pid=args.expected_pid)
     if args.mode == "provision" and args.all:
