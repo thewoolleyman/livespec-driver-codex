@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.5...v0.12.0) (2026-11-04)
+
+
+### Features
+
+* verify released hook bytes before trusting ([46e20f3](https://github.com/thewoolleyman/livespec-driver-codex/commit/46e20f3078001fe2b3914feb81b7370c678ae06a))
+
+
+### Bug Fixes
+
+* bound release verification and state the trust repair latency ([c5fe451](https://github.com/thewoolleyman/livespec-driver-codex/commit/c5fe45175ef91a2f22904cb7e6270753a2759464))
+* fingerprint payload files so same-version rewrites are observed ([8578571](https://github.com/thewoolleyman/livespec-driver-codex/commit/8578571b64c03ef2e021bd206260bb2376efe474))
+* reject fields under unkeyed Codex hook state ([a5c067f](https://github.com/thewoolleyman/livespec-driver-codex/commit/a5c067f6bcf4f5eb0a16f9c89a60db4c00d945df))
+* repair aliases before release lookup and fetch the release only when trust is stale ([be41e6f](https://github.com/thewoolleyman/livespec-driver-codex/commit/be41e6fcc8c5fe4c4c63717bfa2e22d120ef371b))
+* replace stale Codex hook trust records ([e1341eb](https://github.com/thewoolleyman/livespec-driver-codex/commit/e1341eb021c8e06216d30e6776b1f2ecf0539f0f))
+* restore hook trust for plugins with no versioned hook entrypoint ([943fc36](https://github.com/thewoolleyman/livespec-driver-codex/commit/943fc3629a38890b991026effd40e8866b9e85c4))
+* retain trust only for current verified hooks ([ae7fa8e](https://github.com/thewoolleyman/livespec-driver-codex/commit/ae7fa8e6d4948e772738ec368f0839f5e1c49761))
+* serialize and atomically replace Codex config.toml writes ([9430249](https://github.com/thewoolleyman/livespec-driver-codex/commit/9430249c48d5f56fec134140862252b1d46f1ad7))
+
+
+### Refactoring
+
+* split hook cache alias state ([4bd5c0e](https://github.com/thewoolleyman/livespec-driver-codex/commit/4bd5c0e9cfbf5e2f14e2a0ba1b20231c25eb9547))
+
 ## [0.11.5](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.4...v0.11.5) (2026-11-03)
 
 
