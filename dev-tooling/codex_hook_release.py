@@ -66,6 +66,29 @@ def verified_hook_keys(
     return tuple(hooks), ()
 
 
+def installed_hook_keys(
+    *, marketplace: str, plugin: str, payload: Path
+) -> tuple[tuple[tuple[str, str], ...], tuple[str, ...]]:
+    """Return the persisted key and declaration hash of every installed hook.
+
+    This reads the installed payload only and proves nothing about its release; it
+    exists to compare against Codex's own records, never to establish trust.
+    """
+    installed, registration_problems = hook_registrations(payload=payload)
+    problems = _registration_problems(plugin=plugin, problems=tuple(registration_problems))
+    hooks: list[tuple[str, str]] = []
+    for path, events in installed:
+        entries, entry_problems = _hook_entries(
+            marketplace=marketplace,
+            plugin=plugin,
+            source_path=_relative(path=path, root=payload),
+            events=events,
+        )
+        hooks.extend(entries)
+        problems.extend(entry_problems)
+    return tuple(hooks), tuple(problems)
+
+
 def untrusted_hook_problems(*, plugin: str, payload: Path, reason: str) -> tuple[str, ...]:
     """Name every installed hook when no release artifact can establish trust."""
     registrations, registration_problems = hook_registrations(payload=payload)

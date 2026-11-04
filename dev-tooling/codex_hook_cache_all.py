@@ -8,8 +8,9 @@ from pathlib import Path
 
 from _codex_hook_cache_coverage import covered_plugin_roots
 from _codex_hook_release_source import release_payload
-from codex_hook_cache_reconcile import Report, real_versions, reconcile, state_file
+from codex_hook_cache_reconcile import Report, reconcile, state_file
 from codex_hook_release import untrusted_hook_problems
+from codex_hook_trust import reconcile_trust, trust_status
 
 
 def reconcile_all(*, home: Path, only: tuple[str, str] | None = None) -> tuple[Report, ...]:
@@ -37,45 +38,40 @@ def reconcile_all(*, home: Path, only: tuple[str, str] | None = None) -> tuple[R
 
 
 def _reconcile_plugin(*, home: Path, marketplace: str, plugin: str, root: Path) -> Report:
-    versions = real_versions(root=root)
-    current = versions[-1] if versions else None
-    if current is None:
-        return reconcile(
-            root=root,
-            state_path=state_file(
-                marketplace=marketplace,
-                plugin=plugin,
-                codex_home_override=home,
-            ),
-            marketplace=marketplace,
-            plugin=plugin,
-        )
-    with release_payload(
-        config_path=home / "config.toml",
+    config_path = home / "config.toml"
+    paths = reconcile(
+        root=root,
+        state_path=state_file(marketplace=marketplace, plugin=plugin, codex_home_override=home),
         marketplace=marketplace,
         plugin=plugin,
-        version=current,
+    )
+    current = paths.current_version
+    if not paths.ok or current is None:
+        return paths
+    payload = root / current
+    status = trust_status(
+        config_path=config_path, marketplace=marketplace, plugin=plugin, payload=payload
+    )
+    if status.problems:
+        return dataclasses.replace(paths, ok=False, problems=status.problems)
+    if status.trusted:
+        return paths
+    with release_payload(
+        config_path=config_path, marketplace=marketplace, plugin=plugin, version=current
     ) as released:
         if released.payload is None:
-            return Report(
-                ok=False,
-                current_version=current,
-                actions=(),
-                problems=untrusted_hook_problems(
-                    plugin=plugin,
-                    payload=root / current,
-                    reason=released.problem or "release tag cannot be verified",
-                ),
+            problems = untrusted_hook_problems(
+                plugin=plugin,
+                payload=payload,
+                reason=released.problem or "release tag cannot be verified",
             )
-        return reconcile(
-            root=root,
-            state_path=state_file(
+        else:
+            trust = reconcile_trust(
+                config_path=config_path,
                 marketplace=marketplace,
                 plugin=plugin,
-                codex_home_override=home,
-            ),
-            config_path=home / "config.toml",
-            marketplace=marketplace,
-            plugin=plugin,
-            release_payload=released.payload,
-        )
+                payload=payload,
+                release_payload=released.payload,
+            )
+            problems = trust.problems
+    return paths if not problems else dataclasses.replace(paths, ok=False, problems=problems)
