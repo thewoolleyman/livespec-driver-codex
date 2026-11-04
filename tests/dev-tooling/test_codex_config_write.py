@@ -40,6 +40,14 @@ writer.rewrite_config(config_path=Path({config!r}), rewrite=lambda text: text + 
 """
 
 
+def _child_env() -> dict[str, str]:
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key != "COVERAGE_PROCESS_START" and not key.startswith("COV_CORE_")
+    }
+
+
 def _writer():
     module_path = DEV_TOOLING / "codex_config_write.py"
     assert module_path.is_file()
@@ -77,7 +85,8 @@ def test_concurrent_writer_processes_never_lose_each_others_edits(tmp_path: Path
                 _CHILD.format(
                     dev_tooling=str(DEV_TOOLING), line=f"writer_{n} = {n}", config=str(config)
                 ),
-            ]
+            ],
+            env=_child_env(),
         )
         for n in range(6)
     ]
@@ -103,6 +112,7 @@ def test_a_write_killed_before_the_replace_leaves_the_complete_prior_file(
             _KILL_CHILD.format(dev_tooling=str(DEV_TOOLING), config=str(config)),
         ],
         check=False,
+        env=_child_env(),
     )
 
     assert child.returncode == -signal.SIGKILL
@@ -177,6 +187,7 @@ def test_the_bounded_wait_is_stated_and_a_killed_lock_holder_releases_it(tmp_pat
         ],
         stdout=subprocess.PIPE,
         text=True,
+        env=_child_env(),
     )
     assert holder.stdout is not None
     assert holder.stdout.readline().strip() == "held"

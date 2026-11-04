@@ -283,6 +283,9 @@ mirror_pairings = [
 dataclasses_tree = { not_applicable = "this repo has no schemas/dataclasses layer" }
 neutral_hook_body_path = "livespec/hooks/no_shadow_ledger.py"
 subprocess_spawn_allowlist = [
+    # Cross-process lock and kill-mid-write behavior needs real processes; each
+    # child gets an environment scrubbed of COVERAGE_PROCESS_START and COV_CORE_*.
+    "tests/dev-tooling/test_codex_config_write.py",
     "tests/hooks/test_block_auto_memory.py",
     "tests/hooks/test_livespec_footgun_guard.py",
     "tests/hooks/test_no_shadow_ledger.py",
