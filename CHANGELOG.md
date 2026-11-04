@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.0...v0.12.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* require observer restart after clean exits ([592b6f1](https://github.com/thewoolleyman/livespec-driver-codex/commit/592b6f117a1aad1605504dadc02a09635fbbff4d))
+
 ## [0.12.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.11.5...v0.12.0) (2026-11-04)
 
 
