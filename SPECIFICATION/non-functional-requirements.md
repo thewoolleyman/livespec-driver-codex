@@ -95,6 +95,25 @@ locally, in pre-push, and in CI.
   which that setting is not enabled reported. The real transition test
   MUST also verify that Codex treats each retained hook as trusted after
   reconciliation.
+  The mock-cache integration test MUST also cover the Codex-curated
+  exclusion: a plugin whose marketplace's local source resolves inside
+  the Codex bundled-marketplace directory or the Codex runtime cache,
+  including through `~` expansion, a symbolic link in the source path,
+  or a Codex home that is itself a symbolic link, and whose hooks are
+  declared inline in its plugin manifest or in `hooks/hooks.json`, is
+  neither reconciled nor trusted and fails neither provisioning nor
+  observer health; a symbolic link that is a direct child of its
+  `<cache>/<marketplace>/<plugin>/` directory and has the shape of a
+  Driver reconciler alias (a relative link named `latest`, or a relative
+  link whose name is a version and whose target is `latest`) is reported
+  as a non-failing notice naming its path in the provisioner's output
+  and the observer's status record, while a link of that shape deeper in
+  its payload is not; no entry in its cache is created, replaced or
+  removed; a local source whose path is relative, missing, or cannot be
+  resolved is classified as covered; while a plugin from a local
+  marketplace whose resolved source lies outside those directories
+  remains covered and, with no identifiable release tag, is reported and
+  never trusted.
   GitHub-hosted CI skips the real-transition leg unless an
   authenticated runner opts in with
   `LIVESPEC_REQUIRE_CODEX_CACHE_TRANSITION=1`, mirroring
@@ -208,6 +227,24 @@ exposes a setting that refuses tool execution while a configured hook is
 untrusted, a host on which that setting is not enabled reported. The
 real transition test MUST also verify that Codex treats each retained
 hook as trusted after reconciliation.
+The mock-cache integration test MUST also cover the Codex-curated
+exclusion: a plugin whose marketplace's local source resolves inside the
+Codex bundled-marketplace directory or the Codex runtime cache,
+including through `~` expansion, a symbolic link in the source path, or
+a Codex home that is itself a symbolic link, and whose hooks are
+declared inline in its plugin manifest or in `hooks/hooks.json`, is
+neither reconciled nor trusted and fails neither provisioning nor
+observer health; a symbolic link that is a direct child of its
+`<cache>/<marketplace>/<plugin>/` directory and has the shape of a
+Driver reconciler alias (a relative link named `latest`, or a relative
+link whose name is a version and whose target is `latest`) is reported
+as a non-failing notice naming its path in the provisioner's output and
+the observer's status record, while a link of that shape deeper in its
+payload is not; no entry in its cache is created, replaced or removed; a
+local source whose path is relative, missing, or cannot be resolved is
+classified as covered; while a plugin from a local marketplace whose
+resolved source lies outside those directories remains covered and, with
+no identifiable release tag, is reported and never trusted.
 
 ## Spec evolution
 

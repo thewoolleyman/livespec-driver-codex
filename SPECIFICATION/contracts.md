@@ -326,16 +326,56 @@ persistent update observer. The reconciler and observer cover every
 cache under a marketplace that has a `[marketplaces.<name>]` entry in
 the host's Codex configuration, and its current installed payload
 declares at least one hook. A cache directory whose marketplace has no
-such entry is not a covered plugin; this is how caches that Codex
-manages from its own curated sources are excluded. The covered set MUST
-be derived from measured Codex configuration and cache state on every
-reconcile, never from a list fixed in code or configuration, so a
-plugin that first declares a hook in a later release is covered with no
-Driver change. The set includes non-livespec plugins from registered
-marketplaces, for example a third-party plugin that ships
-`bash`-invoked hooks. Only version-named real directories are version
-roots; scratch install directories and non-version-named directories
-are neither version roots nor alias targets.
+such entry is not a covered plugin. Neither is a plugin whose
+marketplace is **Codex-curated**: its Codex configuration entry declares
+a local source (`source_type = "local"`) whose resolved path lies inside
+a directory that Codex or the ChatGPT app creates and populates itself,
+namely the bundled-marketplace directory under the Codex home
+(`$CODEX_HOME/.tmp/bundled-marketplaces/`, where the Codex home is
+`CODEX_HOME` when set and `~/.codex` otherwise) and the Codex runtime
+cache (`~/.cache/codex-runtimes/`, measured at that path on macOS; note
+it is NOT under the Codex home and NOT under `~/Library/Caches`). The
+ChatGPT app registers such entries itself, for example `openai-bundled`
+and `openai-primary-runtime`, so the existence of an entry does not
+separate the marketplaces a host registered from the ones Codex curates;
+the location of a local source does. Before comparing, the Driver MUST
+resolve both the local source path and the two Codex-curated
+directories, expanding `~` and following symbolic links, so the
+comparison holds even when the Codex home is itself a symbolic link. A
+local source whose path is relative, missing, or cannot be resolved is
+classified as covered, so a classification failure never hides a plugin
+from verification. These directories are a property of Codex's own
+layout, not a list of plugins, so the covered set itself remains derived
+from measured state as required below. The classification is by
+marketplace, so it applies to every hook a Codex-curated plugin
+declares, whether in `hooks/hooks.json` or inline in its plugin
+manifest; likewise, "declares at least one hook" in the covered-plugin
+definition above counts both forms. Codex's own hook-trust interface
+governs a Codex-curated plugin's hooks: the Driver MUST NOT trust,
+verify, repair, disable or remove them, and their presence MUST NOT fail
+provisioning or observer health. The Driver MUST NOT create, replace or
+remove anything inside a Codex-curated plugin's cache. The Driver MUST
+report, as a non-failing notice naming its path in the provisioner's
+output and the observer's status record, each symbolic link that is a
+direct child of a Codex-curated plugin's
+`<cache>/<marketplace>/<plugin>/` directory and has the shape of an
+alias the Driver's reconciler creates: a relative link named `latest`,
+or a relative link whose name is a version and whose target is `latest`.
+Only those direct children are examined, so a link deeper in the
+plugin's payload, for example under `node_modules`, is not noticed. The
+Driver MUST leave every such link in place. A local marketplace whose
+resolved source lies outside those directories remains covered, and the
+release-verification rule for hook trust below applies to it in full.
+The covered set MUST be derived from measured Codex configuration and
+cache state on every reconcile, never from a list fixed in code or
+configuration, so a plugin that first declares a hook in a later release
+is covered with no Driver change. The set includes non-livespec plugins
+from registered marketplaces that are not Codex-curated, for example a
+third-party plugin that ships `bash`-invoked hooks, including one
+installed from a local marketplace whose resolved source lies outside
+the Codex-curated directories. Only version-named real directories are
+version roots; scratch install directories and non-version-named
+directories are neither version roots nor alias targets.
 
 The ordinary `ensure-codex-plugins` provisioner MUST run the reconciler
 for every covered plugin after its successful marketplace upgrade and
