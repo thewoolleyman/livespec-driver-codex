@@ -792,3 +792,26 @@ def test_symlink_inside_curated_directory_resolving_outside_is_still_covered(
 
     assert coverage.configured_marketplaces(home=home) == ("disguised",)
     assert coverage.covered_plugin_roots(home=home) == (("disguised", "browser", plugin_root),)
+
+
+@pytest.mark.parametrize("source_via", ["real-path", "link-path"])
+def test_curated_source_is_excluded_when_codex_home_is_a_symbolic_link(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source_via: str
+) -> None:
+    """A Codex home that is itself a symlink still classifies its bundled source as curated."""
+    real_home = tmp_path / "real-codex"
+    home = tmp_path / "linked-codex"
+    bundled = real_home / ".tmp" / "bundled-marketplaces" / "openai-bundled"
+    bundled.mkdir(parents=True)
+    home.symlink_to(real_home, target_is_directory=True)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    source = bundled if source_via == "real-path" else home / bundled.relative_to(real_home)
+    _write_local_marketplace_config(home=home, name="app-curated", source=str(source))
+    plugin_root = home / "plugins" / "cache" / "app-curated" / "browser"
+    _write_manifest_only_payload(root=plugin_root, version="1.0.0")
+    before = sorted(str(entry) for entry in plugin_root.rglob("*"))
+
+    assert coverage.configured_marketplaces(home=home) == ()
+    assert coverage.covered_plugin_roots(home=home) == ()
+    assert codex_hook_cache_all.reconcile_all(home=home) == ()
+    assert sorted(str(entry) for entry in plugin_root.rglob("*")) == before
