@@ -115,6 +115,54 @@ def test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks
     assert link_target(path=second / "latest") == "1.1.0"
 
 
+def test_reconcile_all_excludes_codex_curated_local_marketplaces(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """App-managed bundled and runtime plugins are outside Driver reconciliation."""
+    home = tmp_path / "codex"
+    bundled_source = home / ".tmp" / "bundled-marketplaces" / "openai-bundled"
+    runtime_source = tmp_path / ".cache" / "codex-runtimes" / "primary" / "plugins" / "runtime"
+    bundled_source.mkdir(parents=True)
+    runtime_source.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (home / "config.toml").parent.mkdir(parents=True, exist_ok=True)
+    (home / "config.toml").write_text(
+        "\n".join(
+            (
+                "[marketplaces.openai-bundled]",
+                'source_type = "local"',
+                f'source = "{bundled_source}"',
+                "",
+                "[marketplaces.openai-primary-runtime]",
+                'source_type = "local"',
+                f'source = "{runtime_source}"',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    _write_manifest_only_payload(
+        root=home / "plugins" / "cache" / "openai-bundled" / "browser", version="1.0.0"
+    )
+    write_payload(
+        root=home / "plugins" / "cache" / "openai-primary-runtime" / "documents", version="1.0.0"
+    )
+    fetched: list[str] = []
+
+    @contextlib.contextmanager
+    def release_should_not_be_requested(
+        *, config_path: Path, marketplace: str, plugin: str, version: str
+    ) -> Iterator[ReleasePayload]:
+        del config_path, marketplace, plugin, version
+        fetched.append("unexpected")
+        yield ReleasePayload(payload=None, problem="release tag cannot be identified")
+
+    monkeypatch.setattr(codex_hook_cache_all, "release_payload", release_should_not_be_requested)
+
+    assert codex_hook_cache_all.reconcile_all(home=home) == ()
+    assert fetched == []
+
+
 def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
