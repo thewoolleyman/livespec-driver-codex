@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 from _codex_hook_cache_payload import declares_hooks, real_versions
 
-_MARKETPLACE_TABLE = re.compile(r"^\s*\[marketplaces\.([^]\s]+)]\s*(?:#.*)?$")
+_MARKETPLACE_TABLE = re.compile(r'^\s*\[marketplaces\.("(?:[^"\\\\]|\\\\.)*"|[^]\s]+)]\s*(?:#.*)?$')
+_TABLE = re.compile(r"^\s*\[")
+_FIELD = re.compile(r'^\s*(source_type|source)\s*=\s*("(?:[^"\\\\]|\\\\.)*")\s*(?:#.*)?$')
 
 
 def covered_plugin_roots(*, home: Path) -> tuple[tuple[str, str, Path], ...]:
@@ -27,13 +30,71 @@ def covered_plugin_roots(*, home: Path) -> tuple[tuple[str, str, Path], ...]:
 
 
 def configured_marketplaces(*, home: Path) -> tuple[str, ...]:
-    """Read marketplace table names from the host's Codex TOML file.
+    """Read configured marketplace names except Codex-curated local sources.
 
-    This intentionally reads only the simple table form Codex writes and
-    needs no TOML dependency under the bare Python 3.10 provisioner.
+    The provisioner is bare Python 3.10, so this intentionally reads the
+    small table shape Codex writes instead of adding a TOML dependency.
     """
+    return tuple(
+        name
+        for name, fields in _marketplace_records(home=home)
+        if not _is_codex_curated(fields=fields, home=home)
+    )
+
+
+def _marketplace_records(*, home: Path) -> tuple[tuple[str, dict[str, str]], ...]:
+    """Read marketplace names and the two source fields used for classification."""
     try:
         lines = (home / "config.toml").read_text(encoding="utf-8").splitlines()
     except OSError:
         return ()
-    return tuple(match.group(1) for line in lines if (match := _MARKETPLACE_TABLE.match(line)))
+    records: list[tuple[str, dict[str, str]]] = []
+    active: tuple[str, dict[str, str]] | None = None
+    for line in lines:
+        table = _MARKETPLACE_TABLE.match(line)
+        if table:
+            try:
+                raw = table.group(1)
+                name = json.loads(raw) if raw.startswith('"') else raw
+            except json.JSONDecodeError:
+                active = None
+                continue
+            fields: dict[str, str] = {}
+            active = (name, fields)
+            records.append(active)
+            continue
+        if _TABLE.match(line):
+            active = None
+            continue
+        field = _FIELD.match(line)
+        if active is None or field is None:
+            continue
+        try:
+            active[1][field.group(1)] = json.loads(field.group(2))
+        except json.JSONDecodeError:
+            active = None
+    return tuple(records)
+
+
+def _is_codex_curated(*, fields: dict[str, str], home: Path) -> bool:
+    """Whether a local source resolves inside a Codex-managed source directory."""
+    if fields.get("source_type") != "local":
+        return False
+    source = fields.get("source")
+    if source is None:
+        return False
+    candidate = Path(source).expanduser()
+    if not candidate.is_absolute():
+        return False
+    try:
+        resolved_source = candidate.resolve(strict=True)
+    except OSError:
+        return False
+    for root in (home / ".tmp" / "bundled-marketplaces", Path.home() / ".cache" / "codex-runtimes"):
+        try:
+            resolved_root = root.resolve(strict=True)
+        except OSError:
+            continue
+        if resolved_source.is_relative_to(resolved_root):
+            return True
+    return False
