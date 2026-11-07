@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import codex_hook_cache_reconcile as reconciler
-from _codex_hook_cache_coverage import covered_plugin_roots
+from _codex_hook_cache_coverage import codex_curated_cache_aliases, covered_plugin_roots
 from _codex_hook_cache_process import health, health_after_provisioner, status_file
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
 
 def status_all(*, home: Path, expected_pid: int | None = None) -> int:
     """Report health for every covered plugin under one shared observer."""
+    _emit_curated_alias_notices(home=home, mode="status")
     results: list[bool] = []
     for marketplace, plugin, root in covered_plugin_roots(home=home):
         state_path = reconciler.state_file(
@@ -36,6 +37,7 @@ def status_all(*, home: Path, expected_pid: int | None = None) -> int:
 
 def provision_all(*, home: Path, expected_pid: int | None = None) -> int:
     """Reconcile covered plugins and report the newer observer or local result."""
+    _emit_curated_alias_notices(home=home, mode="provision")
     reports = {
         (report.marketplace, report.plugin): report
         for report in reconciler.reconcile_all(home=home)
@@ -64,3 +66,16 @@ def provision_all(*, home: Path, expected_pid: int | None = None) -> int:
         )
         results.append(ok)
     return 0 if all(results) else 1
+
+
+def _emit_curated_alias_notices(*, home: Path, mode: str) -> None:
+    """Make preserved Codex-owned cache aliases visible without reconciling them."""
+    for marketplace, plugin, root, alias in codex_curated_cache_aliases(home=home):
+        reconciler.emit(
+            event=f"Codex-curated plugin cache alias left unchanged: {alias}",
+            level="info",
+            cache_root=str(root),
+            marketplace=marketplace,
+            plugin=plugin,
+            mode=mode,
+        )

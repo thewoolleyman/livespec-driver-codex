@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 import codex_hook_cache_reconcile as reconciler
-from _codex_hook_cache_coverage import covered_plugin_roots
+from _codex_hook_cache_coverage import codex_curated_cache_aliases, covered_plugin_roots
 from _codex_hook_cache_fingerprint import all_fingerprint as _all_fingerprint
 from _codex_hook_cache_fingerprint import fingerprint
 from _codex_hook_cache_process import (
@@ -181,6 +181,7 @@ def run_all_loop(
     count = 0
     while iterations is None or count < iterations:
         count += 1
+        _record_curated_alias_notices(home=home)
         roots = covered_plugin_roots(home=home)
         for marketplace, plugin, root in roots:
             key = (marketplace, plugin)
@@ -229,6 +230,24 @@ def run_all_loop(
                 )
                 last_beat[key] = time.monotonic()
         time.sleep(poll)
+
+
+def _record_curated_alias_notices(*, home: Path) -> None:
+    """Persist notices for aliases we deliberately leave in Codex-owned caches."""
+    notices: dict[tuple[str, str], list[str]] = {}
+    for marketplace, plugin, _, alias in codex_curated_cache_aliases(home=home):
+        notices.setdefault((marketplace, plugin), []).append(str(alias))
+    for (marketplace, plugin), paths in notices.items():
+        write_status(
+            path=status_file(
+                state_path=reconciler.state_file(
+                    marketplace=marketplace, plugin=plugin, codex_home_override=home
+                )
+            ),
+            pid=os.getpid(),
+            last_error=None,
+            notices=tuple(paths),
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -11,6 +11,7 @@ from _codex_hook_cache_payload import declares_hooks, real_versions
 _MARKETPLACE_TABLE = re.compile(r'^\s*\[marketplaces\.("(?:[^"\\\\]|\\\\.)*"|[^]\s]+)]\s*(?:#.*)?$')
 _TABLE = re.compile(r"^\s*\[")
 _FIELD = re.compile(r'^\s*(source_type|source)\s*=\s*("(?:[^"\\\\]|\\\\.)*")\s*(?:#.*)?$')
+_VERSION_NAME = re.compile(r"^\d+(\.\d+){2}([-.][0-9A-Za-z.-]+)?$")
 
 
 def covered_plugin_roots(*, home: Path) -> tuple[tuple[str, str, Path], ...]:
@@ -40,6 +41,25 @@ def configured_marketplaces(*, home: Path) -> tuple[str, ...]:
         for name, fields in _marketplace_records(home=home)
         if not _is_codex_curated(fields=fields, home=home)
     )
+
+
+def codex_curated_cache_aliases(*, home: Path) -> tuple[tuple[str, str, Path, Path], ...]:
+    """Return Driver-shaped direct aliases in Codex-curated plugin caches."""
+    cache = home / "plugins" / "cache"
+    found: list[tuple[str, str, Path, Path]] = []
+    for marketplace, fields in _marketplace_records(home=home):
+        if not _is_codex_curated(fields=fields, home=home):
+            continue
+        marketplace_root = cache / marketplace
+        if not marketplace_root.is_dir():
+            continue
+        for root in marketplace_root.iterdir():
+            if not root.is_dir():
+                continue
+            for child in root.iterdir():
+                if _is_driver_alias(path=child):
+                    found.append((marketplace, root.name, root, child))
+    return tuple(found)
 
 
 def _marketplace_records(*, home: Path) -> tuple[tuple[str, dict[str, str]], ...]:
@@ -98,3 +118,15 @@ def _is_codex_curated(*, fields: dict[str, str], home: Path) -> bool:
         if resolved_source.is_relative_to(resolved_root):
             return True
     return False
+
+
+def _is_driver_alias(*, path: Path) -> bool:
+    """Whether `path` has the relative direct-child alias shape we create."""
+    if not path.is_symlink():
+        return False
+    target = path.readlink()
+    if target.is_absolute():
+        return False
+    return path.name == "latest" or (
+        _VERSION_NAME.match(path.name) is not None and target == Path("latest")
+    )

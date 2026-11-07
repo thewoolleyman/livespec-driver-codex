@@ -44,6 +44,7 @@ def write_status(
     last_error: str | None,
     completed_reconcile: bool = True,
     reconcile_completed_at_epoch: float | None = None,
+    notices: tuple[str, ...] = (),
 ) -> None:
     """Record liveness plus the outcome of the last reconcile attempt."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -66,6 +67,7 @@ def write_status(
             "completed_reconcile": completed_reconcile,
             "reconcile_completed_at": completed_at_wall_clock,
             "reconcile_completed_at_epoch": completed_at,
+            "notices": list(notices),
         },
         indent=2,
         sort_keys=True,

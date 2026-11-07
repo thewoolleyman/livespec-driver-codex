@@ -17,6 +17,7 @@ from pathlib import Path
 import codex_hook_cache_all
 import pytest
 from _codex_hook_cache_aliases import alias_status, link, load_state, save_state
+from _codex_hook_cache_process import read_status
 from _codex_hook_release_source import ReleasePayload
 from test_codex_hook_cache_fixtures import link_target, observer, reconciler, write_payload
 
@@ -161,6 +162,59 @@ def test_reconcile_all_excludes_codex_curated_local_marketplaces(
 
     assert codex_hook_cache_all.reconcile_all(home=home) == ()
     assert fetched == []
+
+
+def test_codex_curated_cache_aliases_are_noticed_without_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Curated cache aliases are reported but never treated as reconcile targets."""
+    home = tmp_path / "codex"
+    source = home / ".tmp" / "bundled-marketplaces" / "openai-bundled"
+    source.mkdir(parents=True)
+    (home / "config.toml").write_text(
+        "\n".join(
+            (
+                "[marketplaces.openai-bundled]",
+                'source_type = "local"',
+                f'source = "{source}"',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    root = home / "plugins" / "cache" / "openai-bundled" / "browser"
+    payload = write_payload(root=root, version="26.1007.71326")
+    latest = root / "latest"
+    retired = root / "26.1007.70000"
+    latest.symlink_to("26.1007.71326")
+    retired.symlink_to("latest")
+    (root / "absolute").symlink_to(root / "26.1007.71326")
+    nested = payload / "node_modules" / "latest"
+    nested.parent.mkdir()
+    nested.symlink_to("elsewhere")
+    before = {entry.name: entry.readlink() for entry in root.iterdir() if entry.is_symlink()}
+
+    assert observer.provision_all(home=home) == 0
+
+    provision = capsys.readouterr().out
+    assert str(latest) in provision
+    assert str(retired) in provision
+    assert str(root / "absolute") not in provision
+    assert str(nested) not in provision
+    monkeypatch.setattr(observer.time, "sleep", lambda _: None)
+    observer.run_all_loop(home=home, iterations=1, poll=0.0)
+    status_path = observer.status_file(
+        state_path=observer.reconciler.state_file(
+            marketplace="openai-bundled", plugin="browser", codex_home_override=home
+        )
+    )
+    status = read_status(path=status_path)
+    assert status is not None
+    assert str(latest) in status["notices"]
+    assert str(retired) in status["notices"]
+    assert {
+        entry.name: entry.readlink() for entry in root.iterdir() if entry.is_symlink()
+    } == before
 
 
 def test_reconcile_all_names_a_broken_plugin_and_continues_with_siblings(
