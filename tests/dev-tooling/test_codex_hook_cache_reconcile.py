@@ -14,6 +14,7 @@ import os
 from collections.abc import Iterator
 from pathlib import Path
 
+import _codex_hook_cache_coverage as coverage
 import codex_hook_cache_all
 import pytest
 from _codex_hook_cache_aliases import alias_status, link, load_state, save_state
@@ -728,3 +729,66 @@ def test_a_plugin_without_versioned_entrypoints_still_has_its_hook_trust_restore
 
     assert report.ok
     assert "plugin@market:hooks/hooks.json:pre_tool_use:0:0" in config.read_text(encoding="utf-8")
+
+
+def _write_local_marketplace_config(*, home: Path, name: str, source: str) -> None:
+    """Register one local marketplace whose `source` is written verbatim."""
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "config.toml").write_text(
+        f'[marketplaces.{name}]\nsource_type = "local"\nsource = "{source}"\n', encoding="utf-8"
+    )
+
+
+@pytest.mark.parametrize(
+    "kind", ["tilde-bundled", "tilde-runtime", "symlink-bundled", "symlink-runtime"]
+)
+def test_curated_sources_given_by_tilde_or_symlink_are_excluded_by_resolved_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    """Classification uses the resolved source, so `~` and links into Codex dirs are curated."""
+    home = tmp_path / ".codex"
+    bundled = home / ".tmp" / "bundled-marketplaces" / "openai-bundled"
+    runtime = tmp_path / ".cache" / "codex-runtimes" / "primary" / "plugins" / "runtime"
+    bundled.mkdir(parents=True)
+    runtime.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    link_path = tmp_path / "elsewhere" / "linked-source"
+    link_path.parent.mkdir()
+    sources = {
+        "tilde-bundled": "~/.codex/.tmp/bundled-marketplaces/openai-bundled",
+        "tilde-runtime": "~/.cache/codex-runtimes/primary/plugins/runtime",
+        "symlink-bundled": str(link_path),
+        "symlink-runtime": str(link_path),
+    }
+    if kind == "symlink-bundled":
+        link_path.symlink_to(bundled)
+    elif kind == "symlink-runtime":
+        link_path.symlink_to(runtime)
+    _write_local_marketplace_config(home=home, name="app-curated", source=sources[kind])
+    plugin_root = home / "plugins" / "cache" / "app-curated" / "browser"
+    _write_manifest_only_payload(root=plugin_root, version="1.0.0")
+    before = sorted(str(entry) for entry in plugin_root.rglob("*"))
+
+    assert coverage.configured_marketplaces(home=home) == ()
+    assert coverage.covered_plugin_roots(home=home) == ()
+    assert codex_hook_cache_all.reconcile_all(home=home) == ()
+    assert sorted(str(entry) for entry in plugin_root.rglob("*")) == before
+
+
+def test_symlink_inside_curated_directory_resolving_outside_is_still_covered(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A source that merely sits under a curated path but resolves elsewhere stays covered."""
+    home = tmp_path / ".codex"
+    curated = home / ".tmp" / "bundled-marketplaces"
+    curated.mkdir(parents=True)
+    outside = tmp_path / "outside-source"
+    outside.mkdir()
+    (curated / "disguised").symlink_to(outside)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _write_local_marketplace_config(home=home, name="disguised", source=str(curated / "disguised"))
+    plugin_root = home / "plugins" / "cache" / "disguised" / "browser"
+    _write_manifest_only_payload(root=plugin_root, version="1.0.0")
+
+    assert coverage.configured_marketplaces(home=home) == ("disguised",)
+    assert coverage.covered_plugin_roots(home=home) == (("disguised", "browser", plugin_root),)
