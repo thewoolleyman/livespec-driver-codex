@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.1...v0.12.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* exclude Codex-curated plugin caches ([210a43a](https://github.com/thewoolleyman/livespec-driver-codex/commit/210a43aebcac18a62fac508c08476c248fc3a0cc))
+* report retained Codex cache aliases ([32b2f47](https://github.com/thewoolleyman/livespec-driver-codex/commit/32b2f4727445d0ecc19f4dbb507008f20477e10b))
+
 ## [0.12.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.0...v0.12.1) (2026-11-04)
 
 
