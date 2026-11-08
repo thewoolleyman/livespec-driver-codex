@@ -331,8 +331,8 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not",
     "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-v52m6a (an already-open session keeps running a covered plugin's hooks, with its PreToolUse guard denying again, after a content-only change and release-tag-verified re-trust)",
-    "work_item": "livespec-driver-codex-v52m6a"
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-b5rhjf (a session started after a content-only change and release-tag-verified re-trust runs a covered plugin's hooks and its PreToolUse guard denies, while the already-open session reports each hook it cannot run as a visible hook failure; the test MUST capture the open session's visible output, because Codex does not write the hook-failure text to the rollout file; the heading is renamed to match the body when this test lands)",
+    "work_item": "livespec-driver-codex-b5rhjf"
   },
   {
     "spec_root": "SPECIFICATION",
