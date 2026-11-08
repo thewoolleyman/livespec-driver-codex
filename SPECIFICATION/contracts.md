@@ -455,6 +455,24 @@ covered plugin's guards silently off until a human notices. The
 reconciler MUST NOT claim hook continuity for a covered plugin while
 either half is missing.
 
+Where Codex re-verifies a plugin's installed content before every hook
+run, as codex-cli 0.166.0 does, re-established trust reaches only the
+Codex sessions that start after it. In a session already open when a
+covered plugin's installed content changes, that verification keeps
+failing after trust is re-established, so that session cannot run the
+plugin's hooks again. This was observed with a correct new trust record
+and byte-identical hook definitions and entrypoints, and restoring the
+original bytes at the superseded version's path was observed not to
+restore them. A version bump alone changes the installed content,
+because it changes the plugin manifest. The Driver MUST NOT claim hook
+continuity for an already-open session. Its obligation to such a
+session is that the failure stays visible: the Driver MUST NOT disable,
+remove, or bypass a hook, or otherwise act, to suppress the hook
+failure Codex reports in that session. A host that satisfies (a) above
+for every covered plugin still leaves each already-open session running
+tools without that plugin's PreToolUse guards, visibly, until the
+session is restarted.
+
 The observer MUST detect, for every covered plugin, both lost Codex
 trust and cache content rewritten at an unchanged version, not only
 version changes and Codex-native auto-upgrades, and MUST run the

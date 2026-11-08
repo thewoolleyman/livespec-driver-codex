@@ -93,8 +93,8 @@ locally, in pre-push, and in CI.
   rather than reported healthy, and, where Codex exposes a setting that
   refuses tool execution while a configured hook is untrusted, a host on
   which that setting is not enabled reported. The real transition test
-  MUST also verify that Codex treats each retained hook as trusted after
-  reconciliation.
+  MUST also verify that a Codex session started after reconciliation
+  treats each retained hook as trusted.
   The mock-cache integration test MUST also cover the Codex-curated
   exclusion: a plugin whose marketplace's local source resolves inside
   the Codex bundled-marketplace directory or the Codex runtime cache,
@@ -225,8 +225,8 @@ with no trust state written, a covered plugin with installed but
 untrusted hooks reported rather than reported healthy, and, where Codex
 exposes a setting that refuses tool execution while a configured hook is
 untrusted, a host on which that setting is not enabled reported. The
-real transition test MUST also verify that Codex treats each retained
-hook as trusted after reconciliation.
+real transition test MUST also verify that a Codex session started after
+reconciliation treats each retained hook as trusted.
 The mock-cache integration test MUST also cover the Codex-curated
 exclusion: a plugin whose marketplace's local source resolves inside the
 Codex bundled-marketplace directory or the Codex runtime cache,

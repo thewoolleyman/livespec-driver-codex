@@ -193,7 +193,8 @@ And the Driver's hook definitions and hook entrypoints match its release tag for
 When explicit provisioning or the persistent observer completes reconciliation
 Then every declared retained hook path resolves through latest to the validated current payload
 And Codex trusts the Driver's hooks, and any trust the Driver re-established was established only after that verification
-And the session's Stop hooks execute successfully
+And a Codex session started after that reconciliation runs the Driver's Stop hooks successfully
+And each Driver hook that the active session cannot run is reported in that session as a visible hook failure, not skipped silently
 ```
 
 ## Scenario: long-running hooks survive a cache update of any covered plugin
@@ -206,7 +207,8 @@ And that plugin's hook definitions and hook entrypoints match its release tag fo
 When the persistent observer completes reconciliation
 Then every retained hook path of that plugin resolves through latest to its validated current payload
 And Codex trusts that plugin's hooks, and any trust the Driver re-established was established only after that verification
-And the session's next turn ends with no hook failure
+And a Codex session started after that reconciliation runs that plugin's hooks with no hook failure
+And each of that plugin's hooks that the active session cannot run is reported in that session as a visible hook failure, not skipped silently
 ```
 
 ## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not
@@ -219,8 +221,9 @@ And Codex withdraws its trust in that plugin's hooks
 When explicit provisioning or the persistent observer completes reconciliation
 Then each retained hook path of that plugin resolves through latest to the validated current payload
 And Codex trusts that plugin's hooks again, re-established only after the hook definitions and entrypoints were verified against the plugin's release tag
-And the already-open session's next turn runs those hooks with no hook failure and no trust prompt
-And where that plugin ships a PreToolUse safety guard, that guard denies a forbidden command in that session again rather than failing open
+And a Codex session started after that reconciliation runs those hooks with no hook failure and no trust prompt
+And where that plugin ships a PreToolUse safety guard, that guard denies a forbidden command in the session started after that reconciliation
+And each of those hooks that the already-open session cannot run is reported in that session as a visible hook failure, not skipped silently
 And Codex's hook-trust bypass was not used and no hook was disabled
 ```
 

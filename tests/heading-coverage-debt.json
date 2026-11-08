@@ -52,7 +52,7 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not",
-    "work_item": "livespec-driver-codex-v52m6a",
+    "work_item": "livespec-driver-codex-b5rhjf",
     "first_seen": "2026-11-03"
   },
   {
