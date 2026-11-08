@@ -1,7 +1,7 @@
 ---
 topic: open-session-hook-failure-visible
 author: claude:codex-plugin-hook-path-regression
-created_at: 2026-11-08T01:56:37Z
+created_at: 2026-11-08T01:58:34Z
 ---
 
 ## Proposal: An already-open session's hook failures after a covered plugin's content change are visible, and a new session runs every hook
@@ -14,7 +14,7 @@ created_at: 2026-11-08T01:56:37Z
 
 ### Summary
 
-Revise the ratified scenario that says an already-open Codex session keeps running a covered plugin's hooks after the plugin's installed content changes but its hooks do not. A live measurement showed it is false on current Codex. The new rule: a session started after reconciliation runs every hook, and its PreToolUse guard denies, while each hook that an already-open session cannot run is reported in that session as a visible hook failure rather than skipped silently. The same proposal corrects the two 'long-running hooks survive' scenarios, which make the same claim for the active session, and renames them 'retained hook paths survive'; every renamed heading is co-edited in both tests/heading-coverage.json and tests/heading-coverage-debt.json. It adds a contract paragraph stating that re-established trust reaches only sessions started after it, and that the Driver MUST NOT suppress an open session's hook failure. It also clarifies the real transition test's trust check, which appears twice, so no unamended statement contradicts the change.
+Revise the ratified scenario that says an already-open Codex session keeps running a covered plugin's hooks after the plugin's installed content changes but its hooks do not. A live measurement showed it is false on current Codex. The new rule: a session started after reconciliation runs every hook, and its PreToolUse guard denies, while each hook that an already-open session cannot run is reported in that session as a visible hook failure rather than skipped silently. The same proposal corrects the two 'long-running hooks survive' scenarios, which make the same claim for the active session. No heading is renamed, because the heading-coverage debt ratchet refuses renaming a heading that carries debt; the misnamed heading is renamed when its integration test lands. It adds a contract paragraph stating that re-established trust reaches only sessions started after it, and that the Driver MUST NOT suppress an open session's hook failure. It also clarifies the real transition test's trust check, which appears twice, so no unamended statement contradicts the change.
 
 ### Motivation
 
@@ -24,7 +24,7 @@ The measurement is leg A of that plan, recorded in the livespec repo at plan/cod
 
 Codex's source at rust-v0.166.0 (codex-rs/hooks/src/engine/plugin_trust.rs) re-hashes the plugin root on every hook execution and compares it with the hash on the handler. It is unchanged at rust-v0.167.0 and on main as read on 2026-11-07. Between the 0.12.1 and 0.12.2 payloads, only .codex-plugin/plugin.json differs, so every Driver release does this to every open session. No Driver change can meet the old wording, and an upstream fix has no ETA.
 
-The fail-open itself is tracked as livespec-driver-codex-sjwyha and is not changed by this proposal. Fleet scope: a sweep of every clone under /data/projects on its default branch found this scenario's wording only in livespec-driver-codex. No other Codex Driver consumer carries it. Downstream, after ratification, by owner edit: the host-captured bullet of livespec-driver-codex-b5rhjf is restated, and the References lines of b5rhjf and livespec-driver-codex-sjwyha and b5rhjf's governing-heading metadata are repointed from the old heading to the new one.
+The fail-open itself is tracked as livespec-driver-codex-sjwyha and is not changed by this proposal. Fleet scope: a sweep of every clone under /data/projects on its default branch found this scenario's wording only in livespec-driver-codex. No other Codex Driver consumer carries it. Downstream, after ratification, by owner edit: the host-captured bullet of livespec-driver-codex-b5rhjf, which still requires the already-open session to run its hooks with its guard blocking, is restated to the new rule. The References lines of b5rhjf and livespec-driver-codex-sjwyha and b5rhjf's governing-heading metadata name the unchanged heading and need no edit until the follow-up rename.
 
 ### Proposed Changes
 
@@ -52,7 +52,7 @@ And Codex's hook-trust bypass was not used and no hook was disabled
 with:
 
 ```markdown
-## Scenario: after a covered plugin's installed content changes but its hooks do not, a new session runs its hooks and an already-open session reports their failure
+## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not
 
 ```gherkin
 Given an already-open Codex session captured hook commands of a covered plugin
@@ -69,26 +69,16 @@ And Codex's hook-trust bypass was not used and no hook was disabled
 ```
 ```
 
-The heading changes, because the old one states the behaviour that was measured false. The revise MUST co-edit both heading-keyed manifests in the same commit:
+The heading does NOT change, although it still names the behaviour that was measured false. This repository's heading-coverage debt ratchet (`check-heading-coverage-debt-register`, ratified: "renaming cannot reset debt") refuses a rename of a heading that carries a registered `TODO`, and this heading does. The heading MUST be renamed to match its body in the same change that replaces its `TODO` coverage row with a real integration-tier test, which retires the debt. A follow-up work item in livespec-driver-codex carries that rename and is filed at ratification.
 
-- `tests/heading-coverage.json`: update that entry's `heading` field to the new heading, keep `test` as `TODO`, set `work_item` to `livespec-driver-codex-b5rhjf`, and replace its `reason` with one naming the integration tier, for example: "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-b5rhjf (a session started after a content-only change and release-tag-verified re-trust runs a covered plugin's hooks and its PreToolUse guard denies, while the already-open session reports each hook it cannot run as a visible hook failure; the test MUST capture the open session's visible output, because Codex does not write the hook-failure text to the rollout file)". The `reason` MUST NOT cite livespec-driver-codex-v52m6a, which was regroomed into livespec-driver-codex-b5rhjf.
-- `tests/heading-coverage-debt.json`: update the matching entry's `heading` field to the new heading, set its `work_item` to `livespec-driver-codex-b5rhjf`, and keep its `first_seen` at `2026-11-03`. Keeping the date preserves the debt's age, because this is a rename of existing debt, not new debt.
+The revise MUST co-edit, in the same commit:
+
+- `tests/heading-coverage.json`: in this heading's entry, keep `heading` and `test` (`TODO`), set `work_item` to `livespec-driver-codex-b5rhjf`, and replace `reason` with one naming the integration tier, for example: "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-b5rhjf (a session started after a content-only change and release-tag-verified re-trust runs a covered plugin's hooks and its PreToolUse guard denies, while the already-open session reports each hook it cannot run as a visible hook failure; the test MUST capture the open session's visible output, because Codex does not write the hook-failure text to the rollout file; the heading is renamed to match the body when this test lands)". The `reason` MUST NOT cite livespec-driver-codex-v52m6a, which was regroomed into livespec-driver-codex-b5rhjf.
+- `tests/heading-coverage-debt.json`: in this heading's entry, set `work_item` to `livespec-driver-codex-b5rhjf`, and keep `heading` and `first_seen` unchanged.
 
 ### Amendment 2 — the Driver cache-update scenario (drift sweep)
 
-In `SPECIFICATION/scenarios.md`, replace this exact heading line:
-
-```text
-## Scenario: long-running hooks survive a Driver cache update
-```
-
-with:
-
-```text
-## Scenario: retained hook paths survive a Driver cache update
-```
-
-and, in that scenario, replace this exact line:
+In `SPECIFICATION/scenarios.md`, in `## Scenario: long-running hooks survive a Driver cache update`, replace this exact line:
 
 ```text
 And the session's Stop hooks execute successfully
@@ -103,19 +93,7 @@ And each Driver hook that the active session cannot run is reported in that sess
 
 ### Amendment 3 — the any-covered-plugin cache-update scenario (drift sweep)
 
-In `SPECIFICATION/scenarios.md`, replace this exact heading line:
-
-```text
-## Scenario: long-running hooks survive a cache update of any covered plugin
-```
-
-with:
-
-```text
-## Scenario: retained hook paths survive a cache update of any covered plugin
-```
-
-and, in that scenario, replace this exact line:
+In `SPECIFICATION/scenarios.md`, in `## Scenario: long-running hooks survive a cache update of any covered plugin`, replace this exact line:
 
 ```text
 And the session's next turn ends with no hook failure
@@ -128,7 +106,7 @@ And a Codex session started after that reconciliation runs that plugin's hooks w
 And each of that plugin's hooks that the active session cannot run is reported in that session as a visible hook failure, not skipped silently
 ```
 
-Both headings change from "long-running hooks survive" to "retained hook paths survive", because what still holds after an upgrade is path continuity, not an active session's hooks. The revise MUST co-edit, in the same commit, the `heading` field of each scenario's entry in `tests/heading-coverage.json`, and of the any-covered-plugin scenario's entry in `tests/heading-coverage-debt.json`, which keeps its `work_item` and `first_seen`. The Driver cache-update scenario has no debt-register entry, because it maps to a real test. Its `test` value does not change.
+Neither heading changes. In each, "survive" is carried by the path-continuity line ("every ... retained hook path ... resolves through latest to ... validated current payload"), which still holds. Neither amendment adds, renames or removes a `## ` heading, so neither touches a coverage manifest.
 
 ### Amendment 4 — the open-session limit of trust continuity
 
