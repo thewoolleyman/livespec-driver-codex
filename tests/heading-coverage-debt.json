@@ -106,6 +106,13 @@
   },
   {
     "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: the hook coverage gate combines under any pytest coverage spelling",
+    "work_item": "livespec-driver-codex-toclbe",
+    "first_seen": "2026-11-09"
+  },
+  {
+    "spec_root": "SPECIFICATION",
     "spec_file": "spec.md",
     "heading": "## Lifecycle and evolution",
     "work_item": "livespec-driver-codex-cea",

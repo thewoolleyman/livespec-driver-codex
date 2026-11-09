@@ -61,6 +61,15 @@ locally, in pre-push, and in CI.
   and marketplace", §"Skill-binding set", §"Core-root resolution",
   §"Fenced-invocation discipline", and §"Hook bundle".
 - **`check-hooks`** — unit-tests the plugin-shipped footgun guard.
+- **`check-coverage`** — holds the plugin-shipped hook code under
+  `livespec/hooks/` to 100% line and branch coverage, measured by
+  `tests/hooks/`. The coverage configuration in `pyproject.toml` MUST
+  govern every pytest coverage run in this repository, whether or not
+  the run names that configuration, so that a run's branch data and the
+  data its test subprocesses record always combine. A run that is given
+  `--cov` without `--cov-config` MUST end with pytest's own exit status
+  and a coverage report, never with a failure to combine statement data
+  with branch data.
 - **`check-e2e-cli`** — drives the CLI end-to-end harness (mock tier).
 - **`check-codex-skill-picker`** — drives the live Codex TUI `/skills`
   picker on authenticated local Codex hosts. It opens `/skills`, chooses
