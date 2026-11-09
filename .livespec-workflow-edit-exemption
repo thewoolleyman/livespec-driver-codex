@@ -1,2 +1,15 @@
-work_item=livespec-driver-codex-wrk6cn
-reason=Add the aggregate slugs no CI job runs (check-spec-governance-default-block) to the ci.yml metadata batch and declare check-no-workflow-edits skip-only, for the livespec-dev-tooling v1.136.2 pin bump; maintainer-delegated authority 2026-10-27 23:07Z.
+# Workflow-edit exemption — one exemption binds to one reviewed change.
+#
+# The change: .github/workflows/ci.yml gains one step per pytest-running job
+# (check-coverage, the suite producer here), each placed after the job's pytest step with if: ${{ !cancelled() }}
+# and calling thewoolleyman/livespec-dev-tooling/.github/actions/publish-flake-retries@v1.189.0.
+# ADDITIVE ONLY: no workflow line is deleted or modified and no job is added.
+# The step uploads tmp/flake-retries/ when the livespec_flake_retry plugin
+# re-ran a test, and ships nothing otherwise (if-no-files-found: ignore).
+# Rest-of-fleet consumer leg of livespec-dev-tooling-ljea46 under plan
+# fleet-flaky-tests; the same step is proven in livespec, livespec-overseer and
+# livespec-orchestrator-beads-fabro.
+work_item=livespec-driver-codex-lkw5kl
+reason=Deliver each CI job's flake-retry records to the dev-host reader so every retried test files one root-fix item; the shared action owns the artifact contract.
+change=additive
+ci_runtime=no-significant-increase
