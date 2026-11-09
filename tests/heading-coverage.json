@@ -352,6 +352,14 @@
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
+    "heading": "## Scenario: the hook coverage gate combines under any pytest coverage spelling",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-toclbe",
+    "reason": "A real test at the integration tier is owed for this heading: a test that runs `pytest --cov` with no `--cov-config` over a throwaway project carrying this repository's real pytest and coverage configuration, with a test that starts a subprocess outside it, and asserts pytest's own exit status and a coverage report. livespec-driver-codex-toclbe owns it."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
     "heading": "## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards",
     "test": "TODO",
     "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",

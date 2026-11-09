@@ -255,6 +255,20 @@ And the push MUST complete only on a passing verdict from the executor
 
 And the push MUST be refused when the executor returns no verdict
 
+## Scenario: the hook coverage gate combines under any pytest coverage spelling
+
+Given pyproject.toml configures branch coverage for `livespec/hooks/`
+
+And a hook test starts a Python subprocess whose working directory has no pyproject.toml in view
+
+When pytest runs `tests/hooks/` with `--cov` and no `--cov-config` argument
+
+Then the run MUST end with pytest's own exit status
+
+And it MUST print a coverage report
+
+And it MUST NOT fail combining statement coverage data with branch data
+
 ## Scenario: on macOS ensure-codex-plugins reports an observer not running under the installed LaunchAgent
 
 ```gherkin
