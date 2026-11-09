@@ -57,8 +57,12 @@ def test_codex_stop_hash_omits_an_empty_matcher_and_driver_content_hash_is_stabl
         "sha256:dd9cca0d4acfc13247d1f9c7fae4bd5172b70ad70552c0dbff97744c9874dd14"
     )
 
+    # Read Driver 0.10.0 by its commit id, not its tag name. A gate Job clone
+    # fetches master's full history but no tags, so the tag name is absent
+    # there while this commit, which is on master's history, is present.
+    driver_0_10_0_commit = "a5c41ee836116237aacbda7479aafd0b2c830a01"
     archive = subprocess.run(
-        ["git", "archive", "v0.10.0", "livespec"], capture_output=True, check=True
+        ["git", "archive", driver_0_10_0_commit, "livespec"], capture_output=True, check=True
     )
     archive_path = tmp_path / "driver.tar"
     archive_path.write_bytes(archive.stdout)
