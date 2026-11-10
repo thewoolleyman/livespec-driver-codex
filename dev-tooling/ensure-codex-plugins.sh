@@ -34,7 +34,10 @@ Darwin)
         echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
         exit 1
     fi
-    launchd_pid="$(printf '%s\n' "$launchd_status" | sed -nE 's/^[[:space:]]*pid = ([0-9]+)$/\1/p' | head -n 1)"
+    # `sed` reads the whole status from a here-string (no pipe, no early-exiting
+    # reader under pipefail); the first pid line is then taken by expansion.
+    launchd_pids="$(sed -nE 's/^[[:space:]]*pid = ([0-9]+)$/\1/p' <<<"$launchd_status")"
+    launchd_pid="${launchd_pids%%$'\n'*}"
     if [[ -z "$launchd_pid" ]]; then
         echo "Codex hook-cache observer is not running under the installed LaunchAgent: $label" >&2
         exit 1
