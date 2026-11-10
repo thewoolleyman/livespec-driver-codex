@@ -353,9 +353,8 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: the hook coverage gate combines under any pytest coverage spelling",
-    "test": "TODO",
-    "work_item": "livespec-driver-codex-toclbe",
-    "reason": "A real test at the integration tier is owed for this heading: a test that runs `pytest --cov` with no `--cov-config` over a throwaway project carrying this repository's real pytest and coverage configuration, with a test that starts a subprocess outside it, and asserts pytest's own exit status and a coverage report. livespec-driver-codex-toclbe owns it."
+    "test": "tests.integration.test_hook_coverage_spelling.test_bare_cov_run_combines_and_reports_coverage",
+    "reason": "Integration-tier witness: a throwaway project carrying this repository's real pytest and coverage tables runs `pytest --cov` with no `--cov-config` over a hook test that starts a subprocess outside the project, and asserts pytest's own exit status, a coverage report, and no failure combining statement data with branch data."
   },
   {
     "spec_root": "SPECIFICATION",
