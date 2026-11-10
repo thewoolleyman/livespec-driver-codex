@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.3...v0.12.4) (2026-11-10)
+
+
+### Bug Fixes
+
+* read the launchd pid without an early-exiting reader under pipefail ([83aab4c](https://github.com/thewoolleyman/livespec-driver-codex/commit/83aab4c95c0b59692c52b1f61b773736082ffa2e))
+
 ## [0.12.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.2...v0.12.3) (2026-11-10)
 
 
