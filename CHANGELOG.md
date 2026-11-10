@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.3](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.2...v0.12.3) (2026-11-10)
+
+
+### Bug Fixes
+
+* **tests:** witness that a bare --cov run combines branch and statement data ([8e1c2e1](https://github.com/thewoolleyman/livespec-driver-codex/commit/8e1c2e104c3ece1789bf59a528dc2b6b46896faa))
+
 ## [0.12.2](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.1...v0.12.2) (2026-11-07)
 
 
