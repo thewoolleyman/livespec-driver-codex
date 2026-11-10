@@ -578,3 +578,43 @@ def test_a_same_version_file_rewrite_changes_the_all_plugin_fingerprint(
     os.utime(payload, ns=(payload.stat().st_atime_ns, payload.stat().st_mtime_ns))
 
     assert observer._all_fingerprint(root=cache, config_path=config) != before
+
+
+def test_macos_provisioner_reads_the_launchd_pid_from_status_larger_than_a_pipe_buffer(
+    tmp_path: Path,
+) -> None:
+    """The pid read gives the same verdict on a status larger than a 64 KiB pipe buffer.
+
+    A reader that exits after the first match closes its pipe while the writer is
+    still producing, and under `pipefail` the writer's SIGPIPE fails the read.
+    """
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    calls = tmp_path / "calls"
+    scripts = {
+        "codex": "#!/bin/sh\nexit 0\n",
+        "uname": "#!/bin/sh\necho Darwin\n",
+        "launchctl": (
+            "#!/bin/sh\n"
+            "printf 'state = running\\n'\n"
+            "i=0\n"
+            "while [ \"$i\" -lt 20000 ]; do printf '\\tpid = 4242\\n'; i=$((i + 1)); done\n"
+        ),
+        "python3": '#!/bin/sh\nprintf "%s\\n" "python3 $*" >> "$CALLS"\nexit 0\n',
+    }
+    for name, body in scripts.items():
+        command = commands / name
+        command.write_text(body, encoding="utf-8")
+        command.chmod(0o755)
+
+    result = subprocess.run(
+        ["/usr/bin/bash", str(REPO_ROOT / "dev-tooling" / "ensure-codex-plugins.sh")],
+        capture_output=True,
+        check=False,
+        env={**os.environ, "CALLS": str(calls), "PATH": f"{commands}:{os.environ['PATH']}"},
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    recorded = calls.read_text(encoding="utf-8")
+    assert "codex_hook_cache_observe.py provision --all --expected-pid 4242" in recorded
