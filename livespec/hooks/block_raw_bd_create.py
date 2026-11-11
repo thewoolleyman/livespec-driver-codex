@@ -215,10 +215,7 @@ def _decision_result(*, raw: str) -> Result[str | None, Exception]:
 
 def evaluate(*, raw: str) -> str | None:
     """Return this fail-open guard's decision for the shared dispatcher."""
-    try:
-        return _decision_result(raw=raw).value_or(default=None)
-    except Exception:  # noqa: BLE001 — this guard's declared boundary is fail-open
-        return None
+    return _decision_result(raw=raw).value_or(default=None)
 
 
 def main() -> int:

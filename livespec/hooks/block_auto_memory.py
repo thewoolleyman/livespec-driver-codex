@@ -39,7 +39,6 @@ import json
 import os
 import re
 import sys
-from io import StringIO
 from pathlib import Path
 
 from _memory_shell_writes import command_writes_memory, is_memory_path
@@ -236,8 +235,7 @@ def _deny_payload(*, namespace: str) -> str:
     )
 
 
-def _payload_from_stdin() -> Result[dict[str, object] | None, Exception]:
-    raw = sys.stdin.read()
+def _payload_from_raw(*, raw: str) -> Result[dict[str, object] | None, Exception]:
     if not raw.strip():
         return Success(None)
     try:
@@ -249,8 +247,8 @@ def _payload_from_stdin() -> Result[dict[str, object] | None, Exception]:
     return Success(parsed)
 
 
-def _decision() -> IOResult[str | None, Exception]:
-    payload_result = _payload_from_stdin()
+def _decision(*, raw: str | None = None) -> IOResult[str | None, Exception]:
+    payload_result = _payload_from_raw(raw=sys.stdin.read() if raw is None else raw)
     if isinstance(payload_result, Failure):
         return IOFailure(payload_result.failure())
     payload = payload_result.unwrap()
@@ -271,15 +269,10 @@ def _decision() -> IOResult[str | None, Exception]:
 
 def evaluate(*, raw: str) -> str | None:
     """Return this fail-open guard's decision for the shared dispatcher."""
-    original_stdin = sys.stdin
-    try:
-        sys.stdin = StringIO(raw)
-        decision = _decision()
-        return None if isinstance(decision, IOFailure) else decision.unwrap()
-    except Exception:  # noqa: BLE001 — this guard's declared boundary is fail-open
+    decision = _decision(raw=raw)
+    if isinstance(decision, IOFailure):
         return None
-    finally:
-        sys.stdin = original_stdin
+    return decision.unwrap()
 
 
 def main() -> int:

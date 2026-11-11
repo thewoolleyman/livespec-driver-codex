@@ -242,44 +242,42 @@ def _decision(*, raw: str) -> IOResult[str | None, Exception]:
     return IOSuccess(None)
 
 
-def _fail_closed_on_hazard_hint(*, raw: str) -> int:
-    """Deny a payload the guard could not parse when it CARRIES a tmux hazard.
+def _fail_closed_payload(*, raw: str) -> str | None:
+    """Return the deny payload when an unparsable input carries a tmux hazard.
 
     The guard fails OPEN in general — a guard bug must never block legitimate
     work. tmux fleet kills are the one exception: a malformed payload whose text
     still mentions `kill-server`/`pkill`/`killall` is exactly the shape an
     evasion takes, and allowing it costs every live agent session on the host.
     """
-    if _TMUX_HAZARD_HINT.search(raw):
-        _ = sys.stdout.write(_deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200]) + "\n")
+    if not _TMUX_HAZARD_HINT.search(raw):
+        return None
+    return _deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200])
+
+
+def _fail_closed_on_hazard_hint(*, raw: str) -> int:
+    """Emit the hazard denial for the standalone hook boundary, if needed."""
+    payload = _fail_closed_payload(raw=raw)
+    if payload is not None:
+        _ = sys.stdout.write(payload + "\n")
     return 0
 
 
 def evaluate(*, raw: str) -> str | None:
     """Return this guard's decision while preserving its standalone posture."""
-    try:
-        decision = _decision(raw=raw)
-        if isinstance(decision, IOFailure):
-            _ = decision.failure()
-            return (
-                _deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200])
-                if _TMUX_HAZARD_HINT.search(raw)
-                else None
-            )
-        return decision.unwrap()
-    except Exception:  # noqa: BLE001 — standalone posture is fail-open except tmux hazards
-        return (
-            _deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200])
-            if _TMUX_HAZARD_HINT.search(raw)
-            else None
-        )
+    decision = _decision(raw=raw)
+    return decision.value_or(default=None)
 
 
 def main() -> int:
     raw = ""
     try:
         raw = sys.stdin.read()
-        payload = evaluate(raw=raw)
+        decision = _decision(raw=raw)
+        if isinstance(decision, IOFailure):
+            _ = decision.failure()
+            return _fail_closed_on_hazard_hint(raw=raw)
+        payload = decision.unwrap()
         if payload is not None:
             _ = sys.stdout.write(payload + "\n")
         return 0
