@@ -28,6 +28,15 @@ owned upstream:
 - **Toolchain pinning** via `mise`; **`uv`** as the Python toolchain
   manager. Git operations that must fire lefthook are run through
   `mise exec -- git …`; `--no-verify` is never used.
+- Hold-label disarm: because this repository carries
+  `.github/workflows/auto-enable-merge.yml`, it MUST also carry
+  `.github/workflows/disarm-on-hold-label.yml`, identical to livespec's root
+  copy except that the App-token input key matches this repository's
+  `auto-enable-merge.yml`, which turns a pull request's auto-merge off when
+  the `do-not-merge` label is added to it. The behaviour, and the rule that
+  every fleet member carrying `auto-enable-merge.yml` carries it, are
+  livespec's `non-functional-requirements.md` §"Shared content sync — copier
+  template" and are not restated here.
 
 ## Task-runner discipline
 
