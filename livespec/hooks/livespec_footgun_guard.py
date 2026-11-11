@@ -255,15 +255,31 @@ def _fail_closed_on_hazard_hint(*, raw: str) -> int:
     return 0
 
 
+def evaluate(*, raw: str) -> str | None:
+    """Return this guard's decision while preserving its standalone posture."""
+    try:
+        decision = _decision(raw=raw)
+        if isinstance(decision, IOFailure):
+            _ = decision.failure()
+            return (
+                _deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200])
+                if _TMUX_HAZARD_HINT.search(raw)
+                else None
+            )
+        return decision.unwrap()
+    except Exception:  # noqa: BLE001 — standalone posture is fail-open except tmux hazards
+        return (
+            _deny_payload(reason=TMUX_PARSE_REASON, command=raw[:200])
+            if _TMUX_HAZARD_HINT.search(raw)
+            else None
+        )
+
+
 def main() -> int:
     raw = ""
     try:
         raw = sys.stdin.read()
-        decision = _decision(raw=raw)
-        if isinstance(decision, IOFailure):
-            _ = decision.failure()
-            return _fail_closed_on_hazard_hint(raw=raw)
-        payload = decision.unwrap()
+        payload = evaluate(raw=raw)
         if payload is not None:
             _ = sys.stdout.write(payload + "\n")
         return 0
