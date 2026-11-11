@@ -1,0 +1,464 @@
+# scenarios.md — livespec-driver-codex
+
+Gherkin scenarios for each Driver-owned contract path in `contracts.md`.
+These are the worked examples the structural gate, the hook bundle, and
+the resolution algorithm are checked against.
+
+## Scenario: installed Driver exposes the eight livespec:* commands
+
+```gherkin
+Given a project that enables livespec core and the livespec-driver-codex plugin
+When the Codex runtime loads the Driver plugin
+Then the eight skills livespec:seed, livespec:propose-change,
+  livespec:critique, livespec:revise, livespec:doctor,
+  livespec:prune-history, livespec:next, and livespec:help are available
+And they are invoked by name under the plugin name "livespec"
+```
+
+## Scenario: /skills picker exposes plugin skills by short name
+
+```gherkin
+Given the livespec Driver and livespec-orchestrator-beads-fabro plugins are installed
+And the operator opens the Codex TUI
+When the operator opens "/skills"
+And chooses "List skills"
+And searches for "drive"
+Then the picker renders "drive (livespec-orchestrator-beads-fabro)"
+And the rendered row is typed as a Skill
+And the operator does not need to search for the colon-qualified
+  "livespec-orchestrator-beads-fabro:drive" form
+```
+
+## Scenario: core-root resolution via operator override
+
+```gherkin
+Given the environment variable LIVESPEC_CORE_PLUGIN_ROOT is set to a core checkout
+When a binding resolves <core-root>
+Then it uses the override path
+And it does not consult the governed-project or installed-cache fallbacks
+```
+
+## Scenario: core-root resolution falls back to the governed-project checkout
+
+```gherkin
+Given LIVESPEC_CORE_PLUGIN_ROOT is unset
+And the governed project IS the livespec core repo loaded with --plugin-dir .
+When a binding resolves <core-root>
+Then it uses <project-root>/.claude-plugin/
+```
+
+## Scenario: core-root resolution falls back to the installed cache
+
+```gherkin
+Given LIVESPEC_CORE_PLUGIN_ROOT is unset
+And the governed project is not the livespec core repo
+When a binding resolves <core-root>
+Then it reads the installed livespec@livespec plugin's source.path
+  from "codex plugin list --json -m livespec"
+```
+
+## Scenario: structural check rejects a SKILL.md invoking uv run
+
+```gherkin
+Given a SKILL.md whose fenced wrapper invocation uses "uv run"
+When check_plugin_structure runs
+Then it exits non-zero
+And it emits a violation naming the file and line
+```
+
+## Scenario: structural check rejects the Driver's own plugin-root placeholder for core scripts
+
+```gherkin
+Given a SKILL.md whose fenced wrapper invocation resolves a bin/<name>.py
+  through the Driver's own plugin-root placeholder
+When check_plugin_structure runs
+Then it exits non-zero
+And it reports that the placeholder resolves to the Driver root, which has no scripts/
+```
+
+## Scenario: structural check rejects an extra or missing skill directory
+
+```gherkin
+Given the skills/ directory is missing one of the eight bindings, or carries an extra directory
+When check_plugin_structure runs
+Then it exits non-zero
+And it names the missing or unexpected skill directory
+```
+
+## Scenario: structural check rejects a binding body carrying a Claude marker
+
+```gherkin
+Given a SKILL.md body that uses the "/livespec:" slash form, references
+  installed_plugins.json, or names livespec-driver-claude
+When check_plugin_structure runs
+Then it exits non-zero
+And it reports the Claude-runtime marker the Codex binding must not carry
+```
+
+## Scenario: marketplace description drift is rejected
+
+```gherkin
+Given marketplace.json's single plugin entry description differs from plugin.json's description
+When check_plugin_structure runs
+Then it exits non-zero
+And it reports that the marketplace description must duplicate plugin.json's verbatim
+```
+
+## Scenario: footgun guard denies a never-legitimate command
+
+```gherkin
+Given a Bash tool call whose executed leading command is a footgun
+  (git commit/push --no-verify, a leading LEFTHOOK=0/false assignment,
+   git config core.bare <true>, or a redirect/tee/sed -i writing into a
+   livespec primary checkout)
+When the PreToolUse footgun guard runs
+Then it emits a hookSpecificOutput.permissionDecision of "deny"
+And the deny reason names the correct alternative
+And it exits 0
+```
+
+## Scenario: auto-memory guard refuses every write route into an agent memory directory
+
+```gherkin
+Given a governed project whose .livespec.jsonc declares an implementation.plugin
+When a Codex agent writes into ~/.codex/memories/ or a Claude Code memory directory through Write, Edit, apply_patch, or a shell command such as a redirect, tee, sed -i, cp or an inline interpreter write
+Then the PreToolUse auto-memory guard emits a hookSpecificOutput.permissionDecision of "deny"
+And the deny reason is identical on every route and routes durable guidance to a short AGENTS.md entry pointing at a .ai/<topic>.md file
+And a shell command that only reads a memory directory, or removes a note with rm, is not denied
+```
+
+## Scenario: footgun guard fails open on the dangerous string as data
+
+```gherkin
+Given a Bash tool call carrying a dangerous string as DATA (an echo, a
+  git config --get read, or a redirect to a non-primary path), OR a
+  stdin payload that is empty, non-JSON, or names a non-Bash tool
+When the PreToolUse footgun guard runs
+Then it emits no deny decision
+And it exits 0 (fail-open)
+```
+
+## Scenario: commit at the primary checkout is refused
+
+```gherkin
+Given the current checkout's toplevel equals the configured livespec.primaryPath
+When a commit or push is attempted
+Then the commit-refuse hook exits 1
+And it directs the contributor to use a worktree
+```
+
+## Scenario: one Bash tool call starts one Python process for the Driver's PreToolUse guards
+
+```gherkin
+Given the Codex Driver plugin is installed and its hooks are trusted
+When the agent makes one Bash tool call
+Then the Driver's hooks.json starts exactly one Python process for its Bash-matched PreToolUse guards
+And every Bash-matched guard the bundle carries is evaluated against that call's payload
+```
+
+## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call
+
+```gherkin
+Given one fail-open Bash-matched PreToolUse guard of the Driver raises an exception on a payload
+When the agent makes a Bash tool call with that payload
+Then every other Bash-matched guard is still evaluated against the call
+And a deny from any other guard still denies the call with that guard's own payload
+And when no other guard denies, the call is allowed with empty stdout and exit 0
+```
+
+## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards
+
+```gherkin
+Given the PreToolUse dispatcher fails before it has evaluated every Bash-matched guard
+When the agent makes a Bash tool call
+Then each not-yet-evaluated Bash-matched guard runs as its own standalone process against that call's payload
+And the call is denied exactly when one of the standalone guards denies it, with that guard's own payload
+```
+
+## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still denies the call
+
+```gherkin
+Given a Bash-matched PreToolUse guard that the upstream contract declares fail-closed raises an exception on a payload
+When the agent makes a Bash tool call with that payload
+Then the dispatcher denies the call with that guard's own fail-closed deny
+And every other Bash-matched guard is still evaluated against the call
+```
+
+## Scenario: long-running hooks survive a Driver cache update
+
+```gherkin
+Given an active session captured hook commands under an older Driver version
+And the marketplace advances to a newer Driver version
+And the Driver's hook definitions and hook entrypoints match its release tag for the new version
+When explicit provisioning or the persistent observer completes reconciliation
+Then every declared retained hook path resolves through latest to the validated current payload
+And Codex trusts the Driver's hooks, and any trust the Driver re-established was established only after that verification
+And a Codex session started after that reconciliation runs the Driver's Stop hooks successfully
+And each Driver hook that the active session cannot run is reported in that session as a visible hook failure, not skipped silently
+```
+
+## Scenario: long-running hooks survive a cache update of any covered plugin
+
+```gherkin
+Given an active Codex session captured hook commands under an older version of a covered plugin that is not the Driver
+And that plugin declares its hooks only in its default hooks/hooks.json, behind a shell conditional
+And the marketplace advances that plugin to a newer version, deleting the older version directory
+And that plugin's hook definitions and hook entrypoints match its release tag for the new version
+When the persistent observer completes reconciliation
+Then every retained hook path of that plugin resolves through latest to its validated current payload
+And Codex trusts that plugin's hooks, and any trust the Driver re-established was established only after that verification
+And a Codex session started after that reconciliation runs that plugin's hooks with no hook failure
+And each of that plugin's hooks that the active session cannot run is reported in that session as a visible hook failure, not skipped silently
+```
+
+## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not
+
+```gherkin
+Given an already-open Codex session captured hook commands of a covered plugin
+And Codex trusted that plugin's hooks
+And the plugin's installed payload then changes, through a new release or through Codex re-materializing the same version, while every hook definition and hook entrypoint stays byte-identical to the plugin's release tag for the installed version
+And Codex withdraws its trust in that plugin's hooks
+When explicit provisioning or the persistent observer completes reconciliation
+Then each retained hook path of that plugin resolves through latest to the validated current payload
+And Codex trusts that plugin's hooks again, re-established only after the hook definitions and entrypoints were verified against the plugin's release tag
+And a Codex session started after that reconciliation runs those hooks with no hook failure and no trust prompt
+And where that plugin ships a PreToolUse safety guard, that guard denies a forbidden command in the session started after that reconciliation
+And each of those hooks that the already-open session cannot run is reported in that session as a visible hook failure, not skipped silently
+And Codex's hook-trust bypass was not used and no hook was disabled
+```
+
+## Scenario: a covered plugin whose hook trust cannot be safely re-established is reported, not trusted
+
+```gherkin
+Given a covered plugin whose hook trust cannot be verified, because its current payload declares a hook definition or hook entrypoint that differs from the plugin's release tag for the installed version, because no release tag corresponding to the installed version can be identified, or because the host's Codex trust records are in a format the Driver does not recognize
+When explicit provisioning or the persistent observer reconciles that plugin
+Then the Driver establishes no Codex trust for that plugin's hooks and writes no Codex trust state for them
+And the failure is reported as a provisioning or observer failure naming the plugin and each affected hook
+And ensure-codex-plugins does not report that plugin healthy
+And where Codex exposes a setting that refuses tool execution while a configured hook is untrusted, that setting is enabled, so no tool runs with that plugin's guards silently off
+And whenever the host does not fail closed, the plugin is reported unhealthy and the report states that Codex will run tools without that plugin's guards until trust is re-established
+And Codex's hook-trust bypass is neither used nor recommended
+And every other covered plugin is still reconciled
+```
+
+## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict
+
+Given this repository's version-controlled configuration opts it in to delegating its pre-push gate
+
+And the pushing host holds the credential to submit to the remote executor
+
+And no delegated pre-commit run qualifies for the pushed tree
+
+When a git push of a new tree runs the pre-push gate
+
+Then the pre-push path MUST run the delegation client instead of running `just check` on the pushing host
+
+And the push MUST complete only on a passing verdict from the executor
+
+And the push MUST be refused when the executor returns no verdict
+
+## Scenario: the hook coverage gate combines under any pytest coverage spelling
+
+Given pyproject.toml configures branch coverage for `livespec/hooks/`
+
+And a hook test starts a Python subprocess whose working directory has no pyproject.toml in view
+
+When pytest runs `tests/hooks/` with `--cov` and no `--cov-config` argument
+
+Then the run MUST end with pytest's own exit status
+
+And it MUST print a coverage report
+
+And it MUST NOT fail combining statement coverage data with branch data
+
+## Scenario: on macOS ensure-codex-plugins reports an observer not running under the installed LaunchAgent
+
+```gherkin
+Given a macOS host whose host provisioning installed the Driver's shipped LaunchAgent for the hook-cache observer
+And the observer is not running under that LaunchAgent
+And a detached observer process that launchd did not start is alive
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under the installed LaunchAgent
+And it does not report the observer as supervised
+
+Given a macOS host on which no LaunchAgent definition for the hook-cache observer is installed
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under an installed LaunchAgent
+And it does not report the observer as supervised
+```
+
+## Scenario: on macOS ensure-codex-plugins leaves a running LaunchAgent observer alone when it reports a reconcile error
+
+```gherkin
+Given a macOS host whose hook-cache observer is running under the installed LaunchAgent
+And that observer's status record for a covered plugin reports a reconcile error newer than any reconcile of that plugin ensure-codex-plugins completes in this run
+When ensure-codex-plugins runs
+Then it reports the reconcile error as an observer failure, naming that plugin
+And it exits non-zero
+And the LaunchAgent's observer process receives no signal from ensure-codex-plugins
+And no second observer process is started
+```
+
+## Scenario: an observer that has not completed its first reconcile of a covered plugin is reported unhealthy for that plugin
+
+```gherkin
+Given the hook-cache observer has started under its supervisor
+And it has not yet completed its first reconcile of a covered plugin
+When ensure-codex-plugins reports observer health for that plugin
+Then that plugin is reported unhealthy
+And a status record written before the first reconcile does not make it healthy
+And once that plugin's own status record carries a completed reconcile without error, the first-reconcile rule no longer reports that plugin unhealthy
+```
+
+## Scenario: on Linux ensure-codex-plugins reports an observer not running under the installed systemd user unit and starts none
+
+```gherkin
+Given a Linux host whose host provisioning installed the Driver's shipped systemd user unit for the hook-cache observer
+And that unit is not active
+And a detached observer process that the user service manager did not start is alive
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under the installed systemd user unit
+And it does not report the observer as supervised
+And the detached observer process receives no signal from ensure-codex-plugins
+And ensure-codex-plugins starts no observer process
+
+Given a Linux host on which no systemd user unit for the hook-cache observer is installed
+When ensure-codex-plugins runs
+Then it exits non-zero
+And its report names the hook-cache observer as not running under an installed systemd user unit
+And ensure-codex-plugins starts no observer process
+```
+
+## Scenario: on Linux ensure-codex-plugins leaves a running supervised observer alone when it reports a reconcile error
+
+```gherkin
+Given a Linux host whose hook-cache observer is running under the installed systemd user unit
+And that observer's status record for a covered plugin reports a reconcile error newer than any reconcile of that plugin ensure-codex-plugins completes in this run
+When ensure-codex-plugins runs
+Then it reports the reconcile error as an observer failure, naming that plugin
+And it exits non-zero
+And the supervised observer process receives no signal from ensure-codex-plugins
+And no second observer process is started
+
+Given a Linux host whose hook-cache observer is running under the installed systemd user unit
+And that observer has completed a reconcile of a covered plugin whose status record reports a reconcile error
+When ensure-codex-plugins runs and completes its own reconcile of that plugin without error after that record
+Then the older observer error does not fail provisioning for that plugin
+And ensure-codex-plugins starts no observer process
+```
+
+## Scenario: an unidentified session ignores repository supervisor markers
+
+```gherkin
+Given no nonblank supervision topic identifies the current Codex session
+And the repository contains active, malformed and legacy non-JSON supervisor markers
+When the supervisor completion Stop gate evaluates the session
+Then it permits completion with empty stdout and exit zero
+And it does not discover, read or change those markers
+```
+
+## Scenario: a supervised session inspects only its owned marker
+
+```gherkin
+Given the current session is identified as supervising topic "repair"
+And another topic has a malformed legacy supervisor marker
+And the repair topic has valid completion and independently verified wake-producer evidence
+When the supervisor completion Stop gate evaluates the session
+Then it permits completion without reading or changing the foreign marker
+And it consults only the owned marker and independent authoritative producer evidence
+And an absent native Stop topic field does not lose the named session context
+And an owned marker whose topic differs from "repair" instead continues the session
+```
+
+## Scenario: invalid supervision paths never inspect foreign runtime state
+
+```gherkin
+Given explicit supervision context contains a non-string topic, a path traversal topic or a topic whose runtime subtree escapes through a symlink
+When the supervisor completion Stop gate evaluates the session
+Then it continues the session with a Codex-compatible block response and exit zero
+And an identified topic whose governed primary root is unresolved also continues without marker reads
+And it does not read or change a marker outside the identified topic's runtime subtree
+```
+
+## Scenario: missing or malformed owned evidence continues supervision
+
+```gherkin
+Given the session is identified as supervising one topic
+When its owned marker is missing, unreadable, malformed or legacy non-JSON
+Or its marker is stale while supervision_active is true
+Or its activation state or topic is missing, malformed or mismatched
+Then the supervisor completion gate continues the session with a block response and exit zero
+And a valid owned marker whose supervision_active is explicitly false permits completion regardless of age
+```
+
+## Scenario: terminal completion still requires independent wake evidence
+
+```gherkin
+Given an owned structured marker has supervision_active true
+When its freshness timestamp is absent, timezone-free, older than 24 hours or more than five minutes in the future
+Or it retains open obligations, a nonterminal disposition or malformed evidence
+Or its local producer has no matching live process or its forge or ledger producer identity is not independently registered
+Or its producer lacks cold-open reentry through the owned marker and a fresh authoritative query
+Then the supervisor completion gate continues the session
+And it accepts a fresh empty-obligation marker only with independently verified producer evidence and either plan-complete without a question or maintainer-blocking with exactly one question
+```
+
+## Scenario: only a real-user scoped stop command overrides supervision
+
+```gherkin
+Given the session is identified as supervising topic "repair" with incomplete owned evidence
+When the latest real-user message is exactly "stop supervising repair"
+Then the supervisor completion gate permits completion even when its owned marker is missing or malformed
+And assistant messages, tool results, ordinary user messages, objective-replacement requests and stop commands for another topic do not override supervision
+```
+
+## Scenario: Stop reentry does not recursively block completion
+
+```gherkin
+Given the Stop input has stop_hook_active true
+When the supervisor completion gate evaluates it
+Then it permits completion without inspecting any repository supervisor marker
+```
+
+## Scenario: canonical supervision context takes precedence over the compatibility alias
+
+```gherkin
+Given explicit runtime context contains a blank supervisor_topic and a nonblank topic alias
+When the supervisor completion gate resolves ownership
+Then it treats the session as unidentified without inspecting supervisor markers
+And it consults the topic alias only when supervisor_topic is absent
+```
+
+## Scenario: an unexpected supervised evaluation failure cannot grant completion
+
+```gherkin
+Given the session is identified as supervising one topic
+When an unexpected failure prevents evaluation of its owned completion evidence
+Then the supervisor completion gate emits a block response and exits zero
+```
+
+## Scenario: assistant and pane text cannot substitute for completion evidence
+
+```gherkin
+Given the identified supervisor retains an open obligation in its owned marker
+And assistant final-response or pane text claims completion
+When the supervisor completion gate evaluates the session
+Then it continues the session based on structured evidence
+And the completion claim supplies no evidence and no real-user override
+```
+
+## Scenario: a hand commit's passing delegated pre-commit verdict stands in at the pre-push gate
+
+```gherkin
+Given this repository sets delegated_gate = true and delegated_pre_commit = true
+And a hand commit's delegated pre-commit gate Job J passed the full aggregate of clean staged tree T and recorded pre-push evidence naming J, T and the members it ran and passed
+And the pushing worktree is clean and its HEAD tree is T
+When the pre-push gate runs for that push
+Then it MUST run python -m livespec_dev_tooling.green_token pre-push-reuse with its check-set member names before it submits a gate Job or runs its local aggregate
+And when that command exits 0 it MUST submit no gate Job and MUST NOT run the local aggregate
+And when that command exits 3 it MUST gate the push exactly as it does with no such evidence
+And when that command exits with any other status it MUST refuse the push
+```

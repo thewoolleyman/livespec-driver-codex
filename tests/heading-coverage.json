@@ -515,5 +515,13 @@
     "test": "tests.integration.test_supervisor_completion_gate.test_shipped_supervisor_topic_contract",
     "work_item": "livespec-driver-codex-waq5mp",
     "reason": "Integration tier: drives the shipped Stop hook as a real isolated Python process over stdin, filesystem state and stdout; checks owned-topic context, fail-closed evidence, independently registered producers and foreign-marker preservation. The paired integration cases and focused hook tests cover malformed evidence and explicit completion dispositions."
+  },
+  {
+    "spec_root": "SPECIFICATION",
+    "spec_file": "scenarios.md",
+    "heading": "## Scenario: a hand commit's passing delegated pre-commit verdict stands in at the pre-push gate",
+    "test": "TODO",
+    "work_item": "livespec-driver-codex-vhbphc",
+    "reason": "Integration-tier: a real test at the integration tier or above is owed for this heading, exercising this repository's check-pre-push recipe calling `python -m livespec_dev_tooling.green_token pre-push-reuse` with its check-set member names: exit 0 submits no gate Job and runs no local `just check`, exit 3 gates the push as before, any other status refuses it. livespec-driver-codex-vhbphc owns it."
   }
 ]
