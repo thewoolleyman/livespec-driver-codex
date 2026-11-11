@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.4...v0.13.0) (2026-11-11)
+
+
+### Features
+
+* add dispatcher parity tests ([35d0ee7](https://github.com/thewoolleyman/livespec-driver-codex/commit/35d0ee709a2a8939c4befad52a3303196b9af7e6))
+* require single Bash guard entry ([d9bfadf](https://github.com/thewoolleyman/livespec-driver-codex/commit/d9bfadf80a63240cf8a6d19455e3302296db4db6))
+
 ## [0.12.4](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.3...v0.12.4) (2026-11-10)
 
 
