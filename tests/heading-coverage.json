@@ -323,24 +323,24 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a cache update of any covered plugin",
     "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-esytmj (scratch-CODEX_HOME mock-cache test over a non-Driver covered plugin declaring hooks only in its default hooks/hooks.json); the amended scenario's trust assertion (Codex trusts that plugin's hooks, and any trust the Driver re-established followed verification of its hook definitions and entrypoints against the release tag) is owed at the integration tier by livespec-driver-codex-v52m6a",
-    "work_item": "livespec-driver-codex-esytmj"
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-i433dm (replacing closed esytmj). The existing tests.dev-tooling.test_codex_hook_cache_reconcile.test_reconcile_all_covers_registered_plugins_with_manifest_and_default_hooks covers only the path-continuity clause; the release-verified trust clause over this plugin and both Codex session clauses (a fresh session runs the plugin's hooks; an already-open session reports each hook it cannot run as a visible hook failure) are still owed.",
+    "work_item": "livespec-driver-codex-i433dm"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not",
     "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-b5rhjf (a session started after a content-only change and release-tag-verified re-trust runs a covered plugin's hooks and its PreToolUse guard denies, while the already-open session reports each hook it cannot run as a visible hook failure; the test MUST capture the open session's visible output, because Codex does not write the hook-failure text to the rollout file; the heading is renamed to match the body when this test lands)",
-    "work_item": "livespec-driver-codex-b5rhjf"
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-nex26j (replacing closed b5rhjf): a session started after a content-only change and release-tag-verified re-trust runs a covered plugin's hooks and its PreToolUse guard denies, while the already-open session reports each hook it cannot run as a visible hook failure; the test MUST capture the open session's visible output, because Codex does not write the hook-failure text to the rollout file. livespec-driver-codex-ans7n2 renames the heading to match the body once this test lands.",
+    "work_item": "livespec-driver-codex-nex26j"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a covered plugin whose hook trust cannot be safely re-established is reported, not trusted",
     "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-v52m6a (an unverifiable payload, an untagged plugin, or an unrecognized trust-record format leaves the plugin untrusted, reported, and never bypassed, while sibling plugins still reconcile)",
-    "work_item": "livespec-driver-codex-v52m6a"
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-hmfbv4 (replacing closed v52m6a): an unverifiable payload, an untagged plugin, or an unrecognized trust-record format leaves the plugin untrusted, reported, and never bypassed, the fail-closed setting is enabled where Codex exposes it, and sibling plugins still reconcile.",
+    "work_item": "livespec-driver-codex-hmfbv4"
   },
   {
     "spec_root": "SPECIFICATION",
@@ -369,63 +369,63 @@
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call",
     "test": "TODO",
-    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
-    "work_item": "livespec-driver-codex-kroiar"
+    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch. The single-process dispatcher landed as kroiar slice A (livespec-driver-codex-uewmka) without crash handling or the standalone fallback; the owning work-item livespec-driver-codex-b6har3 (kroiar slice B) implements the failure postures and the fallback together with the test that binds this entry.",
+    "work_item": "livespec-driver-codex-b6har3"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still denies the call",
     "test": "TODO",
-    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
-    "work_item": "livespec-driver-codex-kroiar"
+    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch. The single-process dispatcher landed as kroiar slice A (livespec-driver-codex-uewmka) without crash handling or the standalone fallback; the owning work-item livespec-driver-codex-b6har3 (kroiar slice B) implements the failure postures and the fallback together with the test that binds this entry.",
+    "work_item": "livespec-driver-codex-b6har3"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards",
     "test": "TODO",
-    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch, and the owning work-item livespec-driver-codex-kroiar implements the single-process PreToolUse guard dispatcher together with the test that binds this entry.",
-    "work_item": "livespec-driver-codex-kroiar"
+    "reason": "An integration-tier test is owed for this heading: ratified with proposal single-process-pretooluse-guard-dispatch. The single-process dispatcher landed as kroiar slice A (livespec-driver-codex-uewmka) without crash handling or the standalone fallback; the owning work-item livespec-driver-codex-b6har3 (kroiar slice B) implements the failure postures and the fallback together with the test that binds this entry.",
+    "work_item": "livespec-driver-codex-b6har3"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: on macOS ensure-codex-plugins reports an observer not running under the installed LaunchAgent",
     "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-yudufr (a macOS observer not running under the installed LaunchAgent, or with no LaunchAgent installed, is reported with a non-zero exit even while a detached observer is alive)",
-    "work_item": "livespec-driver-codex-yudufr"
+    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-5lwqdt (replacing closed yudufr). tests.dev-tooling.test_codex_hook_cache_observe.test_macos_supervisor_check_rejects_a_loaded_but_exited_launchagent covers only an installed LaunchAgent whose job has exited; the detached-observer-alive precondition and the no-LaunchAgent-installed block are still owed.",
+    "work_item": "livespec-driver-codex-5lwqdt"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: on macOS ensure-codex-plugins leaves a running LaunchAgent observer alone when it reports a reconcile error",
-    "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-yudufr (a running LaunchAgent observer whose status record reports a reconcile error is reported with a non-zero exit, never signalled, and never duplicated)",
+    "test": "tests.dev-tooling.test_codex_hook_cache_observe.test_macos_supervisor_check_reports_an_errored_launchagent_without_takeover",
+    "reason": "Integration-tier witness: runs the real dev-tooling/ensure-codex-plugins.sh as on macOS with launchctl reporting the LaunchAgent's observer running at pid 4242 and the observer status probe reporting a reconcile error for market/alpha, and asserts a non-zero exit, that the error naming the plugin reaches stderr, and that the script issues no launchctl bootstrap or bootout and no observer ensure, so the running observer is neither replaced nor duplicated.",
     "work_item": "livespec-driver-codex-yudufr"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an observer that has not completed its first reconcile of a covered plugin is reported unhealthy for that plugin",
-    "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-yudufr (a covered plugin is reported unhealthy until its own status record carries a completed first reconcile without error)",
+    "test": "tests.dev-tooling.test_codex_hook_cache_observe.test_an_observer_without_a_completed_reconcile_stays_unhealthy_after_provisioning",
+    "reason": "Integration-tier witness: writes a plugin's observer status record with a live pid, no error and no completed reconcile, and asserts health_after_provisioner reports it unhealthy citing the first reconcile even after a successful provisioner reconcile. Companions in the same file: test_health_rejects_a_startup_heartbeat_before_first_reconcile (a pre-first-reconcile record never makes the plugin healthy) and test_health_accepts_a_fresh_successful_record (a completed reconcile without error is healthy).",
     "work_item": "livespec-driver-codex-yudufr"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: on Linux ensure-codex-plugins reports an observer not running under the installed systemd user unit and starts none",
-    "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-n2b3ui (a Linux observer not running under the installed systemd user unit, or with no unit installed, is reported with a non-zero exit while ensure-codex-plugins signals and starts no observer)",
+    "test": "tests.dev-tooling.test_codex_hook_cache_observe.test_linux_provisioner_reports_an_inactive_or_missing_systemd_unit_without_takeover",
+    "reason": "Integration-tier witness: runs the real dev-tooling/ensure-codex-plugins.sh as on Linux with `systemctl --user is-active` failing, the status an inactive or an absent unit both return, and asserts a non-zero exit, a report naming the observer as not running under the installed systemd user unit, and that python3 is never invoked, so the script starts no observer and signals none.",
     "work_item": "livespec-driver-codex-n2b3ui"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: on Linux ensure-codex-plugins leaves a running supervised observer alone when it reports a reconcile error",
-    "test": "TODO",
-    "reason": "TODO integration tier: an integration-tier test is owed by livespec-driver-codex-n2b3ui (a running supervised Linux observer's newer reconcile error is reported non-zero without signal or duplication, and an older error superseded by a newer successful provisioner reconcile does not fail provisioning)",
+    "test": "tests.dev-tooling.test_codex_hook_cache_observe.test_provisioning_orders_each_plugin_against_its_own_reconcile_completion",
+    "reason": "Integration-tier witness: drives provision_all, the command ensure-codex-plugins.sh runs once the systemd unit is active, over a scratch Codex home with two covered plugins whose observer error for the first plugin is written after that plugin's reconcile, and asserts a non-zero result; provision_all only reconciles and reports per plugin, so it signals and starts no observer. The scenario's superseded-older-error block is witnessed in the same file by test_linux_provisioner_uses_its_newer_reconcile_instead_of_an_old_observer_error.",
     "work_item": "livespec-driver-codex-n2b3ui"
   },
   {

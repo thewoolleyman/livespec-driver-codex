@@ -24,28 +24,28 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a covered plugin whose hook trust cannot be safely re-established is reported, not trusted",
-    "work_item": "livespec-driver-codex-v52m6a",
+    "work_item": "livespec-driver-codex-hmfbv4",
     "first_seen": "2026-11-03"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-closed guard inside the PreToolUse dispatcher still denies the call",
-    "work_item": "livespec-driver-codex-kroiar",
+    "work_item": "livespec-driver-codex-b6har3",
     "first_seen": "2026-11-02"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a crashing fail-open guard inside the PreToolUse dispatcher disables neither the other guards nor the tool call",
-    "work_item": "livespec-driver-codex-kroiar",
+    "work_item": "livespec-driver-codex-b6har3",
     "first_seen": "2026-11-02"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: a dispatcher that fails before evaluating its guards falls back to the standalone guards",
-    "work_item": "livespec-driver-codex-kroiar",
+    "work_item": "livespec-driver-codex-b6har3",
     "first_seen": "2026-11-02"
   },
   {
@@ -59,49 +59,21 @@
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: an already-open session keeps running its hooks after a covered plugin's installed content changes but its hooks do not",
-    "work_item": "livespec-driver-codex-b5rhjf",
-    "first_seen": "2026-11-03"
-  },
-  {
-    "spec_root": "SPECIFICATION",
-    "spec_file": "scenarios.md",
-    "heading": "## Scenario: an observer that has not completed its first reconcile of a covered plugin is reported unhealthy for that plugin",
-    "work_item": "livespec-driver-codex-yudufr",
+    "work_item": "livespec-driver-codex-nex26j",
     "first_seen": "2026-11-03"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
     "heading": "## Scenario: long-running hooks survive a cache update of any covered plugin",
-    "work_item": "livespec-driver-codex-esytmj",
+    "work_item": "livespec-driver-codex-i433dm",
     "first_seen": "2026-11-02"
   },
   {
     "spec_root": "SPECIFICATION",
     "spec_file": "scenarios.md",
-    "heading": "## Scenario: on Linux ensure-codex-plugins leaves a running supervised observer alone when it reports a reconcile error",
-    "work_item": "livespec-driver-codex-n2b3ui",
-    "first_seen": "2026-11-03"
-  },
-  {
-    "spec_root": "SPECIFICATION",
-    "spec_file": "scenarios.md",
-    "heading": "## Scenario: on Linux ensure-codex-plugins reports an observer not running under the installed systemd user unit and starts none",
-    "work_item": "livespec-driver-codex-n2b3ui",
-    "first_seen": "2026-11-03"
-  },
-  {
-    "spec_root": "SPECIFICATION",
-    "spec_file": "scenarios.md",
-    "heading": "## Scenario: on macOS ensure-codex-plugins leaves a running LaunchAgent observer alone when it reports a reconcile error",
-    "work_item": "livespec-driver-codex-yudufr",
-    "first_seen": "2026-11-03"
-  },
-  {
-    "spec_root": "SPECIFICATION",
-    "spec_file": "scenarios.md",
     "heading": "## Scenario: on macOS ensure-codex-plugins reports an observer not running under the installed LaunchAgent",
-    "work_item": "livespec-driver-codex-yudufr",
+    "work_item": "livespec-driver-codex-5lwqdt",
     "first_seen": "2026-11-03"
   },
   {
