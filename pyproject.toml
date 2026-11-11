@@ -293,6 +293,9 @@ subprocess_spawn_allowlist = [
     "tests/dev-tooling/test_codex_config_write.py",
     "tests/hooks/test_block_auto_memory.py",
     "tests/hooks/test_livespec_footgun_guard.py",
+    # Dispatcher parity is explicitly against each bare-python standalone hook;
+    # those subprocess witnesses verify byte-identical deny payloads.
+    "tests/hooks/test_pretooluse_dispatch.py",
     "tests/hooks/test_no_shadow_ledger.py",
     "tests/hooks/test_shipped_hooks_install_shape.py",
     "tests/hooks/test_supervisor_completion_gate.py",
@@ -300,6 +303,7 @@ subprocess_spawn_allowlist = [
     # combines subprocess data; the child's environment is scrubbed of
     # COVERAGE_* and COV_CORE_* so it never inherits this suite's measurement.
     "tests/integration/test_hook_coverage_spelling.py",
+    "tests/integration/test_pretooluse_dispatch.py",
     # Exercises the installed Stop protocol through native stdin/session env;
     # the child receives only PATH and explicit test-owned context, no coverage env.
     "tests/integration/test_supervisor_completion_gate.py",

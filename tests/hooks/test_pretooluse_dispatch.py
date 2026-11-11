@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import importlib
+import inspect
 import io
 import json
 import os
@@ -58,6 +60,27 @@ def _run_standalone(*, script: str, raw: str, project_dir: Path) -> str:
     )
     assert result.returncode == 0, result.stderr
     return result.stdout
+
+
+def _broad_catch_functions(*, module: object) -> set[str]:
+    """Return functions that own a broad ``except Exception`` in a hook module."""
+    tree = ast.parse(inspect.getsource(module))
+    owners: set[str] = set()
+    for function in (node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)):
+        for handler in (node for node in ast.walk(function) if isinstance(node, ast.ExceptHandler)):
+            if isinstance(handler.type, ast.Name) and handler.type.id == "Exception":
+                owners.add(function.name)
+    return owners
+
+
+def test_guard_broad_catches_remain_at_the_standalone_boundaries() -> None:
+    """The dispatcher reuses decisions; each standalone main owns its fail posture."""
+    for name in (
+        "block_auto_memory",
+        "block_raw_bd_create",
+        "livespec_footgun_guard",
+    ):
+        assert _broad_catch_functions(module=importlib.import_module(name)) == {"main"}
 
 
 def test_dispatcher_preserves_each_standalone_deny_payload(
