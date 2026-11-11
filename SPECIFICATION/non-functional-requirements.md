@@ -169,9 +169,30 @@ For this repository that means:
   as a factory sandbox, MUST run the repository's gate recipe on that
   host without delegation, and MUST report that it gated locally.
 - The pre-push path for a delegating host MUST run the delegation client
-  in place of the aggregate, and MUST have no branch from the client's
-  result to a local run of the gate. An absent verdict MUST refuse the
-  push.
+  in place of the aggregate, except where the
+  **Same-tree delegated pre-commit verdict** item below lets the push
+  proceed on an accepted verdict, and MUST have no branch from the
+  client's result to a local run of the gate. An absent verdict MUST
+  refuse the push.
+- **Same-tree delegated pre-commit verdict.** This repository sets both
+  `delegated_gate = true` and `delegated_pre_commit = true`, so
+  livespec-dev-tooling `SPECIFICATION/contracts.md`
+  §"Delegated pre-push gate" **Same-tree delegated pre-commit verdict**
+  (livespec-dev-tooling v195) binds its pre-push gate. Before the
+  pre-push path for a delegating host runs the delegation client or the
+  aggregate, it MUST run
+  `python -m livespec_dev_tooling.green_token pre-push-reuse` with the
+  full set of member names the aggregate runs, every one of them and in
+  that order, and MUST act on that command's exit status as
+  livespec-dev-tooling defines it. On exit 0 the push MUST proceed with
+  no gate Job submitted and no local run of the aggregate. On exit 3 the
+  pre-push gate MUST continue exactly as the other items of this list
+  require. On any other exit status the push MUST be refused. The
+  green-token check MUST NOT be the reason a qualifying run's evidence
+  is refused, and a pre-commit aggregate that ran on the committing host
+  never qualifies. This is spec-first: as of its ratification this
+  repository's pre-push gate never consults delegated pre-commit
+  evidence, and work item livespec-driver-codex-vhbphc owns the change.
 - A check that reads an authorization held outside the tree MUST run on
   the pushing host with that host's own credentials, not in the
   executor, and its result MUST join the delegated verdict, so an
