@@ -23,13 +23,19 @@ Carrier: work item livespec-driver-codex-vhbphc, the livespec-driver-codex adopt
 
 In SPECIFICATION/non-functional-requirements.md §"Enforcement suite", in the bulleted list under the paragraph that begins "The repository MAY delegate its pre-push gate", add a new item immediately after the item that begins "- The pre-push path for a delegating host MUST run the delegation client":
 
-> **Same-tree delegated pre-commit verdict.** This repository sets both `delegated_gate = true` and `delegated_pre_commit = true`, so livespec-dev-tooling `SPECIFICATION/contracts.md` §"Delegated pre-push gate" **Same-tree delegated pre-commit verdict** (livespec-dev-tooling v195) binds its pre-push gate. Before the pre-push path for a delegating host runs the delegation client or the aggregate, it MUST run `python -m livespec_dev_tooling.green_token pre-push-reuse` with the full set of member names the aggregate runs, and MUST act on that command's exit status as livespec-dev-tooling defines it. On exit 0 the push MUST proceed with no gate Job submitted and no local run of the aggregate. On exit 3 the pre-push gate MUST continue exactly as the other items of this list require. On any other exit status the push MUST be refused. The green-token check MUST NOT be the reason a qualifying run's evidence is refused, and a pre-commit aggregate that ran on the committing host never qualifies. This is spec-first: as of its ratification this repository's pre-push gate never consults delegated pre-commit evidence, and work item livespec-driver-codex-vhbphc owns the change.
+> **Same-tree delegated pre-commit verdict.** This repository sets both `delegated_gate = true` and `delegated_pre_commit = true`, so livespec-dev-tooling `SPECIFICATION/contracts.md` §"Delegated pre-push gate" **Same-tree delegated pre-commit verdict** (livespec-dev-tooling v195) binds its pre-push gate. Before the pre-push path for a delegating host runs the delegation client or the aggregate, it MUST run `python -m livespec_dev_tooling.green_token pre-push-reuse` with the full set of member names the aggregate runs, every one of them and in that order, and MUST act on that command's exit status as livespec-dev-tooling defines it. On exit 0 the push MUST proceed with no gate Job submitted and no local run of the aggregate. On exit 3 the pre-push gate MUST continue exactly as the other items of this list require. On any other exit status the push MUST be refused. The green-token check MUST NOT be the reason a qualifying run's evidence is refused, and a pre-commit aggregate that ran on the committing host never qualifies. This is spec-first: as of its ratification this repository's pre-push gate never consults delegated pre-commit evidence, and work item livespec-driver-codex-vhbphc owns the change.
 
 In the same list, in the item that begins "The pre-push path for a delegating host MUST run the delegation client in place of the aggregate", insert after the words "in place of the aggregate" the clause:
 
 > , except where the **Same-tree delegated pre-commit verdict** item below lets the push proceed on an accepted verdict
 
 so that the item's other sentences, including that an absent verdict refuses the push, are unchanged.
+
+In SPECIFICATION/scenarios.md, in the existing scenario "## Scenario: a delegating host's push gates on the remote executor and refuses on no verdict" (scenarios.md:244-254), add after its Given "And the pushing host holds the credential to submit to the remote executor" the Given:
+
+> And no delegated pre-commit run qualifies for the pushed tree
+
+so that scenario's "the push MUST complete only on a passing verdict from the executor" governs exactly the pushes the new scenario below does not.
 
 In SPECIFICATION/scenarios.md, add after the last scenario (formatted to this repository's scenario layout):
 
