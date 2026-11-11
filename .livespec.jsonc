@@ -80,7 +80,7 @@
       "§\"Fabro factory registry\"",
       "§\"Delegated pre-push gate\""
     ],
-    "livespec": ["§\"Enforcement-suite invocation\""]
+    "livespec": ["§\"Enforcement-suite invocation\"", "§\"Shared content sync — copier template\""]
   },
   // Planning/work-item-resolution registry. These targets are the repo slugs
   // accepted by cross-tenant DependsOnEntry refs (`sibling_work_item`,
