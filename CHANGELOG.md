@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.1](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.13.0...v0.13.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* reject undeclared aggregate members ([cc93d57](https://github.com/thewoolleyman/livespec-driver-codex/commit/cc93d57beb359b55e05694412a56aa551ad892aa))
+* rerun world-reading checks on token hits ([7a7c6fa](https://github.com/thewoolleyman/livespec-driver-codex/commit/7a7c6fa5b7d8796fdbe944a2a3d2c44238d3a336))
+* run token checks independently ([dd31392](https://github.com/thewoolleyman/livespec-driver-codex/commit/dd313924805bf999e2d70978c5128fdc6e2483a7))
+
 ## [0.13.0](https://github.com/thewoolleyman/livespec-driver-codex/compare/v0.12.4...v0.13.0) (2026-11-11)
 
 
