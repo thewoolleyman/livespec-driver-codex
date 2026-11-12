@@ -10,11 +10,16 @@ set -uo pipefail
 skip_targets=("$@")
 
 targets=()
-while IFS= read -r target; do
+while read -r target _; do
     if [[ -n "$target" && "$target" != \#* ]]; then
         targets+=("$target")
     fi
 done < check-targets.txt
+
+if ! uv run python -m livespec_dev_tooling.green_token undeclared "${targets[@]}"; then
+    echo "FAILED targets: check-purity-declarations" >&2
+    exit 1
+fi
 
 failed=()
 coverage_ran=0
