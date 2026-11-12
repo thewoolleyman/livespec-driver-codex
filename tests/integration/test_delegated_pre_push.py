@@ -27,7 +27,8 @@ _FAKE_UV = """#!/usr/bin/env bash
 printf 'uv %s\\n' "$*" >> "$FAKE_LOG"
 case "$*" in
   *"green_token world-reading"*)
-    printf '%s\\n' "${FAKE_WORLD_READING:-check-world-reading}"
+    printf '%s\\n' "${FAKE_WORLD_READING:-check-world-reading check-another-world-reading}" \
+        | tr ' ' '\\n'
     exit "${FAKE_WORLD_READING_RC:-0}"
     ;;
   *green_token*) exit "${FAKE_TOKEN_RC:-1}" ;;
@@ -53,7 +54,9 @@ def _run_pre_push(*, tmp_path: Path, token: int, enabled: int, run: int) -> tupl
     log = tmp_path / "calls.log"
     log.touch()
     (tmp_path / "check-targets.txt").write_text(
-        "check-tree-pure  # purity: tree-pure\ncheck-world-reading  # purity: world-reading\n",
+        "check-tree-pure  # purity: tree-pure\n"
+        "check-world-reading  # purity: world-reading\n"
+        "check-another-world-reading  # purity: world-reading\n",
         encoding="utf-8",
     )
     env = {
@@ -104,9 +107,13 @@ def test_green_token_match_runs_only_world_reading_members(tmp_path: Path) -> No
     assert rc == 0
     assert not any("gate_remote_delegate" in call for call in calls)
     assert any(
-        "green_token world-reading check-tree-pure check-world-reading" in call for call in calls
+        "green_token world-reading check-tree-pure check-world-reading "
+        "check-another-world-reading" in call
+        for call in calls
     )
     assert "just check-world-reading" in calls
+    assert "just check-another-world-reading" in calls
+    assert "just check-world-reading check-another-world-reading" not in calls
     assert "just check-tree-pure" not in calls
 
 
