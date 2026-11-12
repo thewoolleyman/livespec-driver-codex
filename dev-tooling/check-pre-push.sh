@@ -25,7 +25,17 @@ if uv run python -m livespec_dev_tooling.green_token check 2>&1; then
     fi
     mapfile -t world_reading_targets <<< "$world_reading"
     echo ":: pre-push: green token matched; rerunning world-reading members"
-    exec just "${world_reading_targets[@]}"
+    failed=()
+    for target in "${world_reading_targets[@]}"; do
+        if ! just "$target"; then
+            failed+=("$target")
+        fi
+    done
+    if [ "${#failed[@]}" -gt 0 ]; then
+        echo "FAILED targets: ${failed[*]}" >&2
+        exit 1
+    fi
+    exit 0
 fi
 
 # A delegating host hands the gate to the remote executor. The exec is
