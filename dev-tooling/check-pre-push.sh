@@ -3,9 +3,29 @@ set -uo pipefail
 
 # Ratified shell-quality deviation: this pre-push gate intentionally does not
 # use errexit because a green-token miss should fall through to the full check.
+# A matching token memoizes only members whose declarations say the committed
+# tree decides their verdict; the world-reading members still run on this host.
+targets=()
+while read -r target _; do
+    if [[ -n "$target" && "$target" != \#* ]]; then
+        targets+=("$target")
+    fi
+done < check-targets.txt
+
 if uv run python -m livespec_dev_tooling.green_token check 2>&1; then
-    echo ":: pre-push: green token matched; skipping full aggregate"
-    exit 0
+    if ! world_reading="$(
+        uv run python -m livespec_dev_tooling.green_token world-reading "${targets[@]}"
+    )"; then
+        echo ":: pre-push: could not resolve world-reading members" >&2
+        exit 1
+    fi
+    if [[ -z "$world_reading" ]]; then
+        echo ":: pre-push: green token matched; no world-reading members"
+        exit 0
+    fi
+    mapfile -t world_reading_targets <<< "$world_reading"
+    echo ":: pre-push: green token matched; rerunning world-reading members"
+    exec just "${world_reading_targets[@]}"
 fi
 
 # A delegating host hands the gate to the remote executor. The exec is

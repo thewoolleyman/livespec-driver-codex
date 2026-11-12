@@ -26,6 +26,10 @@ _SCRIPT = _REPO_ROOT / "dev-tooling" / "check-pre-push.sh"
 _FAKE_UV = """#!/usr/bin/env bash
 printf 'uv %s\\n' "$*" >> "$FAKE_LOG"
 case "$*" in
+  *"green_token world-reading"*)
+    printf '%s\\n' "${FAKE_WORLD_READING:-check-world-reading}"
+    exit "${FAKE_WORLD_READING_RC:-0}"
+    ;;
   *green_token*) exit "${FAKE_TOKEN_RC:-1}" ;;
   *"gate_remote_delegate enabled"*) exit "${FAKE_ENABLED_RC:-1}" ;;
   *"gate_remote_delegate run"*) exit "${FAKE_RUN_RC:-0}" ;;
@@ -48,6 +52,10 @@ def _run_pre_push(*, tmp_path: Path, token: int, enabled: int, run: int) -> tupl
         tool.chmod(tool.stat().st_mode | stat.S_IXUSR)
     log = tmp_path / "calls.log"
     log.touch()
+    (tmp_path / "check-targets.txt").write_text(
+        "check-tree-pure  # purity: tree-pure\ncheck-world-reading  # purity: world-reading\n",
+        encoding="utf-8",
+    )
     env = {
         **os.environ,
         "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
@@ -90,12 +98,16 @@ def test_non_delegating_host_runs_just_check_locally(tmp_path: Path) -> None:
     assert not any("gate_remote_delegate run" in call for call in calls)
 
 
-def test_green_token_match_skips_both_gates(tmp_path: Path) -> None:
+def test_green_token_match_runs_only_world_reading_members(tmp_path: Path) -> None:
     rc, calls = _run_pre_push(tmp_path=tmp_path, token=0, enabled=0, run=0)
 
     assert rc == 0
     assert not any("gate_remote_delegate" in call for call in calls)
-    assert not any(call.startswith("just") for call in calls)
+    assert any(
+        "green_token world-reading check-tree-pure check-world-reading" in call for call in calls
+    )
+    assert "just check-world-reading" in calls
+    assert "just check-tree-pure" not in calls
 
 
 def test_host_without_the_gates_credential_gates_locally_and_says_so(
