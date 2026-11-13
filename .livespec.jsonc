@@ -69,7 +69,7 @@
   // SPECIFICATION/non-functional-requirements.md). The entry is deliberately
   // the BARE heading form: a file-qualified entry is validated against
   // cross_repo_targets.livespec-dev-tooling.local_clone, which is the
-  // host-absolute /data/projects/livespec-dev-tooling and does not exist on
+  // host-local ~/workspace/livespec-dev-tooling and does not exist on
   // the CI runner, so the pinned core maps it to an empty heading set and
   // DROPS the entry, failing the citation as "not allowlisted". Exposing a
   // real sibling clone in CI (LIVESPEC_SIBLING_CLONES_ROOT, as
@@ -88,7 +88,7 @@
   "cross_repo_targets": {
     "livespec-dev-tooling": {
       "github_url": "https://github.com/thewoolleyman/livespec-dev-tooling",
-      "local_clone": "/data/projects/livespec-dev-tooling",
+      "local_clone": "~/workspace/livespec-dev-tooling",
       "default_branch": "master"
     }
   },
