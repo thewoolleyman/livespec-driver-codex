@@ -225,14 +225,14 @@ write still uses the worktree → PR → merge → cleanup path below.
    the structural test the commit-refuse hook itself uses):
 
    ```bash
-   git -C /data/projects/livespec-driver-codex rev-parse --git-dir --git-common-dir
-   git -C /data/projects/livespec-driver-codex status --short --branch
+   git -C "$HOME/workspace/livespec-driver-codex" rev-parse --git-dir --git-common-dir
+   git -C "$HOME/workspace/livespec-driver-codex" status --short --branch
    ```
 
 2. If the change will modify tracked files, create a dedicated worktree
    from the primary checkout's `master` and do all edits there. Every
    worktree lives under the per-user root `~/.worktrees/<repo>/<branch>`
-   — NEVER as a peer of the clones under `/data/projects`, and NEVER
+   — NEVER as a peer of the clones under `~/workspace`, and NEVER
    under `.claude/worktrees/` (that path is outside mise's
    `trusted_config_paths`, so `.mise.toml` there is untrusted by
    default and every `mise exec`/`uv`/`just` invocation fails closed
@@ -245,7 +245,7 @@ write still uses the worktree → PR → merge → cleanup path below.
    mise exec -- just worktree-create <branch>
    ```
 
-   A raw `mise exec -- git -C /data/projects/livespec-driver-codex worktree add -b <branch>
+   A raw `mise exec -- git -C "$HOME/workspace/livespec-driver-codex" worktree add -b <branch>
    "$HOME/.worktrees/livespec-driver-codex/<branch>" master` also yields a usable
    worktree — the pre-commit and pre-push hooks install the pack before
    any gate reads it, so the worktree can commit and push with no
@@ -262,7 +262,7 @@ write still uses the worktree → PR → merge → cleanup path below.
    failure.
 4. Open a PR, wait for required checks, and merge through the PR using
    the repo's rebase-merge discipline.
-5. After merge, refresh `/data/projects/livespec-driver-codex` to
+5. After merge, refresh `~/workspace/livespec-driver-codex` to
    `origin/master`, remove the feature worktree, delete the local
    branch, and verify the primary checkout is clean on `master`.
 
