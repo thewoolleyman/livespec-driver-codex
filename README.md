@@ -1,5 +1,7 @@
 # livespec-driver-codex
 
+Built with [livespec](https://livespec-ai.org/)
+
 The **Codex Driver** for [livespec](https://github.com/thewoolleyman/livespec)
 — the Codex-runtime analog of `livespec-driver-claude`, under
 livespec's contract + reference implementations architecture (per
