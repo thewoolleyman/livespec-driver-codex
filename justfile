@@ -579,3 +579,6 @@ check-delegated-job-authority-skip:
 
 check-ci-single-container-image:
     uv run python -m livespec_dev_tooling.checks.ci_single_container_image
+
+check-no-ambient-environment-loops:
+    uv run python -m livespec_dev_tooling.checks.no_ambient_environment_loops
