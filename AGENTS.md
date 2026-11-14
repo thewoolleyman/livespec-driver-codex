@@ -11,6 +11,22 @@ spec-side CLIs, the schemas, the templates — ships with livespec core
 (`thewoolleyman/livespec`); this repo only binds that material to the
 Codex runtime.
 
+## Messaging other agent sessions
+
+Read the fleet's distributed SendMessage protocol
+(<https://github.com/thewoolleyman/livespec-dev-tooling/blob/master/.ai/distributed-sendmessage-protocol.md>)
+before messaging, asking, directing or answering another agent session
+on any host, and before running `herdr pane send-text`,
+`herdr pane run`, `herdr agent prompt` or `tmux send-keys` against a
+pane you did not create. Claude sessions talk to each other through
+Claude Code's `SendMessage` (across machines via Remote Control), never
+by typing into each other's panes (maintainer ruling 2026-11-14). A
+Codex agent cannot call `SendMessage`, and other sessions may still
+reach a Codex agent by typing into its pane. To reach a CLAUDE session,
+a Codex agent must NOT type into that session's pane (a managed hook
+denies it): leave a ledger comment on the work item or plan epic
+concerned, and the Claude session picks it up from there.
+
 ## Layout
 
 A Codex plugin cannot live at `source.path: "."`; the plugin must sit
