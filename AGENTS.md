@@ -14,7 +14,7 @@ Codex runtime.
 ## Messaging other agent sessions
 
 Read the fleet's distributed SendMessage protocol
-(<https://github.com/thewoolleyman/livespec-dev-tooling/blob/master/.ai/distributed-sendmessage-protocol.md>)
+(<https://github.com/thewoolleyman/livespec-dev-tooling/blob/master/%2Eai/distributed-sendmessage-protocol.md>)
 before messaging, asking, directing or answering another agent session
 on any host, and before running `herdr pane send-text`,
 `herdr pane run`, `herdr agent prompt` or `tmux send-keys` against a
