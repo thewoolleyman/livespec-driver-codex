@@ -23,9 +23,11 @@ Claude Code's `SendMessage` (across machines via Remote Control), never
 by typing into each other's panes (maintainer ruling 2026-11-14). A
 Codex agent cannot call `SendMessage`, and other sessions may still
 reach a Codex agent by typing into its pane. To reach a CLAUDE session,
-a Codex agent must NOT type into that session's pane (a managed hook
-denies it): leave a ledger comment on the work item or plan epic
-concerned, and the Claude session picks it up from there.
+a Codex agent must NOT type into that session's pane: the fleet rule
+forbids it, and the Claude-side hook that enforces it does not run
+inside Codex, so nothing will stop you. Instead, record it as a ledger
+comment on the item or plan epic the Claude session owns, and do not
+assume it was read.
 
 ## Layout
 
